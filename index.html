@@ -24,7 +24,12 @@
     display:flex;align-items:center;justify-content:center;touch-action:none;text-shadow:0 2px 2px rgba(0,0,0,.5)}
   #btnA{right:22px;bottom:calc(40px + env(safe-area-inset-bottom));width:86px;height:86px;background:rgba(220,50,60,.75);font-size:30px}
   #btnS{right:124px;bottom:calc(92px + env(safe-area-inset-bottom));width:58px;height:58px;background:rgba(200,200,215,.75);font-size:26px}
-  #btnQ{right:124px;bottom:calc(24px + env(safe-area-inset-bottom));width:54px;height:54px;background:rgba(60,120,220,.75);font-size:22px}
+  #btnSp{right:30px;bottom:calc(140px + env(safe-area-inset-bottom));width:66px;height:66px;background:rgba(240,190,40,.85);font-size:15px;display:none}
+  body.touch.spear #btnSp{display:flex}
+  #btnM{right:14px;top:calc(12px + env(safe-area-inset-top));width:42px;height:42px;background:rgba(120,60,170,.7);font-size:20px}
+  #btnM.off{opacity:.45}
+  #btnQ{right:66px;top:calc(12px + env(safe-area-inset-top));width:42px;height:42px;background:rgba(60,120,220,.75);font-size:20px}
+  #btnD{right:124px;bottom:calc(24px + env(safe-area-inset-bottom));width:56px;height:56px;background:rgba(60,170,110,.8);font-size:12px}
 </style>
 </head>
 <body>
@@ -34,6 +39,9 @@
   <div class="tbtn" id="btnA">A</div>
   <div class="tbtn" id="btnQ">&#9776;</div>
   <div class="tbtn" id="btnS">&#128737;</div>
+  <div class="tbtn" id="btnSp">SPEAR</div>
+  <div class="tbtn" id="btnD">DASH</div>
+  <div class="tbtn" id="btnM">&#9834;</div>
 </div>
 <script>
 "use strict";
@@ -55,12 +63,12 @@ const tc = t => t*TS+TS/2; // tile center
 const keys = {}; let pv = {}; // pv = virtual buttons pressed this frame
 const touchDir = {x:0,y:0}; let touchBlock=false, padBlock=false;
 function blockHeld(){ return !!(keys['shift']||keys['x']||padBlock||touchBlock); }
-const KEYMAP = {' ':'action','e':'action','enter':'action','z':'action','q':'log','tab':'log','r':'restart','m':'mute'};
+const KEYMAP = {' ':'action','e':'action','enter':'action','z':'action','q':'pause','tab':'pause','p':'pause','escape':'pause','r':'restart','m':'mute','n':'music','v':'voices','f':'spear','c':'dash','control':'dash'};
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (!keys[k] && KEYMAP[k]) pv[KEYMAP[k]] = true;
   keys[k] = true;
-  if ([' ','arrowup','arrowdown','arrowleft','arrowright','tab'].includes(k)) e.preventDefault();
+  if ([' ','arrowup','arrowdown','arrowleft','arrowright','tab','control'].includes(k)) e.preventDefault();
   initAudio();
 });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
@@ -98,9 +106,10 @@ function pollGamepad(){
   const m=G&&G.mode;
   if(edge(0)){pv.action=true;initAudio();}                                 // A / Cross
   if(edge(2) && (m==='title'||m==='dialog'||m==='victory')){pv.action=true;initAudio();} // X / Square also skips text
-  if(edge(1)||edge(3)){ if(m==='dialog') pv.action=true; else pv.log=true; } // B / Circle (Y / Triangle)
-  if(edge(9)){ if(m==='title'||m==='victory'||m==='dialog') pv.action=true; else pv.log=true; } // Start / Options
-  if(edge(8) && m==='log') pv.restart=true;                                // Back / Share in quest log = restart
+  if(edge(1)){ if(m==='pause') pv.back=true; else if(m==='dialog'||m==='title'||m==='victory') pv.action=true; else pv.spear=true; initAudio(); } // B / Circle = Holy Spear thrust (spear v10); closes pause
+  if(edge(3)){ if(m==='dialog') pv.action=true; else pv.dash=true; initAudio(); } // Y / Triangle = dash (dash v10)
+  if(edge(9)){ if(m==='title'||m==='victory'||m==='dialog') pv.action=true; else pv.pause=true; initAudio(); } // Start / Options = pause menu (pause v10)
+  if(edge(8)) pv.pause=true;                                               // Back / Share also opens / closes the pause menu
   padPrev=now;
 }
 // touch
@@ -128,11 +137,12 @@ if (isTouch) document.body.classList.add('touch');
   function btn(id,name){const b=document.getElementById(id);
     b.addEventListener('pointerdown',e=>{pv[name]=true;initAudio();b.style.filter='brightness(1.4)';e.preventDefault();});
     const off=()=>b.style.filter=''; b.addEventListener('pointerup',off); b.addEventListener('pointercancel',off);}
-  btn('btnA','action'); btn('btnQ','log');
+  btn('btnA','action'); btn('btnQ','pause'); btn('btnSp','spear'); btn('btnM','music'); btn('btnD','dash');
   { const b=document.getElementById('btnS'); const on=e=>{touchBlock=true;initAudio();b.style.filter='brightness(1.4)';e.preventDefault();};
     const off=()=>{touchBlock=false;b.style.filter='';};
     b.addEventListener('pointerdown',on); b.addEventListener('pointerup',off); b.addEventListener('pointercancel',off); b.addEventListener('pointerleave',off); }
-  cv.addEventListener('pointerdown',e=>{initAudio(); if(G.mode==='title'||G.mode==='victory'||G.mode==='dialog'||G.mode==='log') pv.action=true;});
+  cv.addEventListener('pointerdown',e=>{initAudio(); if(G.mode==='pause'){ const r=cv.getBoundingClientRect(); const i=pauseHit((e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height); if(i>=0) pv.pauseTap=i+1; }
+    else if(G.mode==='title'||G.mode==='victory'||G.mode==='dialog') pv.action=true;});
   document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
 })();
 function resize(){
@@ -144,7 +154,6 @@ addEventListener('resize',resize); resize();
 
 // ================== AUDIO ==================
 let AC = null, muted = false;
-function initAudio(){ if (AC) return; try { AC = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){} }
 function beep(f, d, type, vol, slide){
   if (!AC || muted) return;
   if (AC.state==='suspended') { try{AC.resume();}catch(e){} }
@@ -156,6 +165,165 @@ function beep(f, d, type, vol, slide){
     o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t+d+0.02);
   } catch(e){}
 }
+// ================== MUSIC (music v10) ==================
+// Original looping chiptune / medieval themes, scheduled with a Web Audio lookahead scheduler.
+let musicOn=true, voicesOn=true, audioUnlocked=false;
+const MUSIC_BASE=0.9;                      // music voices peak ~0.02 vs SFX ~0.05  =>  music sits at ~40-50% of SFX
+const MUS={master:null,cur:null,name:undefined,timer:null,level:-1,notes:0};
+function midiOf(n){ if(/^\d+$/.test(n)) return +n; const m=/^([A-G])(#|b)?(-?\d)$/.exec(n); if(!m) return 60;
+  return (+m[3]+1)*12+{C:0,D:2,E:4,F:5,G:7,A:9,B:11}[m[1]]+(m[2]==='#'?1:m[2]==='b'?-1:0); }
+const mfreq=n=>440*Math.pow(2,(midiOf(n)-69)/12);
+const TK=str=>str.trim().split(/\s+/).filter(t=>t!=='|');
+// pad: one held chord per bar.  chord tokens look like 'F3+A3+C4'
+const padT=(chords,n)=>TK(chords.map(c=>c+' -'.repeat(n-1)).join(' '));
+// bass: a rhythm pattern per bar, R=root F=fifth O=octave (numbers = midi notes)
+const bassT=(roots,pat)=>TK(roots.map(r=>pat.split(' ').map(p=>p==='R'?midiOf(r):p==='F'?midiOf(r)+7:p==='O'?midiOf(r)+12:p).join(' ')).join(' '));
+// arpeggio ("guitar"): chord tones picked in a pattern of indexes per bar
+const arpT=(chords,pat)=>TK(chords.map(c=>{const ns=c.split('+');return pat.split(' ').map(p=>p==='.'||p==='-'?p:ns[+p%ns.length]).join(' ');}).join(' '));
+const SONGS={
+  overworld:{bpm:132,voices:[   // cheerful village / overworld theme, C major
+    {w:'square',v:0.016,t:TK(`C5 - E5 G5 A5 - G5 E5 | F5 - A5 F5 E5 - C5 - | D5 - F5 A5 G5 - E5 C5 | D5 - - - G4 - . . |
+                               C5 - E5 G5 A5 - G5 E5 | F5 - A5 C6 B5 - G5 - | A5 G5 F5 E5 D5 - G5 - | C5 - - - . . . .`)},
+    {w:'triangle',v:0.04,t:bassT(['C3','F3','G3','G3','C3','F3','G3','C3'],'R . F . R . F .')},
+    {w:'triangle',v:0.007,t:padT(['C4+E4+G4','F4+A4+C5','G4+B4+D5','G4+B4+D5','C4+E4+G4','F4+A4+C5','G4+B4+D5','C4+E4+G4'],8)}]},
+  castle:{bpm:96,voices:[       // regal castle theme, D major
+    {w:'square',v:0.014,t:TK(`D5 - - A4 D5 - F#5 - | A5 - - - F#5 - D5 - | G5 - F#5 - E5 - D5 - | E5 - - - A4 - - - |
+                              D5 - - A4 D5 - F#5 - | A5 - - B5 A5 - F#5 - | G5 - E5 - C#5 - E5 - | D5 - - - - - . .`)},
+    {w:'triangle',v:0.04,t:bassT(['D3','D3','G2','A2','D3','D3','A2','D3'],'R - - R F - R -')},
+    {w:'triangle',v:0.008,t:padT(['D4+F#4+A4','D4+F#4+A4','G4+B4+D5','A4+C#5+E5','D4+F#4+A4','F#4+A4+D5','A4+C#5+E5','D4+F#4+A4'],8)}]},
+  cave:{bpm:70,voices:[         // spooky slow tunnel theme, A minor
+    {w:'triangle',v:0.024,a:0.05,t:TK(`A4 - - - C5 - B4 - | A4 - - - E4 - - - | F4 - - - E4 - D#4 - | E4 - - - - - . . |
+                                       A4 - - - C5 - E5 - | D5 - - - C5 - B4 - | C5 - B4 - A4 - G#4 - | A4 - - - - - . .`)},
+    {w:'sine',v:0.05,a:0.2,t:padT(['A2','A2','F2','E2','A2','D3','E2','A2'],8)},
+    {w:'sine',v:0.006,a:0.4,t:padT(['A3+C4+E4','A3+C4+E4','F3+A3+C4','E3+G#3+B3','A3+C4+E4','D3+F3+A3','E3+G#3+B3','A3+C4+E4'],8)}]},
+  dragon:{bpm:164,voices:[      // epic fast dragon fight, E minor
+    {w:'square',v:0.016,t:TK(`E5 . E5 G5 F#5 . E5 D5 | E5 . B4 . E5 - - - | C5 . C5 E5 D5 . C5 B4 | A4 . B4 . C5 D5 D#5 - |
+                              E5 . E5 G5 A5 . G5 F#5 | G5 . E5 . B5 - - - | C6 B5 A5 G5 F#5 E5 D#5 E5 | F#5 - D#5 - B4 - . .`)},
+    {w:'sawtooth',v:0.018,t:bassT(['E2','E2','C2','A2','E2','E2','A2','B2'],'R R O R R O R O')},
+    {w:'square',v:0.005,t:padT(['E4+G4+B4','E4+G4+B4','C4+E4+G4','A3+C4+E4','E4+G4+B4','E4+G4+B4','A3+C4+E4','B3+D#4+F#4'],8)}]},
+  // 'Silene Hymn' (hymn v10): an ORIGINAL gentle hymn in F major, flowing 3/4 (6 eighth-steps a bar), stepwise singable melody,
+  // soft organ pad + guitar-like arpeggio. Plays under the Our Father and the Hail Mary.
+  hymn:{name:'Silene Hymn',bpm:80,voices:[
+    {w:'organ',v:0.018,a:0.07,t:TK(`F4 - G4 - A4 - | A4 - - - G4 F4 | G4 - A4 - Bb4 - | A4 - - - - - |
+                                    C5 - Bb4 - A4 - | G4 - A4 - F4 - | G4 - - - E4 - | F4 - - - - - |
+                                    A4 - Bb4 - C5 - | D5 - C5 - A4 - | Bb4 - A4 - G4 - | A4 - - - - - |
+                                    C5 - Bb4 - A4 - | G4 - - - A4 Bb4 | A4 - G4 - - - | F4 - - - - -`)},
+    {w:'organ',v:0.006,a:0.25,t:padT(['F3+A3+C4','F3+A3+C4','G3+Bb3+D4','F3+A3+C4','F3+A3+C4','Bb2+D3+F3','C3+E3+G3','F3+A3+C4',
+                                      'F3+A3+C4','D3+F3+A3','G3+Bb3+D4','F3+A3+C4','F3+A3+C4','G3+Bb3+D4','C3+E3+G3','F3+A3+C4'],6)},
+    {w:'triangle',v:0.012,a:0.01,t:arpT(['F3+A3+C4','F3+A3+C4','G3+Bb3+D4','F3+A3+C4','F3+A3+C4','Bb2+D3+F3','C3+E3+G3','F3+A3+C4',
+                                         'F3+A3+C4','D3+F3+A3','G3+Bb3+D4','F3+A3+C4','F3+A3+C4','G3+Bb3+D4','C3+E3+G3','F3+A3+C4'],'0 2 1 2 0 .')}]},
+  victory:{bpm:120,then:'victoryLoop',voices:[   // short fanfare...
+    {w:'square',v:0.02,t:TK(`G4 C5 E5 G5 - - E5 G5 | C6 - - - - - - - | . . . . . . . .`)},
+    {w:'triangle',v:0.04,t:TK(`C3 - - - - - G2 - | C3 - - - - - - - | . . . . . . . .`)},
+    {w:'triangle',v:0.008,t:padT(['C4+E4+G4','C4+E4+G4+C5','.'],8)}]},
+  victoryLoop:{bpm:100,voices:[                 // ...then a gentle loop
+    {w:'triangle',v:0.022,t:TK(`E5 - D5 C5 D5 - E5 - | G5 - - - E5 - - - | F5 - E5 D5 C5 - D5 - | E5 - - - - - . . |
+                                E5 - D5 C5 D5 - E5 - | G5 - - - A5 - - - | G5 - E5 D5 D5 - C5 - | C5 - - - - - . .`)},
+    {w:'triangle',v:0.035,t:bassT(['C3','C3','F3','C3','C3','F3','G3','C3'],'R . F . O . F .')},
+    {w:'sine',v:0.008,a:0.2,t:padT(['C4+E4+G4','C4+E4+G4','F4+A4+C5','C4+E4+G4','C4+E4+G4','F4+A4+C5','G4+B4+D5','C4+E4+G4'],8)}]},
+};
+function playNote(dest,f,t,d,v){
+  const a=v.a||0.012, peak=v.v, end=t+d, rel=Math.max(0.06,a*0.8);
+  const g=AC.createGain(); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(peak,t+a);
+  const hold=Math.max(t+a+0.01,end-0.02); g.gain.linearRampToValueAtTime(peak*0.6,Math.min(hold,t+a+0.25)); g.gain.setValueAtTime(peak*0.6,hold); g.gain.linearRampToValueAtTime(0,hold+rel);
+  g.connect(dest); const os=[];
+  const mk=(type,fr,vol)=>{ const o=AC.createOscillator(); o.type=type; o.frequency.setValueAtTime(fr,t);
+    let out=o; if(vol!==1){ const gg=AC.createGain(); gg.gain.value=vol; o.connect(gg); out=gg; o._gg=gg; } out.connect(g); o.start(t); o.stop(hold+rel+0.03); os.push(o); };
+  if(v.w==='organ'){ mk('sine',f,1); mk('triangle',f*2,0.35); mk('sine',f*3,0.12); } else mk(v.w,f,1);
+  MUS.notes++; let left=os.length;
+  os.forEach(o=>o.onended=()=>{ try{o.disconnect(); if(o._gg) o._gg.disconnect();}catch(e){} if(--left===0){ try{g.disconnect();}catch(e){} MUS.notes--; } });
+}
+function musicStep(){                            // lookahead scheduler: runs every 25ms, schedules ~0.2s ahead
+  if(!AC||!MUS.cur) return; const c=MUS.cur, now=AC.currentTime;
+  if(c.next<now-0.25) c.next=now+0.05;           // tab was asleep: don't burst out a pile of old notes
+  let guard=0;
+  while(c.next<now+0.2 && guard++<64){ const part=c.part, sd=60/part.bpm/2, len=part.voices[0].t.length;
+    for(const v of part.voices){ const tt=v.t, tk=tt[c.step%tt.length]; if(tk==='-'||tk==='.') continue;
+      let n=1; while(n<24&&tt[(c.step+n)%tt.length]==='-') n++;
+      tk.split('+').forEach(x=>playNote(c.g,mfreq(x),c.next,n*sd*0.96,v)); }
+    c.next+=sd; c.step++;
+    if(c.step>=len){ c.step=0; if(part.then) c.part=SONGS[part.then]; } }
+}
+function musicSet(name){                         // crossfade to another song (or to silence with null)
+  if(!AC||!MUS.master||name===MUS.name) return; MUS.name=name; const now=AC.currentTime;
+  if(MUS.cur){ const old=MUS.cur; MUS.cur=null;
+    try{ old.g.gain.cancelScheduledValues(now); old.g.gain.setValueAtTime(old.g.gain.value,now); old.g.gain.linearRampToValueAtTime(0,now+0.7); }catch(e){}
+    setTimeout(()=>{ try{old.g.disconnect();}catch(e){} },1200); }
+  if(!name||!SONGS[name]) return;
+  const g=AC.createGain(); g.gain.setValueAtTime(0,now); g.gain.linearRampToValueAtTime(1,now+0.8); g.connect(MUS.master);
+  MUS.cur={name,song:SONGS[name],part:SONGS[name],step:0,next:now+0.06,g};
+}
+function musicWant(){
+  if(!G||G.mode==='title') return 'overworld';
+  if(G.mode==='storm') return null;                                  // storm: thunder & wind only
+  const Q=G.prayer;
+  if(Q){ if(Q.kind==='hail') return Q.ph==='step'?'castle':'hymn'; if(Q.inside||Q.ph==='dark'||Q.ph==='out') return 'hymn'; }
+  if(G.mode==='victory') return 'victory';
+  if(G.mode==='pause'&&G.pause&&G.pause.song!==undefined) return G.pause.song;
+  if(map===LAIR) return G.dragonDefeated?'castle':'dragon';
+  if(map===TUNNEL) return 'cave';
+  if(map===WORLD&&P&&inCastle()) return 'castle';
+  return 'overworld';
+}
+function musicUpdate(){
+  if(!AC||!MUS.master||!audioUnlocked) return;
+  const lvl=(musicOn&&!muted?MUSIC_BASE:0)*(VO.speaking?0.35:1)*(G&&G.mode==='pause'?0.35:1);   // duck under voices, lower in pause
+  if(Math.abs(lvl-MUS.level)>0.001){ MUS.level=lvl; try{ MUS.master.gain.setTargetAtTime(lvl,AC.currentTime,0.12); }catch(e){} }
+  let want; try{ want=musicWant(); }catch(e){ want='overworld'; }
+  musicSet(want);
+}
+function initAudio(){                            // first user gesture: create the AudioContext, unlock music & voices
+  if(AC){ if(AC.state==='suspended'){ try{AC.resume();}catch(e){} } return; }
+  try { AC = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){ AC=null; }
+  audioUnlocked=true; voicesInit();
+  if(AC){ try{ MUS.master=AC.createGain(); MUS.master.gain.value=0; MUS.master.connect(AC.destination); }catch(e){ MUS.master=null; }
+    if(!MUS.timer) MUS.timer=setInterval(musicStep,25); }
+}
+// ================== VOICES (voices v10) ==================
+// Dialog lines, captions and prayers read aloud with the Web Speech API (feature-detected; silently off when missing).
+const VO={list:[],pick:{},id:0,speaking:false,started:false,said:[]};
+function SSyn(){ try{ return (window.speechSynthesis&&window.SpeechSynthesisUtterance)?window.speechSynthesis:null; }catch(e){ return null; } }
+const VP={ 'George':{g:'m',p:1.0,r:1.0}, 'King of Silene':{g:'m2',p:0.55,r:0.8}, 'Princess Sabra':{g:'f',p:1.35,r:0.95},
+  'Baker Anna':{g:'f2',p:1.25,r:1.0}, 'Mama Rose':{g:'f3',p:1.18,r:0.95}, 'Little Leo':{g:'k',p:1.7,r:1.12}, 'Little Mia':{g:'k2',p:1.85,r:1.1},
+  'Elder Tom':{g:'o',p:0.72,r:0.84}, 'Father Ambrose':{g:'o2',p:0.78,r:0.86}, 'Sir Pip':{g:'m3',p:0.85,r:1.0}, 'Castle Guard':{g:'m3',p:0.8,r:0.98},
+  'Farmer Giles':{g:'o',p:0.85,r:0.95}, 'Shepherd Ben':{g:'m',p:0.95,r:1.0}, 'Grumblefire the Dragon':{g:'d',p:0.1,r:0.72},
+  'Narrator':{g:'n',p:1.0,r:0.95}, 'Tip':{g:'n',p:1.0,r:0.98} };
+function vprof(who){ who=who||''; if(VP[who]) return VP[who]; if(/hissalot|snake king/i.test(who)) return {g:'d2',p:0.45,r:0.88};
+  if(/dragon/i.test(who)) return VP['Grumblefire the Dragon']; return VP.Narrator; }
+function voicesInit(){ const S=SSyn(); if(!S) return;
+  const load=()=>{ try{ VO.list=S.getVoices()||[]; }catch(e){ VO.list=[]; } VO.pick={}; };
+  load(); try{ if(S.addEventListener) S.addEventListener('voiceschanged',load); else S.onvoiceschanged=load; }catch(e){} }
+function pickVoice(g){
+  if(g in VO.pick) return VO.pick[g];
+  const en=VO.list.filter(v=>/^en([-_]|$)/i.test(v.lang||'')), pref=en.filter(v=>/^en[-_](US|GB)/i.test(v.lang)), pool=pref.length?pref:en;
+  if(!pool.length) return VO.pick[g]=null;
+  const fem=/female|zira|samantha|susan|karen|victoria|kate|serena|moira|tessa|fiona|hazel|libby|sonia|jenny|aria|emma|ava|allison|google us english/i,
+        mal=/\bmale\b|david|daniel|alex|fred|guy|james|mark|george|ryan|thomas|arthur|oliver|rishi|aaron|google uk english male/i;
+  const F=pool.filter(v=>fem.test(v.name)), M=pool.filter(v=>!fem.test(v.name)&&mal.test(v.name));
+  const idx={m:0,m2:1,m3:2,o:3,o2:4,d:1,d2:2,f:0,f2:1,f3:2,k:3,k2:4}[g];
+  let v;
+  if(g==='n') v=pool.find(x=>/^en[-_]GB/i.test(x.lang))||pool[0];
+  else if(/^[mod]/.test(g)) v=M.length?M[idx%M.length]:pool[idx%pool.length];
+  else v=F.length?F[idx%F.length]:pool[(idx+1)%pool.length];
+  return VO.pick[g]=v||null;
+}
+function speakClean(s){ return String(s||'')
+  .replace(/[\u{1F000}-\u{1FFFF}\u{2190}-\u{2BFF}\u{2300}-\u{23FF}\u{25A0}-\u{25FF}\u{FE0F}\u{200D}\u{2022}]/gu,' ')
+  .replace(/[*_~#<>\[\]{}|^=+\\\/@]/g,' ')
+  .replace(/\b([A-Z])([A-Z']{2,})\b/g,(m,a,b)=>a+b.toLowerCase())   // SHOUTED words would be spelled out by some voices
+  .replace(/\s+/g,' ').trim(); }
+function voiceReady(){ return !!(SSyn()&&voicesOn&&!muted&&audioUnlocked); }
+function speak(text,who,opts){ opts=opts||{}; const S=SSyn(); if(!voiceReady()) return false;
+  const t=speakClean(text); if(!t||!/[a-z]/i.test(t)) return false;
+  try{ S.cancel(); const u=new SpeechSynthesisUtterance(t), pr=vprof(who), v=pickVoice(pr.g);
+    if(v){ u.voice=v; u.lang=v.lang; } else u.lang='en-US';
+    u.pitch=clamp(pr.p*(opts.prayer?0.97:1),0,2); u.rate=clamp(pr.r*(opts.prayer?0.78:1),0.1,4); u.volume=1;
+    const id=++VO.id; VO.speaking=true; VO.started=false; let fin=false;
+    const done=()=>{ if(fin) return; fin=true; if(VO.id===id) VO.speaking=false; if(opts.onend) opts.onend(); };
+    u.onstart=()=>{ if(VO.id===id) VO.started=true; }; u.onend=done; u.onerror=done;
+    VO.said.push(t); if(VO.said.length>200) VO.said.shift();
+    S.speak(u); return true; }catch(e){ VO.speaking=false; return false; } }
+function voiceStop(){ const S=SSyn(); VO.id++; VO.speaking=false; if(S){ try{S.cancel();}catch(e){} } }
 const SFX = {
   swing:()=>beep(500,0.1,'triangle',0.06,200),
   poof:()=>{beep(300,0.15,'square',0.05,900);},
@@ -165,6 +333,8 @@ const SFX = {
   talk:()=>beep(700+Math.random()*200,0.03,'square',0.025),
   roar:()=>beep(160,0.6,'sawtooth',0.07,60),
   hit:()=>beep(180,0.12,'square',0.07,120),
+  spear:()=>{beep(660,0.12,'triangle',0.05,1320); setTimeout(()=>beep(1320,0.28,'sine',0.035),70); setTimeout(()=>beep(1760,0.2,'sine',0.02),140);},
+  dash:()=>{beep(260,0.16,'sawtooth',0.028,900); beep(1400,0.12,'triangle',0.018,500);},
   clang:()=>beep(1200,0.08,'triangle',0.05,800),
   win:()=>{[523,659,784,1047,784,1047,1319].forEach((f,i)=>setTimeout(()=>beep(f,0.22,'square',0.05),i*150));},
 };
@@ -201,6 +371,43 @@ function openPockets(m,sx,sy){
     const cleared=[]; let cur=hit; while(cur){ const [x,y]=cur; if(m[y][x]===T.TREE){ m[y][x]=T.GRASS; cleared.push(x+','+y); } cur=prev[y][x]; }
     REACH_LOG.push('pocket@'+seed+' opened via '+cleared.join(' '));
   }
+}
+// woods v10: thin the dense west forest a little (deterministic): small meadows (around wolf homes and a few glades),
+// widen 1-tile trails into 2-tile corridors, then a soft noise-based thinning. Map border, the Spear Head clearing and
+// its hidden path, Mia's clearing and the lost-cross grove keep their tree rings. Removes ~28% of the interior west-forest trees.
+const WOODS_LOG={};
+function thinWoods(m){
+  const w=m[0].length,h=m.length, r=mulberry32(1010), isT=(x,y)=>m[y][x]===T.TREE;
+  const inR=(x,y,x0,y0,x1,y1)=>x>=x0&&x<=x1&&y>=y0&&y<=y1;
+  const keep=(x,y)=> x<1||y<1||x>w-2||y>h-2 ||
+    inR(x,y,2,8,9,14) ||                              // Spear Head (sword) clearing ring
+    ((x===11||x===14)&&y>=10&&y<=21) || ((y===10||y===13)&&x>=5&&x<=14) || // hidden path flanks
+    inR(x,y,14,26,20,32) || inR(x,y,40,1,46,7);       // Mia's clearing, lost-cross grove
+  const zone=(x,y)=>x>=1&&x<=22&&y>=1&&y<=h-2&&!keep(x,y);
+  let start=0; for(let y=1;y<h-1;y++)for(let x=1;x<=22;x++) if(isT(x,y)&&zone(x,y)) start++;
+  const target=Math.round(start*0.38); let removed=0; const log={meadow:0,corridor:0,noise:0};
+  const cut=(x,y,why,flower)=>{ if(removed>=target||!isT(x,y)||!zone(x,y)) return; m[y][x]=flower&&r()<0.22?T.FLOWER:T.GRASS; removed++; log[why]++; };
+  // A. meadows: wolf homes in the west forest get room to roam, plus a few quiet glades
+  const MEADOWS=[[16,38],[8,33],[12,24],[20,44],[8,45],[17,19],[5,21],[17,7],[4,40],[15,48],[6,28],[19,13],[3,3],[10,4]];
+  for(const [cx,cy] of MEADOWS){ const rad=1.3+r()*0.9;
+    for(let y=cy-3;y<=cy+3;y++)for(let x=cx-3;x<=cx+3;x++){ if(x<1||y<1||x>w-2||y>h-2) continue;
+      const d=Math.hypot(x-cx,(y-cy)*1.1)+(r()-0.5)*0.8; if(d<=rad) cut(x,y,'meadow',true); } }
+  // B. widen 1-tile trails: an open tile squeezed between two trees loses one of them
+  //    (visited in a shuffled order so the whole forest opens evenly, capped so some thinning is left for step C)
+  const cap=Math.round(target*0.7), spots=[];
+  for(let y=1;y<h-1;y++)for(let x=1;x<=22;x++) spots.push([r(),x,y]); spots.sort((p,q)=>p[0]-q[0]);
+  for(const [,x,y] of spots){ if(removed>=cap) break; if(SOLID.has(m[y][x])) continue;
+    if(isT(x-1,y)&&isT(x+1,y)&&r()<0.75){ const a=r()<0.5?-1:1; if(zone(x+a,y)) cut(x+a,y,'corridor'); else cut(x-a,y,'corridor'); }
+    if(isT(x,y-1)&&isT(x,y+1)&&r()<0.75){ const a=r()<0.5?-1:1; if(zone(x,y+a)) cut(x,y+a,'corridor'); else cut(x,y-a,'corridor'); } }
+  // C. soft value-noise thinning (clumps stay clumps, gaps grow next to existing openings)
+  const G=[]; for(let j=0;j<=Math.ceil(h/5)+1;j++){G.push([]);for(let i=0;i<=6;i++)G[j].push(r());}
+  const noise=(x,y)=>{const fx=x/5,fy=y/5,i=Math.floor(fx),j=Math.floor(fy),u=fx-i,v=fy-j,sm=t=>t*t*(3-2*t);
+    const a=G[j][i]+(G[j][i+1]-G[j][i])*sm(u), b=G[j+1][i]+(G[j+1][i+1]-G[j+1][i])*sm(u); return a+(b-a)*sm(v);};
+  const cand=[]; for(let y=1;y<h-1;y++)for(let x=1;x<=22;x++) if(isT(x,y)&&zone(x,y)){
+    const o=[[1,0],[-1,0],[0,1],[0,-1]].filter(([a,b])=>!SOLID.has(m[y+b][x+a])).length;
+    cand.push([noise(x,y)+0.12*o+r()*0.25,x,y]); }
+  cand.sort((a,b)=>b[0]-a[0]); for(const [,x,y] of cand){ if(removed>=target) break; cut(x,y,'noise'); }
+  Object.assign(WOODS_LOG,log,{start,removed});
 }
 function genWorld(){
   const m = makeGrid(MW,MH,T.GRASS);
@@ -271,6 +478,7 @@ function genWorld(){
   // borders
   for(let x=0;x<MW;x++){ if(m[0][x]!==T.WATER)m[0][x]=T.TREE; if(m[MH-1][x]!==T.WATER&&m[MH-1][x]!==T.MOUNTAIN)m[MH-1][x]=T.TREE; }
   for(let y=0;y<MH;y++){ m[y][0]=T.TREE; if(m[y][MW-1]!==T.MOUNTAIN) m[y][MW-1]=T.TREE; }
+  thinWoods(m); // woods v10
   openPockets(m,30,37); // reach v7
   return {t:m,w:MW,h:MH,name:'world',houses:HOUSES,fountain:FOUNTAIN,castle:CASTLE};
 }
@@ -672,7 +880,9 @@ function drawGeorge(g,x,y,P,t){
   if(P.inv>0 && Math.floor(t*20)%2===0) return;
   const dir=P.dir;
   const o={shirt:'#ffffff',cross:true,helmet:true,skin:'#f6c9a0',hair:'#8a5a2b',legs:'#5b6b88',cape:'#d62828'};
-  const spear=G.hasSpear;
+  const spear=false, onBack=G.hasSpear;          // spear v10: George keeps his sword in hand and carries the Holy Spear on his back
+  if(onBack && dir!=='up') drawSpear(g,x+(dir==='left'?6:-6),y-20,0.5,dir==='left'?-0.45:0.45,'full');
+  if(P.dashT>0){ g.save(); g.globalAlpha=0.25; drawPerson(g,x-P.dashX*14,y-P.dashY*14,{shirt:'#ffffff',skin:'#f6c9a0',hair:'#8a5a2b',legs:'#5b6b88',cape:'#d62828',helmet:true},dir,P.walk); g.restore(); }
   if(P.block){ drawPerson(g,x,y,o,dir,P.walk);
     const sh={down:[x,y-14,1.05],up:[x,y-22,1.0],left:[x-13,y-16,1.05],right:[x+13,y-16,1.05]}[dir];
     drawShieldIcon(g,sh[0],sh[1],sh[2]);
@@ -684,19 +894,23 @@ function drawGeorge(g,x,y,P,t){
     else if(!spear && G.hasSword && dir!=='down') drawSwordIcon(g,x+(dir==='left'?-11:11),y-10,0.6,dir==='left'?-0.4:0.4);
   }
   drawPerson(g,x,y,o,dir,P.walk);
+  if(onBack && dir==='up') drawSpear(g,x+5,y-20,0.5,0.45,'full');
   if(G.hasShield && dir!=='up'){ const sx = dir==='left'?x-10:dir==='right'?x+10:x-11; drawShieldIcon(g,sx,y-14,0.72); }
   if(P.attackT<=0){
     if(spear && (dir==='right'||dir==='down')) drawSpear(g,x+12,y-16,0.55,0);
     else if(!spear && G.hasSword && dir==='down') drawSwordIcon(g,x+12,y-10,0.6,0.3);
   }
   if(P.attackT>0){
-    const p=1-P.attackT/ATTACK_TIME; const base={right:0,down:Math.PI/2,left:Math.PI,up:-Math.PI/2}[dir];
+    const p=1-P.attackT/(P.atkDur||ATTACK_TIME); const base={right:0,down:Math.PI/2,left:Math.PI,up:-Math.PI/2}[dir];
     const cx=x, cy=y-14;
-    if(spear){
-      const ext=Math.sin(p*Math.PI)*18; const ca=Math.cos(base), sa=Math.sin(base);
-      g.strokeStyle='rgba(255,240,170,.7)';g.lineWidth=4;g.beginPath();g.moveTo(cx+ca*10,cy+sa*10);g.lineTo(cx+ca*(44+ext),cy+sa*(44+ext));g.stroke();
-      drawSpear(g,cx+ca*(14+ext),cy+sa*(14+ext),0.75,base+Math.PI/2);
-      drawStar(g,cx+ca*(42+ext),cy+sa*(42+ext),4+ext*0.2,'#fff7c0');
+    if(P.atk==='spear'){   // holy glowing thrust
+      const ext=Math.sin(p*Math.PI)*24; const ca=Math.cos(base), sa=Math.sin(base), tx=cx+ca*(52+ext), ty=cy+sa*(52+ext);
+      const gr=g.createRadialGradient(tx,ty,0,tx,ty,30); gr.addColorStop(0,'rgba(255,250,210,.9)'); gr.addColorStop(0.5,'rgba(255,225,120,.35)'); gr.addColorStop(1,'rgba(255,220,120,0)');
+      g.fillStyle=gr; g.beginPath(); g.arc(tx,ty,30,0,Math.PI*2); g.fill();
+      g.strokeStyle='rgba(255,240,170,.75)';g.lineWidth=5;g.beginPath();g.moveTo(cx+ca*10,cy+sa*10);g.lineTo(tx,ty);g.stroke();
+      drawSpear(g,cx+ca*(18+ext),cy+sa*(18+ext),0.85,base+Math.PI/2,'full');
+      for(let i=0;i<4;i++){ const a=t*6+i*Math.PI/2; drawStar(g,tx+Math.cos(a)*12,ty+Math.sin(a)*12,2.5,'#fffbe0'); }
+      drawStar(g,tx,ty,5+ext*0.15,'#fff7c0');
     } else {
       const ang=base-1.2+p*2.4;
       g.strokeStyle='rgba(255,255,255,.7)';g.lineWidth=6;g.beginPath();g.arc(cx,cy,26,base-1.2,ang);g.stroke();
@@ -902,6 +1116,8 @@ function drawHeartSmall(g,x,y){heartPath(g,x,y-5,10);g.fillStyle='#ff5c8a';g.fil
 
 // ================== GAME STATE ==================
 const ATTACK_TIME = 0.28, SPEED = 135;
+const SPEAR_TIME = 0.34, SPEAR_CD = 0.22;                   // spear v10: a little slower than the sword
+const DASH_TIME = 0.2, DASH_SPEED = 3*32/0.2, DASH_CD = 0.55; // dash v10: ~3 tiles in 0.2s, ~0.75s between dashes
 let WORLD, LAIR, TUNNEL, map, G, P, npcs, foes, items, chickens, particles, texts, fireballs, D, cam={x:0,y:0};
 function buildMaps(){ WORLD=genWorld(); LAIR=genLair(); TUNNEL=genTunnel(); prerender(WORLD); prerender(LAIR); prerender(TUNNEL); }
 const START = {x:tc(30), y:tc(37)+6};
@@ -1028,7 +1244,7 @@ function npcLines(n){
     if(X.st==='active') return [L(n.name,"The storm blew the cross north-east, to the little flower glade in the northern woods by the river. Look for a sparkle!")];
     if(X.st==='ready') return [L('George',"Father Ambrose! I found the golden cross!"),
       L(n.name,"Wonderful! Let's put it back on top of the bell tower... there! Look how it shines!"),
-      L(n.name,"Bless you, George! May it shine over Silene forever. And may your heart grow strong: one more HEART for you!")];
+      L(n.name,"Thank you, George! Come inside, let us pray together.")];
     return [L(n.name,"Look how the golden cross shines on our bell tower! Thank you, George.")]; }
   case 'guard': if(!G.talkedKing) return [L(n.name,"Welcome, George! The King is in the throne room, just straight ahead.")];
     return [L(n.name,"Good luck on your quest, Sir George!")];
@@ -1038,7 +1254,7 @@ function npcLines(n){
       L(n.name,"Your sword can't hurt a dragon's tough scales. Only the HOLY SPEAR can!"),
       L(n.name,"But long ago the Holy Spear broke into two pieces, and they were hidden in faraway places."),
       L('Princess Sabra',"The Spear Head is in the West Forest, guarded by a big white wolf. The Spear Shaft is on top of the Eastern Hills, guarded by a big WHITE bear."),
-      L(n.name,"Find both pieces and they will join together again. Press Q (or B on a controller) to see your Quest Log. Good luck!")];
+      L(n.name,"Find both pieces and they will join together again. Press "+pauseKey()+" to pause and see your Quest Log. Good luck!")];
     if(!G.hasSpear) return [L(n.name,pc===0?"Find the two pieces of the Holy Spear: one in the West Forest, one in the Eastern Hills.":
       "You found one piece! Now find the other one. "+(G.pieces.head?"The Shaft is on top of the Eastern Hills.":"The Head is deep in the West Forest."))];
     return [L(n.name,"The Holy Spear shines again! Now go to the dragon's cave in the south-east. Silene believes in you!")];
@@ -1051,7 +1267,7 @@ function npcLines(n){
   return [L(n.name,"Hello!")];
 }
 function onTalkEnd(n){
-  if(n.id==='king' && !G.talkedKing){ G.talkedKing=true; SFX.item(); addText(P.x,P.y-50,'Quest updated!','#ffe14d'); }
+  if(n.id==='king' && !G.talkedKing){ G.talkedKing=true; SFX.item(); addText(P.x,P.y-50,'Quest updated!','#ffe14d'); startHail(); return; } // hailmary v10
   const S=G.side;
   if(n.id==='giles'){ if(S.hens.st==='none'){ S.hens.st='active'; sideStart('Chicken Roundup'); } else if(S.hens.st==='ready'){ S.hens.st='done'; sideReward('Chicken Roundup'); } }
   if(n.id==='rose'){ if(S.child.st==='none'){ S.child.st='active'; sideStart('Lost Child'); }
@@ -1063,7 +1279,7 @@ function onTalkEnd(n){
   if(n.id==='ben'){ if(S.cobra.st==='none' && !S.cobra.beaten){ S.cobra.st='active'; sideStart('The Snake King'); }
     else if(S.cobra.st==='ready'){ S.cobra.st='done'; sideReward('The Snake King'); } }
   if(n.id==='ambrose'){ if(S.cross.st==='none' && S.cross.storm){ S.cross.st='active'; sideStart('The Lost Cross'); if(!items.some(i=>i.type==='goldCross')) items.push({type:'goldCross',x:tc(CROSS_POS.x),y:tc(CROSS_POS.y),map:'world'}); }
-    else if(S.cross.st==='ready'){ S.cross.st='done'; G.crossT=0; addParticles(CHURCH.x*TS+80,CHURCH.y*TS-70,30,['#ffe14d','#fff'],150); sideReward('The Lost Cross'); } }
+    else if(S.cross.st==='ready'){ S.cross.st='done'; G.crossT=0; addParticles(CHURCH.x*TS+80,CHURCH.y*TS-70,30,['#ffe14d','#fff'],150); startPrayer(); } }
 }
 // w = wolf (fast, 2 hits), W = white wolf (a bit bigger, 3 hits), b = bear (slow, 4 hits, hits harder), B = big white bear (6 hits, guards the Spear Shaft), s = snake (1 hit)
 const FOE_SPOTS=[['w',16,38],['w',8,33],['w',12,24],['w',11,15],['w',7,9],['w',4,13],['w',20,44],
@@ -1103,14 +1319,47 @@ function makeChickens(){return [[34,30],[29,42],[36,44],[27,36]].map(([tx,ty])=>
   .concat(HEN_SPOTS.map(([tx,ty])=>({hen:true,x:tc(tx),y:tc(ty),hx:tc(tx),hy:tc(ty),vx:0,vy:0,t:0,flap:0,penned:false})));}
 function newGame(){
   G={mode:'play',talkedKing:false,hasSword:true,hasShield:true,pieces:{head:false,shaft:false},hasSpear:false,joinT:0,dragonDefeated:false,hp:10,maxHp:10,t:0,playTime:0,chased:0,
-    seenLairIntro:false,seenTunnelIntro:false,side:newSide(),storm:null,rewardT:0,crossT:0,dialog:null,fade:null,faintT:0,vt:0,noSwordT:0,shake:0};
-  P={x:START.x,y:START.y,dir:'up',walk:0,attackT:0,inv:0,kbx:0,kby:0,kbT:0,hitSet:null};
+    seenLairIntro:false,seenTunnelIntro:false,side:newSide(),storm:null,prayer:null,hailed:false,pause:null,noSpearT:0,rewardT:0,crossT:0,dialog:null,fade:null,faintT:0,vt:0,noSwordT:0,shake:0};
+  P={x:START.x,y:START.y,dir:'up',walk:0,attackT:0,atk:'sword',atkDur:ATTACK_TIME,spearCD:0,dashT:0,dashCD:0,dashX:0,dashY:0,inv:0,kbx:0,kby:0,kbT:0,hitSet:null};
   map=WORLD; npcs=makeNPCs(); foes=makeFoes(); items=makeItems(); chickens=makeChickens(); P.carry=null;
   particles=[];texts=[];fireballs=[];D=null;
   startDialog([{who:'Narrator',text:"Long ago, in the town of Silene, lived a brave young knight named George..."},
     {who:'Narrator',text:"George already has his trusty sword and shield. Walk with the ARROW KEYS, WASD or a controller stick."},
     {who:'Narrator',text:"Press SPACE (or A on a controller) to talk and to swing your sword."},
     {who:'Narrator',text:"HOLD SHIFT or X (or X / Square or a bumper on a controller, or the shield button) to raise your shield and BLOCK attacks from the front! Go talk to Elder Tom!"}]);
+}
+
+// ---- controls helpers (v10)
+function spearKey(){ return padSeen?'B':isTouch?'the SPEAR button':'F'; }
+function swordKey(){ return padSeen?'A':isTouch?'A':'SPACE'; }
+function pauseKey(){ return padSeen?'START':isTouch?'the \u2630 button':'P'; }
+function toggleMusic(){ musicOn=!musicOn; showToast('Music: '+(musicOn?'on':'off')); }
+function toggleVoices(){ voicesOn=!voicesOn; if(!voicesOn) voiceStop(); showToast('Voices: '+(voicesOn?'on':'off')); }
+let touchUI={spear:null,music:null};
+function syncTouchUI(){ const sp=!!(G&&G.hasSpear); if(touchUI.spear!==sp){ touchUI.spear=sp; document.body.classList.toggle('spear',sp); }
+  const mo=musicOn&&!muted; if(touchUI.music!==mo){ touchUI.music=mo; const b=document.getElementById('btnM'); if(b) b.classList.toggle('off',!mo); } }
+// ---- pause v10: pause screen with the quest log, side quests, controls help and options
+const PAUSE_ITEMS=['resume','music','voices','restart'], PAUSE_BOX={x:438,y:66,w:182,h:32,gap:40};
+function openPause(){ voiceStop(); G.pause={sel:0,confirm:false,from:'play',navPrev:0,navT:0}; G.mode='pause'; beep(520,0.06,'square',0.03); }
+function closePause(){ const f=(G.pause&&G.pause.from)||'play'; G.pause=null; G.mode=f; beep(420,0.06,'square',0.03); }
+function pauseHit(x,y){ const B=PAUSE_BOX; for(let i=0;i<PAUSE_ITEMS.length;i++){ const yy=B.y+i*B.gap; if(x>=B.x&&x<=B.x+B.w&&y>=yy&&y<=yy+B.h) return i; } return -1; }
+function pauseActivate(i){ const Q=G.pause; Q.sel=i; const it=PAUSE_ITEMS[i];
+  if(it==='resume') closePause();
+  else if(it==='music') toggleMusic();
+  else if(it==='voices') toggleVoices();
+  else if(it==='restart'){ if(!Q.confirm){ Q.confirm=true; beep(300,0.12,'square',0.04); } else { G.pause=null; newGame(); SFX.pickup(); } } }
+function updatePause(){ const Q=G.pause; if(!Q){ G.mode='play'; return; }
+  if(pv.pause||pv.back){ closePause(); return; }
+  const iy=inputDir().y;
+  if(iy!==0 && iy!==Q.navPrev){ Q.sel=(Q.sel+iy+PAUSE_ITEMS.length)%PAUSE_ITEMS.length; Q.confirm=false; beep(660,0.04,'square',0.025); }
+  Q.navPrev=iy;
+  if(pv.pauseTap){ pauseActivate(pv.pauseTap-1); return; }
+  if(pv.restart){ if(Q.sel!==3){ Q.sel=3; Q.confirm=false; } pauseActivate(3); return; }   // R (keyboard): restart, asks to confirm
+  if(pv.action) pauseActivate(Q.sel); }
+function controlsHelp(){
+  if(padSeen) return ['Move: Stick / D-pad','Sword: A','Holy Spear: B','Dash: Y','Block: hold X / LB / RB','Pause: START','Menu: D-pad + A, B closes','Keyboard: N music, V voices, M mute'];
+  if(isTouch) return ['Move: joystick','Sword: A button','Holy Spear: SPEAR button','Dash: DASH button','Block: hold the shield','Pause: \u2630    Music: \u266A','Tap a menu item to choose'];
+  return ['Move: Arrows / WASD','Sword: SPACE / E','Holy Spear: F','Dash: C / Ctrl','Block: hold SHIFT / X','Pause: P / Esc / Q','Music: N    Voices: V','Mute everything: M','Menu: \u2191\u2193 + SPACE, R = restart'];
 }
 function toTitle(){ G={mode:'title',t:0}; titleT=0; }
 let titleT=0;
@@ -1135,7 +1384,7 @@ function addText(x,y,txt,col){texts.push({x,y,txt,col:col||'#fff',life:1.3});}
 function startDialog(lines,onEnd){G.dialog={lines,i:0,chars:0,onEnd};G.mode='dialog';}
 function facingFront(fx,fy){ const v={right:[1,0],left:[-1,0],up:[0,-1],down:[0,1]}[P.dir]; return (fx-P.x)*v[0]+(fy-(P.y-12))*v[1] >= 0; }
 function hurtPlayer(amount,fromX,fromY){
-  if(P.inv>0||G.mode!=='play') return;
+  if(P.inv>0||G.mode!=='play'||P.dashT>0) return;   // dash v10: i-frames while dashing
   if(P.block && G.hasShield && facingFront(fromX,fromY)){ // shield block!
     if(!(P.blockCD>0)){ SFX.clang(); P.blockCD=0.3; addParticles((P.x+fromX)/2,(P.y-14+fromY)/2,8,['#fff','#ffe14d','#cfe8ff'],140); addText(P.x,P.y-50,'Blocked!','#cfe8ff');
       G.blocks=(G.blocks||0)+1; }
@@ -1147,7 +1396,7 @@ function hurtPlayer(amount,fromX,fromY){
   if(G.hp<=0){G.mode='faint';G.faintT=2.6;}
 }
 function attackBox(){
-  if(G.hasSpear){const o={right:[36,-13],left:[-36,-13],up:[0,-48],down:[0,20]}[P.dir];return {x:P.x+o[0],y:P.y+o[1],r:26};}
+  if(P.atk==='spear'){const o={right:[46,-13],left:[-46,-13],up:[0,-58],down:[0,28]}[P.dir];return {x:P.x+o[0],y:P.y+o[1],r:26};} // spear v10: longer reach
   const o={right:[22,-12],left:[-22,-12],up:[0,-34],down:[0,8]}[P.dir];return {x:P.x+o[0],y:P.y+o[1],r:24};}
 function objective(){
   if(!G.talkedKing) return {text:"Talk to the King in the castle (north)",tx:33,ty:5};
@@ -1226,7 +1475,7 @@ function updateDragon(dt){
 }
 function hitDragon(){
   if(!D||D.hurt>0||D.state==='tamed') return;
-  if(!G.hasSpear){ SFX.clang(); addText(D.x,D.y-70,'Clang! Only the Holy Spear works!','#cfe8ff'); D.hurt=0.3; return; }
+  if(P.atk!=='spear'){ SFX.clang(); addText(D.x,D.y-78,"Clink! The sword can't hurt it.",'#cfe8ff'); addText(D.x,D.y-58,G.hasSpear?'Use the Holy Spear ('+spearKey()+')!':'Only the Holy Spear works!','#ffe14d'); D.hurt=0.3; G.swordClinks=(G.swordClinks||0)+1; return; }
   D.hp--; D.hurt=0.45; SFX.hit(); G.shake=0.12;
   addParticles(D.x,D.y-10,10,['#ffe14d','#fff','#7ef0ff'],120);
   addText(D.x,D.y-70, D.state==='rest'?'BONK!':'Hit!','#ffe14d');
@@ -1239,19 +1488,23 @@ let confetti=[];
 function makeConfetti(){confetti=[];for(let i=0;i<160;i++)confetti.push({x:Math.random()*W,y:-Math.random()*H,vy:40+Math.random()*80,vx:(Math.random()-0.5)*40,
   r:Math.random()*6,s:3+Math.random()*4,col:['#ff3b5c','#ffe14d','#4fc3f7','#7cfc8a','#ff9f43','#b48cff'][i%6]});}
 function update(dt){
-  if(pv.mute){muted=!muted;}
+  if(pv.mute){muted=!muted; if(muted) voiceStop(); showToast(muted?'Sound: off (M)':'Sound: on (M)');}
+  if(pv.music) toggleMusic();
+  if(pv.voices) toggleVoices();
+  if(G.mode==='pause'){ updatePause(); pv={}; return; }   // pause v10: the whole game is frozen
   if(G.mode==='title'){ titleT+=dt; if(pv.action) {newGame();SFX.pickup();} pv={}; return; }
   G.t+=dt;
   if(G.shake>0)G.shake-=dt;
   switch(G.mode){
   case 'dialog': updateDialog(dt); break;
-  case 'log': if(pv.log||pv.action) G.mode='play'; if(pv.restart) toTitle(); break;
   case 'play': updatePlay(dt); break;
   case 'storm': updateStorm(dt); break;
-  case 'join': G.joinT+=dt; if(G.joinT>1.6 && !G.joinSfx){G.joinSfx=true;SFX.win();G.shake=0.3;}
+  case 'prayer': updatePrayer(dt); break;
+  case 'join': G.joinT+=dt; if(G.joinT>1.6 && !G.joinSfx){G.joinSfx=true;SFX.win();G.shake=0.3;speak('The Holy Spear!','Narrator');}
     if(G.joinT>=3.0){ G.hasSpear=true; G.mode='play';
       startDialog([{who:'George',text:"The two pieces joined together! I have the HOLY SPEAR!"},
-        {who:'Tip',text:"Press SPACE (or A) to poke with the spear. It reaches farther than the sword! Now go to the dragon's cave in the south-east."}]); } break;
+        {who:'Tip',text:"The Holy Spear has its own button: press "+spearKey()+" to thrust it! It reaches farther than the sword, and it is the ONLY thing that can tame the dragon. Your sword still swings with "+swordKey()+"."},
+        {who:'Tip',text:"Now go to the dragon's cave in the south-east."}]); } break;
   case 'faint': G.faintT-=dt; if(G.faintT<=0) respawn(); break;
   case 'fade': { const f=G.fade; f.t+=dt; if(!f.done && f.t>=f.dur/2){f.done=true;f.mid();updateCamera(true);} if(f.t>=f.dur){G.mode='play';G.fade=null; if(f.after) f.after();} } break;
   case 'victory': G.vt+=dt; for(const c of confetti){c.y+=c.vy*dt;c.x+=c.vx*dt;c.r+=dt*4;if(c.y>H+10){c.y=-10;c.x=Math.random()*W;}}
@@ -1268,11 +1521,12 @@ function update(dt){
 function updateDragonAnimOnly(dt){ if(D && G.mode==='dialog' && D.state==='tamed'){D.t+=dt;} }
 function updateDialog(dt){
   const d=G.dialog, line=d.lines[d.i];
+  if(d.said!==d.i){ d.said=d.i; speak(line.text,line.who); }          // voices v10: read each line as it appears
   const before=Math.floor(d.chars); d.chars=Math.min(line.text.length,d.chars+dt*55);
   if(Math.floor(d.chars)!==before && Math.floor(d.chars)%3===0) SFX.talk();
   if(pv.action){
     if(d.chars<line.text.length) d.chars=line.text.length;
-    else { d.i++; d.chars=0; if(d.i>=d.lines.length){ G.dialog=null; G.mode='play'; if(d.onEnd) d.onEnd(); } }
+    else { voiceStop(); d.i++; d.chars=0; if(d.i>=d.lines.length){ G.dialog=null; G.mode='play'; if(d.onEnd) d.onEnd(); } }
   }
 }
 function respawn(){
@@ -1280,12 +1534,12 @@ function respawn(){
   if(P.carry) dropHen(false);
   map=WORLD; P.x=START.x; P.y=START.y; P.dir='up'; P.inv=1.5; P.kbT=0; G.hp=G.maxHp; D=null; fireballs=[];
   foes=makeFoes(); G.mode='play'; updateCamera(true); if(G.side.child.st==='follow') placeMiaNear();
-  startDialog([{who:'Elder Tom',text: wasLair?"Phew! You had a little rest, George. Your hearts are full again! Try the dragon once more. Remember: poke it with the spear when it lands!":"Phew! You had a little rest, George. Your hearts are full again!"}]);
+  startDialog([{who:'Elder Tom',text: wasLair?"Phew! You had a little rest, George. Your hearts are full again! Try the dragon once more. Remember: poke it with the Holy Spear ("+spearKey()+") when it lands!":"Phew! You had a little rest, George. Your hearts are full again!"}]);
 }
 function updatePlay(dt){
   G.playTime+=dt;
   if(maybeStartStorm()) return;
-  if(pv.log){G.mode='log';return;}
+  if(pv.pause){openPause();return;}
   P.block = blockHeld() && G.hasShield && !P.carry; if(P.blockCD>0) P.blockCD-=dt;
   const inp=inputDir(); let dx=inp.x, dy=inp.y; const mag=Math.hypot(dx,dy);
   if(mag>0 && P.block){dx/=mag;dy/=mag;P.walk+=dt*8;}
@@ -1294,10 +1548,25 @@ function updatePlay(dt){
     else P.dir = inp.x<0?'left':inp.x>0?'right':inp.y<0?'up':'down';
     P.walk+=dt*14;
   } else P.walk=0;
-  const sp = P.block ? SPEED*0.5 : P.attackT>0 ? SPEED*0.55 : SPEED;
-  moveEnt(P,dx*sp*dt,dy*sp*dt,8,6,true);
+  // dash v10: quick burst (~3 tiles in 0.2s) in the moving / facing direction, brief invulnerability, collision-safe sub-steps
+  if(P.dashCD>0) P.dashCD-=dt;
+  if(pv.dash && !P.block && !P.carry && !(P.dashT>0) && !(P.dashCD>0)){
+    let ddx=dx, ddy=dy; if(!(mag>0)){ const v={right:[1,0],left:[-1,0],up:[0,-1],down:[0,1]}[P.dir]; ddx=v[0]; ddy=v[1]; }
+    P.dashX=ddx; P.dashY=ddy; P.dashT=DASH_TIME; P.dashCD=DASH_TIME+DASH_CD; G.dashes=(G.dashes||0)+1; SFX.dash();
+    addParticles(P.x,P.y-2,10,['#d8c8a0','#efe3c4','#b8a47a'],90); }
+  if(P.dashT>0){ P.dashT-=dt; const st=DASH_SPEED*dt, n=Math.max(1,Math.ceil(st/4));
+    for(let i=0;i<n;i++) moveEnt(P,P.dashX*st/n,P.dashY*st/n,8,6,true);
+    if(Math.random()<0.6) addParticles(P.x-P.dashX*8,P.y-2,2,['#d8c8a0','#efe3c4'],40); }
+  else { const sp = P.block ? SPEED*0.5 : P.attackT>0 ? SPEED*0.55 : SPEED;
+  moveEnt(P,dx*sp*dt,dy*sp*dt,8,6,true); }
   if(P.kbT>0){P.kbT-=dt;moveEnt(P,P.kbx*dt,P.kby*dt,8,6,true);}
-  if(P.inv>0)P.inv-=dt; if(P.attackT>0)P.attackT-=dt; if(G.noSwordT>0)G.noSwordT-=dt;
+  if(P.inv>0)P.inv-=dt; if(P.attackT>0)P.attackT-=dt; if(G.noSwordT>0)G.noSwordT-=dt; if(P.spearCD>0)P.spearCD-=dt; if(G.noSpearT>0)G.noSpearT-=dt;
+  // spear v10: the Holy Spear is its own button (F / gamepad B / touch SPEAR); A / SPACE always swings the sword
+  if(pv.spear){
+    if(!G.hasSpear){ if(!(G.noSpearT>0)){ addText(P.x,P.y-50,'You need the Holy Spear first!','#fff'); G.noSpearT=1.4; } }
+    else if(!P.block && !P.carry && P.attackT<=0 && !(P.spearCD>0)){
+      P.atk='spear'; P.atkDur=SPEAR_TIME; P.attackT=SPEAR_TIME; P.spearCD=SPEAR_TIME+SPEAR_CD; P.hitSet=new Set(); SFX.spear(); G.spearThrusts=(G.spearThrusts||0)+1;
+      const v={right:[1,0],left:[-1,0],up:[0,-1],down:[0,1]}[P.dir]; addParticles(P.x+v[0]*40,P.y-14+v[1]*40,8,['#fff7c0','#ffe14d','#ffffff'],90); } }
   // action
   if(pv.action){
     let near=null,best=46;
@@ -1311,7 +1580,7 @@ function updatePlay(dt){
       near.dir = Math.abs(P.x-near.x)>Math.abs(P.y-near.y) ? (P.x<near.x?'left':'right') : (P.y<near.y?'up':'down');
       startDialog(npcLines(near),()=>onTalkEnd(near)); SFX.talk(); return;
     } else if(P.block){ /* can't swing while blocking */ }
-    else if(G.hasSword){ if(P.attackT<=0){P.attackT=ATTACK_TIME;P.hitSet=new Set();SFX.swing();} }
+    else if(G.hasSword){ if(P.attackT<=0){P.atk='sword';P.atkDur=ATTACK_TIME;P.attackT=ATTACK_TIME;P.hitSet=new Set();SFX.swing();} }
     else if(G.noSwordT<=0){ addText(P.x,P.y-50,'Find a sword first!','#fff'); G.noSwordT=1.2; }
   }
   // attack hits
@@ -1536,9 +1805,10 @@ function render(){
   for(const tx of texts){ctx.globalAlpha=clamp(tx.life*2,0,1);outlined(ctx,tx.txt,tx.x,tx.y,tx.col,'#000',4);} ctx.globalAlpha=1;
   ctx.restore();
   renderHUD();
+  if(G.prayer) renderPrayer();
   if(G.mode==='storm') renderStorm();
   if(G.mode==='dialog') renderDialog();
-  if(G.mode==='log') renderLog();
+  if(G.mode==='pause') renderPause();
   if(G.mode==='faint'){ctx.fillStyle='rgba(20,10,40,'+clamp((2.6-G.faintT)/1.2,0,0.85)+')';ctx.fillRect(0,0,W,H);
     ctx.font='bold 26px Verdana';ctx.textAlign='center';outlined(ctx,'George needs a little rest...',W/2,H/2-10,'#fff');
     ctx.font='16px Verdana';outlined(ctx,"Don't worry! Back to the village with full hearts.",W/2,H/2+24,'#ffe14d',  '#000',3);}
@@ -1568,7 +1838,9 @@ function stormCrossPos(t){ const u=clamp((t-STORM.blow)/(STORM.flyEnd-STORM.blow
   const sx=CHURCH.x*TS+80, sy=CHURCH.y*TS-74, tx=CROSS_POS.x*TS+16, ty=CROSS_POS.y*TS+16;
   const dx=tx-sx, dy=ty-sy, d=Math.hypot(dx,dy), fly=Math.min(d,440)*u;
   return {x:sx+dx/d*fly, y:sy+dy/d*fly-Math.sin(u*Math.PI)*40, rot:u*14, sc:1.25-0.4*u}; }
+function stormCaption(t){ return t<STORM.panOut?'Whoosh! A big STORM is coming!':t<STORM.blow?'Look at the little church!':t<STORM.panBack?'Oh no! The wind blew the golden cross away!':'The storm is over...'; }
 function updateStorm(dt){ const S=G.storm; S.t+=dt; const t=S.t;
+  { const cap=stormCaption(t); if(S.said!==cap){ S.said=cap; speak(cap,'Narrator'); } }
   for(const f of STORM.flashes) if(t>=f&&!S.fired[f]){ S.fired[f]=true; S.flash=t; SFX_STORM.thunder(); G.shake=0.25; }
   if(t>=STORM.wobble&&!S.fired.w){ S.fired.w=true; SFX_STORM.wind(); }
   if(t>=STORM.blow&&!S.fired.b){ S.fired.b=true; SFX_STORM.wind(); beep(900,0.5,'triangle',0.04,1500); }
@@ -1598,10 +1870,137 @@ function renderStorm(){ const S=G.storm; if(!S) return; const t=S.t;
     if(fa<0.18){ const bx=120+((S.flash*997)%400); ctx.strokeStyle='#fffbd0'; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(bx,0); let y=0,x=bx; while(y<170){ y+=28; x+=(Math.sin(y*1.7+S.flash*9))*22; ctx.lineTo(x,y);} ctx.stroke(); } }
   // kid-friendly caption
   ctx.font='bold 18px Verdana'; ctx.textAlign='center';
-  const cap=t<STORM.panOut?'Whoosh! A big STORM is coming!':t<STORM.blow?'Look at the little church!':t<STORM.panBack?'Oh no! The wind blew the golden cross away!':'The storm is over...';
+  const cap=stormCaption(t);
   outlined(ctx,cap,W/2,H-46,'#fff','#000',4); }
+
+// ---- prayer v10: after the golden cross is back on the tower, Father Ambrose and George pray the Our Father inside the church (plays once)
+const OUR_FATHER=[
+  ["Our Father, who art in heaven,","hallowed be thy name;"],
+  ["thy kingdom come,","thy will be done","on earth as it is in heaven."],
+  ["Give us this day our daily bread,"],
+  ["and forgive us our trespasses,","as we forgive those who trespass against us;"],
+  ["and lead us not into temptation,","but deliver us from evil."],
+  ["Amen."]];
+const PRAYER_AUTO=9; // seconds before a page turns by itself when voices are off
+// hailmary v10: Princess Sabra prays the Hail Mary for George right after the King gives him the quest (plays once)
+const HAIL_MARY=[
+  ["Hail Mary, full of grace,","the Lord is with thee."],
+  ["Blessed art thou among women,","and blessed is the fruit of thy womb, Jesus."],
+  ["Holy Mary, Mother of God,","pray for us sinners,","now and at the hour of our death."],
+  ["Amen."]];
+const PRAYERS={our:{title:'The Our Father',pages:OUR_FATHER,who:'Father Ambrose'},hail:{title:'The Hail Mary',pages:HAIL_MARY,who:'Princess Sabra'}};
+function startPrayer(){ const X=G.side.cross; if(X.prayed) { sideReward('The Lost Cross'); return; } X.prayed=true;
+  if(P.carry) dropHen(false); P.attackT=0; P.kbT=0; P.block=false; P.walk=0; P.dashT=0;
+  G.prayer={kind:'our',ph:'look',t:0,inside:false,page:0,alpha:0}; G.mode='prayer'; }
+function startHail(){ if(G.hailed) return false; const s=npcById('princess'); if(!s) return false; G.hailed=true;
+  if(P.carry) dropHen(false); P.attackT=0; P.kbT=0; P.block=false; P.walk=0; P.dashT=0;
+  const side=P.x<s.x?1:-1;
+  G.prayer={kind:'hail',ph:'step',t:0,inside:false,page:0,sx:s.x,sy:s.y,tx:P.x+side*30,ty:P.y+2}; G.mode='prayer'; return true; }
+function organChord(){ [175,262,349,440,523].forEach((f,i)=>setTimeout(()=>beep(f,2.6,'sine',0.02),i*40)); }
+// Shared prayer page logic. With voices on, a page turns only after its reading has finished (utterance onend) - it is never cut off;
+// pressing A/SPACE while it is being read just asks for the next page as soon as the reading ends.
+function prayerPages(Q,dt){ const PR=PRAYERS[Q.kind], pages=PR.pages;
+  if(Q.spoken!==Q.page){ const pg=Q.page; Q.spoken=pg; Q.sayDone=false; Q.doneT=0; Q.want=false;
+    Q.saying=speak(pages[pg].join(' '),PR.who,{prayer:true,onend:()=>{ if(G.prayer===Q&&Q.spoken===pg) Q.sayDone=true; }}); }
+  if(Q.saying && !Q.sayDone && (!voiceReady() || (!VO.started && Q.t>3))) Q.saying=false;   // voices switched off / no speech engine output: fall back
+  let next=false;
+  if(Q.saying){ if(pv.action&&Q.t>0.8) Q.want=true;
+    if(Q.sayDone){ Q.doneT+=dt; if(Q.want||Q.doneT>=0.9) next=true; }
+    else if(Q.t>=40) next=true; }                                    // safety net if a browser never fires onend
+  else next=(pv.action&&Q.t>0.8)||Q.t>=PRAYER_AUTO;
+  if(!next) return false;
+  if(Q.page<pages.length-1){ Q.page++; Q.t=0; return false; }
+  return true; }
+function updatePrayer(dt){ const Q=G.prayer; if(!Q) { G.mode='play'; return; } Q.t+=dt;
+  const go=(ph)=>{Q.ph=ph;Q.t=0;};
+  if(Q.kind==='hail'){ const s=npcById('princess'), e=k=>k<0?0:k>1?1:k*k*(3-2*k);
+    switch(Q.ph){
+    case 'step': { const k=e(Q.t/1.0); s.x=Q.sx+(Q.tx-Q.sx)*k; s.y=Q.sy+(Q.ty-Q.sy)*k; s.dir=Q.tx>Q.sx?'right':'left'; P.dir=Q.tx>P.x?'right':'left';
+      if(Q.t>=1.0){ go('intro'); startDialog([{who:'Princess Sabra',text:"Before you go, George, let us pray for you."}],()=>{ G.mode='prayer'; go('dim'); }); } } break;
+    case 'dim': if(Q.t>=0.8) go('page'); break;
+    case 'page': if(prayerPages(Q,dt)){ go('amen'); startDialog([{who:'Princess Sabra',text:"Go with God, brave George!"}],()=>{ G.mode='prayer'; go('home'); }); } break;
+    case 'home': { const k=e(Q.t/1.0); s.x=Q.tx+(Q.sx-Q.tx)*k; s.y=Q.ty+(Q.sy-Q.ty)*k; s.dir=Q.sx>Q.tx?'right':'left';
+      if(Q.t>=1.0){ s.x=Q.sx; s.y=Q.sy; s.dir='down'; G.prayer=null; G.mode='play'; } } break; }
+    return; }
+  switch(Q.ph){
+  case 'look': if(Q.t>=1.2) go('dark'); break;                                    // the cross shines on the tower again
+  case 'dark': if(Q.t>=0.9){ Q.inside=true; organChord(); go('reveal'); } break;  // fade to black
+  case 'reveal': if(Q.t>=1.0) go('page'); break;                                  // fade into the church interior
+  case 'page': if(prayerPages(Q,dt)){
+      go('bless'); startDialog([{who:'Father Ambrose',text:"May God bless you and keep you safe, George."},
+        {who:'Father Ambrose',text:"And may your heart grow strong: here is one more HEART for you!"}],
+        ()=>{ sideReward('The Lost Cross'); G.mode='prayer'; go('reward'); }); } break;
+  case 'reward': if(Q.t>=2.0) go('out'); break;
+  case 'out': if(Q.t>=0.9){ Q.inside=false; map=WORLD; P.x=(CHURCH.x+2.5)*TS; P.y=(CHURCH.y+3)*TS+18; P.dir='down'; updateCamera(true); go('back'); } break;
+  case 'back': if(Q.t>=0.9){ G.prayer=null; G.mode='play'; } break; } }
+function drawChurchInterior(g,t){
+  // back wall
+  let gr=g.createLinearGradient(0,0,0,300); gr.addColorStop(0,'#4a3c5c'); gr.addColorStop(1,'#6b5a6e'); g.fillStyle=gr; g.fillRect(0,0,W,300);
+  g.strokeStyle='rgba(0,0,0,.12)'; g.lineWidth=1; for(let y=20;y<300;y+=28){ g.beginPath();g.moveTo(0,y);g.lineTo(W,y);g.stroke(); for(let x=((y/28)%2)*30;x<W;x+=60){g.beginPath();g.moveTo(x,y);g.lineTo(x,y+28);g.stroke();} }
+  // floor + carpet
+  gr=g.createLinearGradient(0,300,0,H); gr.addColorStop(0,'#6e4d30'); gr.addColorStop(1,'#8a6440'); g.fillStyle=gr; g.fillRect(0,300,W,H-300);
+  g.strokeStyle='rgba(0,0,0,.15)'; for(let i=-8;i<=8;i++){ g.beginPath(); g.moveTo(W/2+i*40,300); g.lineTo(W/2+i*95,H); g.stroke(); }
+  g.fillStyle='#9c2630'; g.beginPath(); g.moveTo(W/2-46,300); g.lineTo(W/2+46,300); g.lineTo(W/2+100,H); g.lineTo(W/2-100,H); g.fill();
+  g.fillStyle='#d9a93a'; g.fillRect(W/2-46,300,92,2);
+  // stained-glass windows
+  const panes=['#e84a5f','#3a7bd5','#ffd23f','#5cc96a','#b48cff','#ff9f43'];
+  for(const [wx,k] of [[78,0],[178,2],[462,1],[562,3]]){ const ww=50,wy=56,wh=150;
+    g.fillStyle='#2a2030'; g.beginPath(); g.moveTo(wx-ww/2-5,wy+wh+5); g.lineTo(wx-ww/2-5,wy+20); g.arc(wx,wy+20,ww/2+5,Math.PI,0); g.lineTo(wx+ww/2+5,wy+wh+5); g.fill();
+    g.save(); g.beginPath(); g.moveTo(wx-ww/2,wy+wh); g.lineTo(wx-ww/2,wy+20); g.arc(wx,wy+20,ww/2,Math.PI,0); g.lineTo(wx+ww/2,wy+wh); g.closePath(); g.clip();
+    for(let j=0;j<9;j++)for(let i=0;i<3;i++){ g.fillStyle=panes[(i+j+k)%panes.length]; g.globalAlpha=0.75+0.2*Math.sin(t*1.5+i+j); g.fillRect(wx-ww/2+i*ww/3,wy-6+j*18,ww/3,18); }
+    g.globalAlpha=1; g.strokeStyle='#1a1420'; g.lineWidth=2; for(let i=1;i<3;i++){g.beginPath();g.moveTo(wx-ww/2+i*ww/3,wy);g.lineTo(wx-ww/2+i*ww/3,wy+wh);g.stroke();}
+    for(let j=1;j<9;j++){g.beginPath();g.moveTo(wx-ww/2,wy-6+j*18);g.lineTo(wx+ww/2,wy-6+j*18);g.stroke();} g.restore(); }
+  // golden cross on the altar wall
+  drawGoldCross(g,W/2,118,2.3,true);
+  // altar steps, altar, candles
+  g.fillStyle='#9a9090'; g.fillRect(W/2-150,282,300,18); g.fillStyle='#b5aca8'; g.fillRect(W/2-130,268,260,16);
+  g.fillStyle='#7a5434'; g.fillRect(W/2-96,206,192,64); g.fillStyle='#f4f0e6'; g.fillRect(W/2-102,200,204,22); g.fillRect(W/2-34,222,68,48);
+  g.fillStyle='#d9a93a'; g.fillRect(W/2-102,220,204,3); drawGoldCross(g,W/2,246,0.6,false);
+  for(const [cx,hgt] of [[-80,34],[-56,24],[56,24],[80,34]]){ const x=W/2+cx, y=200;
+    g.fillStyle='#d9a93a'; g.fillRect(x-6,y-3,12,3); g.fillStyle='#fffbe8'; g.fillRect(x-3,y-hgt,6,hgt-3);
+    const fl=1+0.15*Math.sin(t*11+cx)+0.08*Math.sin(t*23+cx*2);
+    const gl=g.createRadialGradient(x,y-hgt-6,1,x,y-hgt-6,30*fl); gl.addColorStop(0,'rgba(255,220,120,.55)'); gl.addColorStop(1,'rgba(255,220,120,0)');
+    g.fillStyle=gl; g.beginPath(); g.arc(x,y-hgt-6,30*fl,0,7); g.fill();
+    g.fillStyle='#ffb52e'; g.beginPath(); g.ellipse(x,y-hgt-6,3*fl,7*fl,0,0,7); g.fill(); g.fillStyle='#fff3b0'; g.beginPath(); g.ellipse(x,y-hgt-5,1.5,3.5*fl,0,0,7); g.fill(); }
+  // soft coloured light from the windows
+  g.save(); g.globalCompositeOperation='lighter';
+  for(const [wx,k] of [[78,0],[178,2],[462,1],[562,3]]){ const sw=Math.sin(t*0.7+k)*6, dir=wx<W/2?1:-1;
+    g.fillStyle=panes[k]; g.globalAlpha=0.08; g.beginPath(); g.moveTo(wx-25,206); g.lineTo(wx+25,206); g.lineTo(wx+dir*120+60+sw,H); g.lineTo(wx+dir*120-60+sw,H); g.fill(); }
+  g.restore(); g.globalAlpha=1;
+  // George kneels, Father Ambrose stands beside him; both face the altar
+  g.save(); g.translate(W/2-30,322); g.scale(1.8,1.8*0.82); drawGeorge(g,0,0,{dir:'up',inv:0,walk:0,block:false,attackT:0},t); g.restore();
+  g.fillStyle='#7a2a36'; rrect(g,W/2-50,312,40,12,4,'#7a2a36');
+  g.save(); g.translate(W/2+34,318); g.scale(1.8,1.8); drawPerson(g,0,0,npcById('ambrose').o,'up',0); g.restore();
+  // pews
+  for(const [py,sc] of [[350,1],[400,1.08],[452,1.16]]) for(const side of [-1,1]){ const x0=side<0?W/2-110*sc-170*sc:W/2+110*sc, w=170*sc;
+    g.fillStyle='#5a3a1e'; g.fillRect(x0,py-30*sc,w,10*sc); g.fillStyle='#7a5030'; g.fillRect(x0,py-20*sc,w,16*sc);
+    g.fillStyle='#9a6a40'; g.fillRect(x0,py-20*sc,w,3); g.fillStyle='#4a2e18'; g.fillRect(x0+4,py-4*sc,8,10*sc); g.fillRect(x0+w-12,py-4*sc,8,10*sc); }
+  // warm vignette
+  const vg=g.createRadialGradient(W/2,200,120,W/2,240,460); vg.addColorStop(0,'rgba(255,200,120,0.05)'); vg.addColorStop(1,'rgba(10,5,20,0.55)'); g.fillStyle=vg; g.fillRect(0,0,W,H); }
+function renderPrayerBox(Q){ const PR=PRAYERS[Q.kind], pages=PR.pages, lines=pages[Q.page], a=clamp(Q.t/0.8,0,1), bw=540, bh=48+lines.length*27, bx=(W-bw)/2, by=H-bh-14;
+  ctx.globalAlpha=a; rrect(ctx,bx,by,bw,bh,14,'rgba(250,243,222,.9)'); ctx.strokeStyle='#c9a03a'; ctx.lineWidth=2; ctx.strokeRect(bx+6,by+6,bw-12,bh-12);
+  ctx.textAlign='center'; ctx.fillStyle='#8a6a2a'; ctx.font='italic 13px Georgia, serif'; ctx.fillText(PR.title,W/2,by+19);
+  ctx.fillStyle='#3a2410'; ctx.font='20px Georgia, serif'; lines.forEach((l,i)=>ctx.fillText(l,W/2,by+44+i*27));
+  for(let i=0;i<pages.length;i++){ ctx.fillStyle=i<=Q.page?'#c9a03a':'rgba(140,110,60,.35)'; ctx.beginPath(); ctx.arc(W/2-(pages.length-1)*7+i*14,by+bh-10,3,0,7); ctx.fill(); }
+  const ready=Q.saying?Q.sayDone:Q.t>0.8;
+  if(ready && Math.sin(G.t*4)>0){ ctx.font='bold 12px Verdana'; ctx.textAlign='right'; ctx.fillStyle='#8a6a2a'; ctx.fillText((padSeen?'A':isTouch?'Tap A':'SPACE')+' \u25B6',bx+bw-14,by+bh-8); }
+  ctx.globalAlpha=1; }
+function renderPrayer(){ const Q=G.prayer; if(!Q) return;
+  if(Q.kind==='hail'){   // the throne room stays visible, softly dimmed with warm candle light
+    let k=0; if(Q.ph==='dim') k=clamp(Q.t/0.8,0,1); else if(Q.ph==='page'||Q.ph==='amen') k=1; else if(Q.ph==='home') k=1-clamp(Q.t/0.6,0,1);
+    if(k>0){ ctx.fillStyle='rgba(20,10,40,'+(0.45*k)+')'; ctx.fillRect(0,0,W,H);
+      const s=npcById('princess'); if(s){ const sx=s.x-cam.x, sy=s.y-cam.y-20, gr=ctx.createRadialGradient(sx,sy,10,sx,sy,170);
+        gr.addColorStop(0,'rgba(255,230,160,'+(0.28*k)+')'); gr.addColorStop(1,'rgba(255,230,160,0)'); ctx.fillStyle=gr; ctx.fillRect(0,0,W,H); } }
+    if(Q.ph==='page') renderPrayerBox(Q);
+    return; }
+  if(Q.inside){ drawChurchInterior(ctx,G.t);
+    if(Q.ph==='page') renderPrayerBox(Q);
+    if(Q.ph==='reward'||Q.ph==='out'){ const a=clamp(Q.t/0.4,0,1); ctx.globalAlpha=Q.ph==='out'?1:a; drawHeart(ctx,W/2,330,46,1);
+      ctx.font='bold 22px Verdana'; ctx.textAlign='center'; outlined(ctx,'+1 HEART CONTAINER!',W/2,410,'#ff7b95','#2a1020',4); ctx.globalAlpha=1; } }
+  let k=0; if(Q.ph==='dark'||Q.ph==='out') k=clamp(Q.t/0.9,0,1); else if(Q.ph==='reveal') k=1-clamp(Q.t/1.0,0,1); else if(Q.ph==='back') k=1-clamp(Q.t/0.9,0,1);
+  if(k>0){ ctx.fillStyle='rgba(0,0,0,'+k+')'; ctx.fillRect(0,0,W,H); } }
 function renderToast(){
-  if(toast.t<=0 || G.mode==='log') return;
+  if(toast.t<=0) return;
   ctx.save(); ctx.globalAlpha=clamp(toast.t/0.4,0,1);
   ctx.font='bold 15px Verdana'; const w=ctx.measureText(toast.text).width+30, y=56+(toast.t>2.3?(toast.t-2.3)*-60:0);
   rrect(ctx,(W-w)/2,y,w,30,10,'rgba(20,16,48,.9)'); ctx.strokeStyle='#7cfc8a';ctx.lineWidth=2;ctx.strokeRect((W-w)/2+3,y+3,w-6,24);
@@ -1646,7 +2045,7 @@ function renderHUD(){
   drawSwordIcon(ctx,ix+18,30,0.8,0.6); drawShieldIcon(ctx,ix+44,23,0.95);
   if(G.hasSpear){ drawSpear(ctx,ix+80,23,0.42,1.0,'full'); }
   else { ctx.globalAlpha=G.pieces.head?1:0.25; drawSpear(ctx,ix+80,30,0.42,1.0,'head'); ctx.globalAlpha=G.pieces.shaft?1:0.25; drawSpear(ctx,ix+76,25,0.42,1.0,'shaft'); ctx.globalAlpha=1; }
-  ctx.font='bold 11px Verdana';ctx.textAlign='left';outlined(ctx,padSeen?'B: Quests':'Q: Quests',ix+104,27,'#fff','#000',3);
+  ctx.font='bold 11px Verdana';ctx.textAlign='left';if(!isTouch||padSeen) outlined(ctx,(padSeen?'START':isTouch?'\u2630':'P')+': Pause',ix+104,27,'#fff','#000',3);
   // side quest tracker (under the hearts)
   if(map===WORLD && G.mode!=='victory'){ const lines=sideTracker(); if(lines.length){ ctx.font='bold 11px Verdana'; let w=0; for(const l of lines) w=Math.max(w,ctx.measureText(l).width);
     rrect(ctx,6,44,w+28,lines.length*16+8,7,'rgba(60,20,60,.5)'); ctx.textAlign='left';
@@ -1664,8 +2063,9 @@ function renderHUD(){
   // objective
   if(map===WORLD && G.mode!=='victory'){
     const ob=objective(); ctx.font='bold 13px Verdana'; const w=ctx.measureText(ob.text).width+40;
+    if(G.mode!=='prayer'){
     rrect(ctx,(W-w)/2,H-30,w,24,8,'rgba(0,0,0,.5)'); drawStar(ctx,(W-w)/2+16,H-18,7,'#ffe14d');
-    ctx.textAlign='left'; outlined(ctx,ob.text,(W-w)/2+28,H-13,'#fff','#000',3);
+    ctx.textAlign='left'; outlined(ctx,ob.text,(W-w)/2+28,H-13,'#fff','#000',3); }
     // minimap
     const s=1.5, mw=map.w*s, mh=map.h*s, mx=W-mw-8, my=46;
     ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(mx-3,my-3,mw+6,mh+6);ctx.imageSmoothingEnabled=false;
@@ -1718,11 +2118,25 @@ function renderDialog(){
   lines.forEach((l,i)=>ctx.fillText(l,bx+22,by+38+i*24));
   if(d.chars>=line.text.length && Math.sin(G.t*6)>0){ctx.font='bold 13px Verdana';ctx.textAlign='right';ctx.fillStyle='#ffe14d';ctx.fillText((padSeen?'A':isTouch?'Tap A':'SPACE')+' \u25B6',bx+bw-16,by+bh-12);}
 }
-function renderLog(){
-  ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(0,0,W,H);
-  const bx=60,by=12,bw=W-120,bh=H-24;
+function renderPause(){
+  ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,0,W,H);
+  renderQuestPanel(10,10,416,H-20);
+  // right column: PAUSED, options, controls
+  const rx=430, rw=W-rx-8, ry=10, rh=H-20, Q=G.pause;
+  rrect(ctx,rx,ry,rw,rh,14,'rgba(24,20,56,.95)'); ctx.strokeStyle='#ffe14d';ctx.lineWidth=3;ctx.strokeRect(rx+6,ry+6,rw-12,rh-12);
+  ctx.textAlign='center'; ctx.font='bold 26px Georgia, serif'; outlined(ctx,'PAUSED',rx+rw/2,ry+40,'#ffe14d','#5a1a1a',5);
+  const B=PAUSE_BOX, lab=[ 'Resume', 'Music: '+(musicOn?'On':'Off'), 'Voices: '+(voicesOn?'On':'Off'), Q&&Q.confirm?'Really restart? (A)':'Restart' ];
+  lab.forEach((l,i)=>{ const y=B.y+i*B.gap, sel=Q&&Q.sel===i;
+    rrect(ctx,B.x,y,B.w,B.h,9,sel?(i===3&&Q.confirm?'#d62828':'#ffe14d'):'rgba(255,255,255,.12)');
+    ctx.font='bold 15px Verdana'; ctx.textAlign='center'; ctx.fillStyle=sel?(i===3&&Q.confirm?'#fff':'#2a1a08'):'#fff'; ctx.fillText(l,B.x+B.w/2,y+21);
+    if(sel){ ctx.textAlign='left'; ctx.fillText('\u25B6',B.x+8,y+21); } });
+  ctx.textAlign='center'; ctx.fillStyle='#ffe14d'; ctx.font='bold 14px Verdana'; ctx.fillText('Controls',rx+rw/2,ry+250);
+  ctx.fillStyle='#e8e4ff'; ctx.font='11px Verdana'; controlsHelp().forEach((l,i)=>ctx.fillText(l,rx+rw/2,ry+272+i*18));
+  ctx.fillStyle='#9a96c8'; ctx.font='10px Verdana'; ctx.fillText(padSeen?'START / B: back to the game':isTouch?'\u2630 : back to the game':'P / Esc: back to the game',rx+rw/2,ry+rh-16);
+}
+function renderQuestPanel(bx,by,bw,bh){
   rrect(ctx,bx,by,bw,bh,14,'#f6e7c1'); ctx.strokeStyle='#8a5a2b';ctx.lineWidth=5;ctx.strokeRect(bx+8,by+8,bw-16,bh-16);
-  ctx.textAlign='center';ctx.fillStyle='#5a3a1a';ctx.font='bold 24px Georgia, serif';ctx.fillText('Quest Log',W/2,by+38);
+  ctx.textAlign='center';ctx.fillStyle='#5a3a1a';ctx.font='bold 22px Georgia, serif';ctx.fillText('Quest Log',bx+bw/2,by+36);
   const qs=[["Talk to the King in the castle",G.talkedKing,"North of the village, up the road"],
     ["Find the Spear Head",G.pieces.head,"Deep in the West Forest (wolves live there!)"],
     ["Find the Spear Shaft",G.pieces.shaft,"Top of the Eastern Hills (a big white bear guards it!)"],
@@ -1731,13 +2145,13 @@ function renderLog(){
   const box=(x,y,done,col)=>{ rrect(ctx,x,y-15,20,20,4,done?col:'#fff'); ctx.strokeStyle='#5a3a1a';ctx.lineWidth=2;ctx.strokeRect(x,y-15,20,20);
     if(done){ctx.strokeStyle='#fff';ctx.lineWidth=3.5;ctx.beginPath();ctx.moveTo(x+4,y-5);ctx.lineTo(x+9,y+1);ctx.lineTo(x+17,y-11);ctx.stroke();} };
   ctx.textAlign='left';
-  qs.forEach((q,i)=>{const y=by+70+i*36; box(bx+30,y,q[1],'#4caf50');
-    ctx.fillStyle=q[1]?'#6a8a5a':'#3a2a1a';ctx.font='bold 15px Verdana';ctx.fillText(q[0],bx+62,y);
-    ctx.fillStyle='#8a6a4a';ctx.font='11px Verdana';ctx.fillText(q[2],bx+62,y+14);});
+  qs.forEach((q,i)=>{const y=by+66+i*34; box(bx+24,y,q[1],'#4caf50');
+    ctx.fillStyle=q[1]?'#6a8a5a':'#3a2a1a';ctx.font='bold 14px Verdana';ctx.fillText(q[0],bx+54,y);
+    ctx.fillStyle='#8a6a4a';ctx.font='10px Verdana';ctx.fillText(q[2],bx+54,y+13);});
   // side quests
-  const S=G.side, sy=by+252;
+  const S=G.side, sy=by+260;
   ctx.strokeStyle='#c9a46a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(bx+30,sy-22);ctx.lineTo(bx+bw-30,sy-22);ctx.stroke();
-  ctx.textAlign='center';ctx.fillStyle='#8a2a6a';ctx.font='bold 18px Georgia, serif';ctx.fillText('Side Quests  ('+S.done+'/4)',W/2,sy);
+  ctx.textAlign='center';ctx.fillStyle='#8a2a6a';ctx.font='bold 18px Georgia, serif';ctx.fillText('Side Quests  ('+S.done+'/4)',bx+bw/2,sy);
   const cb=foes.find(f=>f.kind==='cobra'&&!f.flee), hits=cb?(cb.maxHp-cb.hp):7;
   const st=(x)=>x.st;
   const sq=[
@@ -1750,13 +2164,11 @@ function renderLog(){
     ["The Lost Cross",st(S.cross),{none:S.cross.storm?"A storm blew the cross away! Talk to Father Ambrose":"The golden cross shines on the little church... for now",active:"Find the cross in the northern woods (north-east, by the river)",ready:"Bring it to Father Ambrose",done:"The cross shines on the church"}[S.cross.st],
       S.cross.st==='none'?'':S.cross.st==='active'?'Cross 0/1':'Cross 1/1'],
   ];
-  sq.forEach((q,i)=>{const y=sy+28+i*35, done=q[1]==='done', fresh=q[1]==='none';
-    box(bx+30,y,done,'#e26aa8'); ctx.textAlign='left';
-    ctx.fillStyle=done?'#8a6a8a':fresh?'#9a8a7a':'#3a2a1a';ctx.font='bold 15px Verdana';ctx.fillText(q[0]+(fresh&&!(i===3&&!S.cross.storm)?'  (!)':''),bx+62,y);
-    ctx.fillStyle='#8a6a4a';ctx.font='11px Verdana';ctx.fillText(q[2],bx+62,y+14);
-    if(q[3]){ctx.textAlign='right';ctx.fillStyle=done?'#4caf50':'#8a2a6a';ctx.font='bold 13px Verdana';ctx.fillText(q[3],bx+bw-28,y);} });
-  ctx.textAlign='center';ctx.fillStyle='#5a3a1a';ctx.font='11px Verdana';
-  ctx.fillText(padSeen?'B / Start / A: close   \u2022   Hold X or LB/RB: block   \u2022   Back (Share): restart':(isTouch?'Tap to close   \u2022   Hold the shield button to block':'Q / SPACE: close   \u2022   Hold SHIFT/X: block   \u2022   R: restart   \u2022   M: sound'),W/2,by+bh-16);
+  sq.forEach((q,i)=>{const y=sy+30+i*36, done=q[1]==='done', fresh=q[1]==='none';
+    box(bx+24,y,done,'#e26aa8'); ctx.textAlign='left';
+    ctx.fillStyle=done?'#8a6a8a':fresh?'#9a8a7a':'#3a2a1a';ctx.font='bold 14px Verdana';ctx.fillText(q[0]+(fresh&&!(i===3&&!S.cross.storm)?'  (!)':''),bx+54,y);
+    ctx.fillStyle='#8a6a4a';ctx.font='10px Verdana';ctx.fillText(q[2],bx+54,y+13);
+    if(q[3]){ctx.textAlign='right';ctx.fillStyle=done?'#4caf50':'#8a2a6a';ctx.font='bold 12px Verdana';ctx.fillText(q[3],bx+bw-22,y);} });
 }
 function renderTitle(){
   const t=titleT;
@@ -1783,7 +2195,9 @@ function renderTitle(){
   ctx.font='bold 30px Georgia, serif';outlined(ctx,'& the Dragon',W/2,116,'#fff','#5a1a1a',7);
   ctx.font='bold 15px Verdana';outlined(ctx,'A quest to save the town of Silene',W/2,142,'#fff','#1a3a5a',4);
   if(Math.sin(t*4)>-0.3){ctx.font='bold 22px Verdana';outlined(ctx,padSeen?'Press A or START!':isTouch?'Tap to start!':'Press SPACE to start!',W/2,H-58,'#fff','#d62828',6);}
-  ctx.font='12px Verdana';outlined(ctx,'Move: Arrows/WASD/Stick   Talk & Attack: SPACE/E/(A)   Block: hold SHIFT/X/(X)/(LB RB)   Quests: Q/(B)',W/2,H-24,'#fff','#000',3);
+  ctx.font='11px Verdana';
+  outlined(ctx,'Move: Arrows/WASD/Stick   Talk & Sword: SPACE/E (A)   Holy Spear: F (B)   Dash: C/Ctrl (Y)',W/2,H-30,'#fff','#000',3);
+  outlined(ctx,'Block: hold SHIFT/X (X, LB/RB)   Pause & Quests: P/Esc (START)   Music: N   Voices: V   Mute: M',W/2,H-14,'#fff','#000',3);
 }
 function renderVictory(){
   const a=clamp(G.vt/1,0,1);ctx.fillStyle='rgba(20,30,80,'+(0.75*a)+')';ctx.fillRect(0,0,W,H);
@@ -1809,7 +2223,7 @@ toTitle();
 let last=performance.now(), frames=0;
 function loop(now){
   const dt=Math.min(0.05,(now-last)/1000); last=now; frames++;
-  try { pollGamepad(); if(toast.t>0) toast.t-=dt; update(dt); render(); } catch(err){ console.error(err); }
+  try { pollGamepad(); if(toast.t>0) toast.t-=dt; update(dt); render(); musicUpdate(); syncTouchUI(); } catch(err){ console.error(err); }
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
