@@ -310,10 +310,122 @@ function drawCastleDeco(g,C){
   // banners
   for(const bx of [28,30,35,37]){const x=bx*TS+8,y=C.y0*TS+18;g.fillStyle='#fff';g.fillRect(x,y,16,26);g.fillStyle='#d62828';
     g.fillRect(x+6,y,4,26);g.fillRect(x,y+9,16,4);g.beginPath();g.fillStyle='#d4cdbc';g.moveTo(x,y+26);g.lineTo(x+8,y+20);g.lineTo(x+16,y+26);g.fill();}
-  // throne
-  const tx=33*TS, ty=4*TS+8; rrect(g,tx-16,ty,32,40,6,'#c8a030');rrect(g,tx-12,ty+4,24,30,4,'#a02030');
   // gate arch
   g.fillStyle='#6a7078';g.fillRect(32*TS-6,C.y1*TS,6,TS);g.fillRect(34*TS,C.y1*TS,6,TS);
+  drawCastleInterior(g);
+}
+// ---- castle interior furniture (solid pieces are listed in DECO_SOLID; pixel rects x,y,w,h)
+const CASTLE_PILLARS=[[30,7],[35,7],[30,11],[35,11]];
+const CASTLE_ARMOR=[[31,13],[34,13]];
+const CASTLE_TORCHES=[]; // filled with [x,y] flame positions for flicker
+const DECO_SOLID=[
+  ...CASTLE_PILLARS.map(([x,y])=>[x*TS+8,y*TS+14,16,14]),
+  ...CASTLE_ARMOR.map(([x,y])=>[x*TS+8,y*TS+16,16,12]),
+  [27*TS+18,8*TS+6,TS+12,3*TS-6],   // left feast table
+  [36*TS+2,8*TS+6,TS+12,3*TS-6],    // right feast table
+  [37*TS,14*TS-4,2*TS,TS+4],         // bookshelves (bottom right)
+  [27*TS,14*TS-10,TS+10,TS+10],      // fireplace (bottom left)
+];
+function drawRug(g,x,y,w,h,c1,c2){ rrect(g,x,y,w,h,6,c1); g.strokeStyle=c2;g.lineWidth=3;g.strokeRect(x+5,y+5,w-10,h-10);
+  g.fillStyle=c2; for(let i=0;i<w;i+=6){g.fillRect(x+i,y-3,2,3);g.fillRect(x+i,y+h,2,3);}
+  g.fillStyle='rgba(255,255,255,.18)'; g.beginPath(); g.moveTo(x+w/2,y+10); g.lineTo(x+w-12,y+h/2); g.lineTo(x+w/2,y+h-10); g.lineTo(x+12,y+h/2); g.closePath(); g.fill(); }
+function drawPillar(g,px,py){ ell(g,px+16,py+28,12,4,'rgba(0,0,0,.25)');
+  g.fillStyle='#8a9098';g.fillRect(px+6,py+22,20,7); g.fillStyle='#b9bfc7';g.fillRect(px+9,py-26,14,50);
+  g.fillStyle='#d5dae0';g.fillRect(px+11,py-26,3,50); g.fillStyle='#9aa0a8';g.fillRect(px+19,py-26,3,50);
+  g.fillStyle='#8a9098';g.fillRect(px+5,py-32,22,7); g.fillStyle='#f2c94c';g.fillRect(px+5,py-26,22,2); }
+function drawArmor(g,x,y){ ell(g,x,y+1,11,4,'rgba(0,0,0,.25)'); g.fillStyle='#6a5030';g.fillRect(x-10,y-4,20,5);
+  g.fillStyle='#9aa2ab';g.fillRect(x-6,y-14,5,11);g.fillRect(x+1,y-14,5,11);
+  rrect(g,x-8,y-28,16,15,4,'#c5ccd4'); g.fillStyle='#e8eef5';g.fillRect(x-5,y-26,3,11);
+  g.fillStyle='#9aa2ab';g.fillRect(x-12,y-27,4,12);g.fillRect(x+8,y-27,4,12);
+  g.fillStyle='#c5ccd4';g.beginPath();g.arc(x,y-35,8,Math.PI,0);g.fill();g.fillRect(x-8,y-35,16,7);
+  g.fillStyle='#222';g.fillRect(x-5,y-33,10,2); g.fillStyle='#d62828';g.beginPath();g.ellipse(x,y-46,2.5,5,0,0,Math.PI*2);g.fill();
+  g.fillStyle='#7a4a21';g.fillRect(x+13,y-44,2,44); g.fillStyle='#e8eef5';g.beginPath();g.moveTo(x+14,y-52);g.lineTo(x+18,y-44);g.lineTo(x+10,y-44);g.fill(); }
+function drawPlant(g,x,y){ ell(g,x,y+1,10,3,'rgba(0,0,0,.25)'); g.fillStyle='#b5651d';g.beginPath();g.moveTo(x-8,y-12);g.lineTo(x+8,y-12);g.lineTo(x+6,y);g.lineTo(x-6,y);g.fill();
+  g.fillStyle='#8a4a14';g.fillRect(x-9,y-14,18,3);
+  for(const [dx,dy,r,c] of [[-6,-20,6,'#2e8b3e'],[6,-20,6,'#2e8b3e'],[0,-26,7,'#3fae4f'],[-3,-17,5,'#3fae4f'],[4,-16,5,'#54c464']]) circ(g,x+dx,y+dy,r,c);
+  circ(g,x-2,y-27,1.8,'#ff6b8a');circ(g,x+5,y-22,1.8,'#fff35c'); }
+function drawTable(g,px,py,w,h){ // long table seen from above, with benches, plates & goblets
+  ell(g,px+w/2,py+h+4,w/2+6,6,'rgba(0,0,0,.2)');
+  g.fillStyle='#7a4a21';g.fillRect(px-8,py+6,6,h-12);g.fillRect(px+w+2,py+6,6,h-12); // benches
+  g.fillStyle='#5a3a1a';g.fillRect(px-8,py+h-8,6,3);g.fillRect(px+w+2,py+h-8,6,3);
+  rrect(g,px,py,w,h,4,'#a0682e'); g.fillStyle='#c98a48';g.fillRect(px+2,py+2,w-4,4);
+  g.fillStyle='#8a5a2b';for(let i=10;i<h;i+=14)g.fillRect(px+2,py+i,w-4,1);
+  g.fillStyle='#f3efe2';g.fillRect(px+w/2-5,py+2,10,h-4); // table runner
+  g.fillStyle='#d62828';g.fillRect(px+w/2-1,py+2,2,h-4);
+  for(let i=0;i<4;i++){const yy=py+12+i*((h-24)/3);
+    circ(g,px+8,yy,5,'#fff');circ(g,px+8,yy,3,'#e2dccd');circ(g,px+w-8,yy,5,'#fff');circ(g,px+w-8,yy,3,'#e2dccd');
+    if(i%2===0){ circ(g,px+8,yy,2,'#e08a2c'); circ(g,px+w-8,yy,2,'#7cb342'); }
+    g.fillStyle='#f2c94c';g.fillRect(px+13,yy-6,3,6);g.fillRect(px+w-16,yy-6,3,6);g.fillRect(px+12,yy,5,1.5);g.fillRect(px+w-17,yy,5,1.5); }
+  // roast & bread & fruit in the middle
+  ell(g,px+w/2,py+h*0.3,7,5,'#b06a2a');ell(g,px+w/2-1,py+h*0.3-1,4,3,'#d08a4a');
+  ell(g,px+w/2,py+h*0.7,6,4,'#d8a050');circ(g,px+w/2-3,py+h*0.5,2.5,'#e33');circ(g,px+w/2+2,py+h*0.5+1,2.5,'#7cb342');circ(g,px+w/2,py+h*0.5-3,2.5,'#f2c94c');
+  // candle stand in the middle (flame drawn live)
+  g.fillStyle='#f2c94c';g.fillRect(px+w/2-1,py+h*0.5-14,2,10);g.fillStyle='#fff';g.fillRect(px+w/2-2,py+h*0.5-19,4,6);
+  CASTLE_TORCHES.push([px+w/2,py+h*0.5-21,0.6]); }
+function drawWallTorch(g,px,py){ g.fillStyle='#5a3a1a';g.fillRect(px-2,py,4,12); g.fillStyle='#8a9098';g.fillRect(px-5,py-2,10,4); CASTLE_TORCHES.push([px,py-5,1]); }
+function drawWindow(g,px,py,vertical){ // window in a wall + light patch on floor
+  g.fillStyle='#6a7078';g.fillRect(px-2,py-2,vertical?14:24,vertical?24:18);
+  g.fillStyle='#8fd3ff';g.fillRect(px,py,vertical?10:20,vertical?20:14);
+  g.fillStyle='#cfefff';g.fillRect(px+1,py+1,3,vertical?8:5);
+  g.fillStyle='#6a7078';if(vertical){g.fillRect(px+4,py,2,20);g.fillRect(px,py+9,10,2);}else{g.fillRect(px+9,py,2,14);g.fillRect(px,py+6,20,2);} }
+function drawTapestry(g,px,py,c,emblem){ g.fillStyle='#5a3a1a';g.fillRect(px-2,py-2,24,3); g.fillStyle=c;g.fillRect(px,py,20,30);
+  g.beginPath();g.moveTo(px,py+30);g.lineTo(px+10,py+36);g.lineTo(px+20,py+30);g.fill(); g.fillStyle='#f2c94c';g.fillRect(px,py+2,20,2);
+  if(emblem==='cross'){g.fillStyle='#fff';g.fillRect(px+8,py+7,4,18);g.fillRect(px+3,py+12,14,4);}
+  else if(emblem==='crown'){g.fillStyle='#f2c94c';g.beginPath();g.moveTo(px+4,py+22);g.lineTo(px+4,py+11);g.lineTo(px+7,py+16);g.lineTo(px+10,py+9);g.lineTo(px+13,py+16);g.lineTo(px+16,py+11);g.lineTo(px+16,py+22);g.fill();}
+  else {g.fillStyle='#7cfc8a';circ(g,px+10,py+16,6,'#4caf50');circ(g,px+8,py+14,1.5,'#fff');g.fillStyle='#ffd23f';g.fillRect(px+5,py+8,3,4);g.fillRect(px+12,py+8,3,4);} }
+function drawWallShield(g,x,y,c){ g.save();g.translate(x,y);g.scale(0.8,0.8); g.fillStyle='#6a7078';g.fillRect(-12,-2,24,3);
+  g.fillStyle=c;g.beginPath();g.moveTo(-9,-10);g.lineTo(9,-10);g.lineTo(9,0);g.quadraticCurveTo(9,8,0,12);g.quadraticCurveTo(-9,8,-9,0);g.closePath();g.fill();
+  g.fillStyle='#f2c94c';g.fillRect(-1.5,-9,3,19);g.fillRect(-8,-3,16,3); g.restore(); }
+function drawCastleInterior(g){
+  CASTLE_TORCHES.length=0;
+  // big rugs
+  drawRug(g,36*TS+4,5*TS+20,2*TS-8,TS+4,'#2a4fa0','#f2c94c');
+  drawRug(g,27*TS+6,5*TS+20,2*TS-8,TS+4,'#2a7a42','#f2c94c');
+  // throne dais & royal rug
+  g.fillStyle='#b8a888';g.fillRect(31*TS+4,4*TS+2,3*TS-8,2*TS-6); g.fillStyle='#a89878';g.fillRect(31*TS+4,6*TS-6,3*TS-8,4);
+  rrect(g,32*TS-2,4*TS+6,2*TS+4,2*TS-4,4,'#7a1a5a'); g.fillStyle='#f2c94c';g.fillRect(32*TS-2,6*TS-2,2*TS+4,2);
+  const tx=33*TS, ty=4*TS+8; rrect(g,tx-16,ty,32,40,6,'#c8a030');rrect(g,tx-12,ty+4,24,30,4,'#a02030');
+  g.fillStyle='#f2c94c';g.beginPath();g.moveTo(tx-10,ty+2);g.lineTo(tx-10,ty-8);g.lineTo(tx-5,ty-3);g.lineTo(tx,ty-11);g.lineTo(tx+5,ty-3);g.lineTo(tx+10,ty-8);g.lineTo(tx+10,ty+2);g.fill();
+  circ(g,tx,ty-4,2,'#4fc3f7'); circ(g,tx-12,ty+38,3,'#f2c94c');circ(g,tx+12,ty+38,3,'#f2c94c');
+  // windows on the side walls with sunlight on the floor
+  for(const wy of [6,10]){ drawWindow(g,26*TS+11,wy*TS+6,true); drawWindow(g,39*TS+11,wy*TS+6,true);
+    g.fillStyle='rgba(255,246,190,.22)';
+    g.beginPath();g.moveTo(27*TS,wy*TS+6);g.lineTo(27*TS+44,wy*TS+16);g.lineTo(27*TS+44,wy*TS+42);g.lineTo(27*TS,wy*TS+26);g.fill();
+    g.beginPath();g.moveTo(39*TS,wy*TS+6);g.lineTo(39*TS-44,wy*TS+16);g.lineTo(39*TS-44,wy*TS+42);g.lineTo(39*TS,wy*TS+26);g.fill(); }
+  // tapestries on top wall (between banners) and side walls
+  drawTapestry(g,29*TS+6,3*TS+12,'#2a4fa0','crown'); drawTapestry(g,36*TS+6,3*TS+12,'#2a7a42','dragon');
+  for(const wy of [8,12]){ drawTapestry(g,26*TS+6,wy*TS+2,'#7a1a5a','cross'); drawTapestry(g,39*TS+6,wy*TS+2,'#7a1a5a','cross'); }
+  // shields on the walls
+  drawWallShield(g,26*TS+16,5*TS+4,'#d62828'); drawWallShield(g,39*TS+16,5*TS+4,'#2a4fa0');
+  drawWallShield(g,31*TS+16,3*TS+20,'#2a7a42'); drawWallShield(g,34*TS+16,3*TS+20,'#d62828');
+  // wall torches
+  for(const wy of [7,11]){ drawWallTorch(g,26*TS+28,wy*TS+4); drawWallTorch(g,39*TS+4,wy*TS+4); }
+  drawWallTorch(g,27*TS+18,3*TS+18); drawWallTorch(g,38*TS+14,3*TS+18);
+  // fireplace (bottom-left, on the bottom wall)
+  { const fx=27*TS, fy=14*TS; g.fillStyle='#7c828a';g.fillRect(fx,fy-14,TS+10,TS+14); g.fillStyle='#5a6068';g.fillRect(fx-2,fy-18,TS+14,6);
+    g.fillStyle='#1a1020';g.beginPath();g.moveTo(fx+6,fy+TS-2);g.lineTo(fx+6,fy+2);g.arc(fx+21,fy+2,15,Math.PI,0);g.lineTo(fx+36,fy+TS-2);g.fill();
+    g.fillStyle='#6b4220';g.fillRect(fx+10,fy+TS-10,22,4);g.fillRect(fx+12,fy+TS-14,18,4); CASTLE_TORCHES.push([fx+21,fy+TS-16,2.2]); }
+  // bookshelves (bottom-right)
+  { const bx=37*TS, by=14*TS-8; g.fillStyle='#5a3a1a';g.fillRect(bx,by,2*TS,TS+6);
+    const cols=['#d62828','#2a4fa0','#2a7a42','#f2c94c','#8e24aa','#e08a2c','#4fc3f7'];
+    for(let row=0;row<3;row++){ g.fillStyle='#3a2410';g.fillRect(bx+3,by+3+row*12,2*TS-6,10);
+      for(let i=0;i<10;i++){ g.fillStyle=cols[(i*3+row*2)%cols.length]; const hgt=7+((i+row)%3); g.fillRect(bx+5+i*5.6,by+13+row*12-hgt,4,hgt);} }
+    ell(g,bx+TS,by+TS+8,TS,4,'rgba(0,0,0,.2)'); }
+  // feast tables
+  drawTable(g,27*TS+18,8*TS+6,TS+12,3*TS-6); drawTable(g,36*TS+2,8*TS+6,TS+12,3*TS-6);
+  // pillars, suits of armor, plants
+  for(const [x,y] of CASTLE_PILLARS) drawPillar(g,x*TS,y*TS);
+  for(const [x,y] of CASTLE_ARMOR) drawArmor(g,x*TS+16,y*TS+26);
+  for(const [x,y] of [[27,4],[38,4],[30,14],[35,14]]) drawPlant(g,x*TS+16,y*TS+26);
+  // little rug at the entrance
+  drawRug(g,31*TS+8,14*TS+4,3*TS-16,TS-8,'#c8323c','#f2c94c');
+}
+function drawCastleLive(g,t){ // flickering flames for torches, candles & fireplace
+  for(const [x,y,s] of CASTLE_TORCHES){ const f=Math.sin(t*12+x*0.7)*0.5+Math.sin(t*19+y)*0.5;
+    const gr=g.createRadialGradient(x,y,1,x,y,18*s); gr.addColorStop(0,'rgba(255,220,120,.35)'); gr.addColorStop(1,'rgba(255,160,60,0)');
+    g.fillStyle=gr; g.beginPath(); g.arc(x,y,18*s,0,Math.PI*2); g.fill();
+    g.fillStyle='#ff9f43'; g.beginPath(); g.ellipse(x,y,3.5*s,(6+f*1.5)*s,0,0,Math.PI*2); g.fill();
+    g.fillStyle='#ffe14d'; g.beginPath(); g.ellipse(x,y+1*s,2*s,(3.5+f)*s,0,0,Math.PI*2); g.fill(); }
 }
 function drawFountain(g,F){
   const x=F.x*TS+32,y=F.y*TS+32; ell(g,x,y+6,32,12,'rgba(0,0,0,.15)');circ(g,x,y,30,'#a7adb5');circ(g,x,y,25,'#4fb3ef');circ(g,x,y,7,'#a7adb5');
@@ -446,15 +558,19 @@ function drawGeorge(g,x,y,P,t){
 }
 function drawFoe(g,s,t){
   g.save(); if(s.flee) g.globalAlpha=clamp(s.fleeT/0.6,0,1);
-  if(s.kind==='bear') drawBear(g,s,t); else drawWolf(g,s,t);
+  if(s.kind==='bear') drawBear(g,s,t);
+  else if(s.white){ g.save(); g.translate(s.x,s.y); g.scale(s.sc,s.sc); g.translate(-s.x,-s.y); drawWolf(g,s,t,true); g.restore();
+    if(!s.flee){ for(let i=0;i<s.maxHp;i++){ const px=s.x-6+i*12, py=s.y-50; circ(g,px,py,4.5,'rgba(0,0,0,.55)'); circ(g,px,py,3.2,i<s.hp?'#7ef0ff':'#3a3a4a'); } } }
+  else drawWolf(g,s,t);
   if(s.kind==='bear' && s.hp<s.maxHp && !s.flee){ const w=26; g.fillStyle='rgba(0,0,0,.5)';g.fillRect(s.x-w/2-1,s.y-46,w+2,6);
     g.fillStyle='#ffb347';g.fillRect(s.x-w/2,s.y-45,w*s.hp/s.maxHp,4); }
   g.restore();
 }
-function drawWolf(g,s,t){
+function drawWolf(g,s,t,white){
   const x=s.x,y=s.y,f=s.face||1, run=Math.sin(s.anim||0);
   ell(g,x,y+1,14,4,'rgba(0,0,0,.2)');
-  const hurt=s.hurt>0, c=hurt?'#fff':'#8d96a3', d=hurt?'#eee':'#6b7480', light=hurt?'#fff':'#d8dde3';
+  const hurt=s.hurt>0 && (!white || Math.floor(t*30)%2===0);
+  const c=hurt?(white?'#ffd84d':'#fff'):(white?'#f4f6fa':'#8d96a3'), d=hurt?(white?'#ffc020':'#eee'):(white?'#c9d1dc':'#6b7480'), light=hurt?'#fff':(white?'#ffffff':'#d8dde3');
   g.fillStyle=d;
   const lh=a=>7-Math.max(0,a)*2;
   g.fillRect(x-10,y-7,3,lh(run)); g.fillRect(x-5,y-7,3,lh(-run)); g.fillRect(x+4,y-7,3,lh(-run)); g.fillRect(x+9,y-7,3,lh(run));
@@ -465,7 +581,8 @@ function drawWolf(g,s,t){
   g.fillStyle=d; g.beginPath(); g.moveTo(hx-6*f,hy-3); g.lineTo(hx-4*f,hy-12); g.lineTo(hx,hy-5); g.fill();
   g.beginPath(); g.moveTo(hx-1*f,hy-5); g.lineTo(hx+2*f,hy-13); g.lineTo(hx+5*f,hy-4); g.fill();
   if(s.flee){ g.strokeStyle='#222';g.lineWidth=1.5;g.beginPath();g.moveTo(hx+0.5*f,hy-3);g.lineTo(hx+3.5*f,hy-1);g.lineTo(hx+0.5*f,hy+1);g.stroke(); }
-  else { circ(g,hx+2*f,hy-2,2.2,'#fff'); circ(g,hx+2.6*f,hy-2,1.2,'#222'); }
+  else { circ(g,hx+2*f,hy-2,2.2,'#fff'); circ(g,hx+2.6*f,hy-2,1.2,white?'#2a6fd9':'#222'); }
+  if(white){ g.fillStyle='#dfe6ee'; g.beginPath(); g.moveTo(x-6*f,y-17); g.lineTo(x-2*f,y-22); g.lineTo(x+2*f,y-17); g.lineTo(x+6*f,y-21); g.lineTo(x+9*f,y-16); g.fill(); }
 }
 function drawBear(g,s,t){
   const x=s.x,y=s.y,f=s.face||1, run=Math.sin(s.anim||0);
@@ -564,10 +681,11 @@ function npcLines(n){
       L(n.name,"Look at the little map in the corner: the yellow stars show where to go!")];
     return [L(n.name,"The Holy Spear is whole again! Now you are ready for the dragon's cave in the south-east.")];
   case 'baker': return [L(n.name,"Fresh bread, warm from the oven! Mmm!"),L(n.name,"Careful out there! Wolves are quick but give up after one poke."),
+    L(n.name,"The big WHITE wolves are tougher. They need TWO pokes! Watch the little blue dots over their heads."),
     L(n.name,"Bears are slow, but strong. It takes a few pokes to make a bear run home. Don't let it bump you!"),
     L(n.name,"If you get bumped, look for red hearts on the ground to feel better!")];
   case 'leo': if(!G.pieces.head) return [L(n.name,"Psst, George! I saw something SHINY deep in the West Forest!"),
-      L(n.name,"Follow the forest path to the end, then sneak north through the gap in the trees. I heard wolves howling there!")];
+      L(n.name,"Follow the forest path to the end, then sneak north through the gap in the trees. I heard a big WHITE wolf howling there!")];
     return [L(n.name,"WOW, a piece of the Holy Spear! You're the coolest knight ever!")];
   case 'giles': return [L(n.name,"Howdy! Cross the bridge to go east over the river."),
     L(n.name,"Up north are the Eastern Hills. A big grumpy bear sits at the very top, guarding something golden!"),
@@ -579,7 +697,7 @@ function npcLines(n){
       L(n.name,"A grumpy dragon lives in the cave south-east of Silene. It roars all night and scares our sheep!"),
       L(n.name,"Your sword can't hurt a dragon's tough scales. Only the HOLY SPEAR can!"),
       L(n.name,"But long ago the Holy Spear broke into two pieces, and they were hidden in faraway places."),
-      L('Princess Sabra',"The Spear Head is in the West Forest, where the wolves live. The Spear Shaft is on top of the Eastern Hills, guarded by a bear."),
+      L('Princess Sabra',"The Spear Head is in the West Forest, guarded by a big white wolf. The Spear Shaft is on top of the Eastern Hills, guarded by a bear."),
       L(n.name,"Find both pieces and they will join together again. Press Q (or B on a controller) to see your Quest Log. Good luck!")];
     if(!G.hasSpear) return [L(n.name,pc===0?"Find the two pieces of the Holy Spear: one in the West Forest, one in the Eastern Hills.":
       "You found one piece! Now find the other one. "+(G.pieces.head?"The Shaft is on top of the Eastern Hills.":"The Head is deep in the West Forest."))];
@@ -595,14 +713,15 @@ function npcLines(n){
 function onTalkEnd(n){
   if(n.id==='king' && !G.talkedKing){ G.talkedKing=true; SFX.item(); addText(P.x,P.y-50,'Quest updated!','#ffe14d'); }
 }
-// w = wolf (fast, 1 hit), b = bear (slow, 4 hits, hits harder)
+// w = wolf (fast, 1 hit), W = white wolf (a bit bigger, 2 hits), b = bear (slow, 4 hits, hits harder)
 const FOE_SPOTS=[['w',16,38],['w',13,30],['w',12,24],['w',11,15],['w',7,9],['w',4,13],['w',20,44],
-  ['b',63,10],['b',53,16],['w',57,24],['w',58,33],['b',62,32],['w',67,35],['w',40,44]];
+  ['b',63,10],['b',53,16],['w',57,24],['w',58,33],['b',62,32],['w',67,35],['w',40,44],
+  ['W',6,12],['W',13,19],['W',57,5],['W',56,13],['W',66,15]];
 function makeFoes(){
-  return FOE_SPOTS.map(([k,tx,ty],i)=>{const bear=k==='b';
+  return FOE_SPOTS.map(([k,tx,ty],i)=>{const bear=k==='b', white=k==='W';
     for(let rr=0;rr<4&&SOLID.has(WORLD.t[ty][tx]);rr++){ let done=false; for(let dy=-rr;dy<=rr&&!done;dy++)for(let dx=-rr;dx<=rr&&!done;dx++){ if(!SOLID.has(WORLD.t[ty+dy][tx+dx])){tx+=dx;ty+=dy;done=true;} } }
-    return {kind:bear?'bear':'wolf',x:tc(tx),y:tc(ty),hx:tc(tx),hy:tc(ty),hp:bear?4:1,maxHp:bear?4:1,dmg:bear?2:1,
-      chase:bear?52:88,wander:bear?20:34,sight:bear?115:140,kbMul:bear?0.45:1,hw:bear?14:10,
+    return {kind:bear?'bear':'wolf',white,sc:white?1.3:1,x:tc(tx),y:tc(ty),hx:tc(tx),hy:tc(ty),hp:bear?4:white?2:1,maxHp:bear?4:white?2:1,dmg:bear?2:1,
+      chase:bear?52:white?84:88,wander:bear?20:34,sight:bear?115:white?150:140,kbMul:bear?0.45:white?0.75:1,hw:bear?14:white?13:10,
       vx:0,vy:0,t:Math.random()*2,phase:i,hurt:0,kbx:0,kby:0,face:1,anim:0,flee:false,fleeT:0};});
 }
 function makeItems(){
@@ -629,7 +748,8 @@ let titleT=0;
 // ================== HELPERS ==================
 function tileAt(m,px,py){const tx=Math.floor(px/TS),ty=Math.floor(py/TS);if(tx<0||ty<0||tx>=m.w||ty>=m.h)return T.TREE;return m.t[ty][tx];}
 function solidAt(m,px,py){return SOLID.has(tileAt(m,px,py));}
-function boxHits(m,x,y,hw,hh){return solidAt(m,x-hw,y-hh)||solidAt(m,x+hw,y-hh)||solidAt(m,x-hw,y+hh)||solidAt(m,x+hw,y+hh);}
+function decoHit(x,y,hw,hh){ for(const r of DECO_SOLID){ if(x+hw>r[0]&&x-hw<r[0]+r[2]&&y+hh>r[1]&&y-hh<r[1]+r[3]) return true; } return false; }
+function boxHits(m,x,y,hw,hh){return solidAt(m,x-hw,y-hh)||solidAt(m,x+hw,y-hh)||solidAt(m,x-hw,y+hh)||solidAt(m,x+hw,y+hh)||(m===WORLD&&decoHit(x,y,hw,hh));}
 function npcBlock(x,y){ if(map!==WORLD) return false; for(const n of npcs){ if(Math.abs(n.x-x)<16&&Math.abs(n.y-y)<12) return true; } return false; }
 function moveEnt(e,dx,dy,hw,hh,isPlayer){
   const steps=Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/8)||1;
@@ -657,7 +777,7 @@ function objective(){
   if(!G.talkedKing) return {text:"Talk to the King in the castle (north)",tx:33,ty:5};
   if(!G.hasSpear){
     if(!G.pieces.head && !G.pieces.shaft) return {text:"Find the 2 pieces of the Holy Spear (forest & hills)",tx:HEAD_POS.x,ty:HEAD_POS.y,tx2:SHAFT_POS.x,ty2:SHAFT_POS.y};
-    if(!G.pieces.head) return {text:"Find the Spear Head in the West Forest (wolves!)",tx:HEAD_POS.x,ty:HEAD_POS.y};
+    if(!G.pieces.head) return {text:"Find the Spear Head in the West Forest (white wolf!)",tx:HEAD_POS.x,ty:HEAD_POS.y};
     if(!G.pieces.shaft) return {text:"Find the Spear Shaft on the Eastern Hills (bear!)",tx:SHAFT_POS.x,ty:SHAFT_POS.y};
     return {text:"The spear pieces are joining...",tx:CAVE_POS.x,ty:CAVE_POS.y};
   }
@@ -801,13 +921,14 @@ function updatePlay(dt){
   if(P.attackT>0){
     const ab=attackBox();
     for(const s of foes){ if(s.flee||P.hitSet.has(s)) continue;
-      if(Math.hypot(s.x-ab.x,(s.y-10)-ab.y)<ab.r+(s.kind==='bear'?18:12)){ P.hitSet.add(s); s.hp--; s.hurt=0.25;
+      if(Math.hypot(s.x-ab.x,(s.y-10)-ab.y)<ab.r+(s.kind==='bear'?18:s.white?16:12)){ P.hitSet.add(s); s.hp--; s.hurt=0.25;
         const d=Math.hypot(s.x-P.x,s.y-P.y)||1; s.kbx=(s.x-P.x)/d*300*s.kbMul; s.kby=(s.y-P.y)/d*300*s.kbMul; SFX.hit();
         addParticles(s.x,s.y-12,5,['#fff','#ffe14d'],80);
+        if(s.white && s.hp>0){ addText(s.x,s.y-50,'One more hit!','#cfe8ff'); addParticles(s.x,s.y-16,8,['#cfe8ff','#fff'],100); }
         if(s.hp<=0){ s.flee=true; s.fleeT=0.9; G.chased++; SFX.poof(); s.face=(s.x>=P.x)?1:-1;
           s.vx=(s.x-P.x)/d*230; s.vy=(s.y-P.y)/d*230; s.kbx=0; s.kby=0;
           addParticles(s.x,s.y-10,12,['#e8dcc0','#fff','#ffe14d'],110);
-          addText(s.x,s.y-36,s.kind==='bear'?'The bear runs home!':'Yelp! Ran away!','#ffe14d');
+          addText(s.x,s.y-36,s.kind==='bear'?'The bear runs home!':s.white?'The white wolf runs off!':'Yelp! Ran away!','#ffe14d');
           const chance = G.hp<G.maxHp?0.55:0.15; if(Math.random()<chance) items.push({type:'heart',x:s.x,y:s.y,map:map.name}); } } }
     if(D){ const inX=Math.abs(ab.x-D.x)<ab.r+40, inY=ab.y>D.y-75-ab.r && ab.y<D.y+40+ab.r; if(inX&&inY&&!P.hitSet.has('D')){P.hitSet.add('D');hitDragon();} }
     for(const f of fireballs){ if(Math.hypot(f.x-ab.x,f.y-ab.y)<ab.r+8){ f.life=0; addParticles(f.x,f.y,8,['#ffb347','#ffe14d','#fff']); SFX.clang(); addText(f.x,f.y-14,'Pop!','#ffb347'); } }
@@ -828,7 +949,7 @@ function updatePlay(dt){
     if(Math.abs(s.vx)>3) s.face=s.vx>0?1:-1;
     s.anim += (Math.abs(s.vx)+Math.abs(s.vy)>2 ? dt*(s.kind==='wolf'?16:9) : 0);
     s.kbx*=Math.pow(0.02,dt); s.kby*=Math.pow(0.02,dt);
-    const reach = s.kind==='bear'?26:20;
+    const reach = s.kind==='bear'?26:s.white?24:20;
     if(dP<reach && P.inv<=0){ hurtPlayer(s.dmg,s.x,s.y); const d=dP||1; s.kbx=(s.x-P.x)/d*220; s.kby=(s.y-P.y)/d*220; s.t=s.kind==='bear'?1.4:1.0; s.vx=0; s.vy=0;
       if(s.kind==='bear') beep(110,0.25,'sawtooth',0.05,70); }
   }
@@ -846,7 +967,7 @@ function updatePlay(dt){
         const both=G.pieces.head&&G.pieces.shaft;
         startDialog([{who:'George',text: head?"You found the SPEAR HEAD! The shiny tip of the Holy Spear!":"You found the SPEAR SHAFT! The golden handle of the Holy Spear!"},
           both?{who:'George',text:"Both pieces are glowing... something magical is happening!"}
-              :{who:'Tip',text: head?"Now find the Spear Shaft on top of the Eastern Hills. A bear guards it!":"Now find the Spear Head deep in the West Forest. Watch out for wolves!"}],
+              :{who:'Tip',text: head?"Now find the Spear Shaft on top of the Eastern Hills. A bear guards it!":"Now find the Spear Head deep in the West Forest. A big WHITE WOLF guards it!"}],
           both?()=>{G.mode='join';G.joinT=0;SFX.item();}:null); }
     } }
   items=items.filter(i=>!i.got);
@@ -854,7 +975,7 @@ function updatePlay(dt){
   const here=tileAt(map,P.x,P.y-4);
   if(here===T.CAVE){
     if(bothItems()){ enterLair(); }
-    else { P.y+=14; startDialog([{who:'George',text: !G.talkedKing?"A dark, scary cave... I should talk to the King first.":"Sir Pip says I need the complete Holy Spear to face the dragon!"}]); }
+    else { P.y=tc(CAVE_POS.y-1)+4; P.dir='up'; startDialog([{who:'George',text: !G.talkedKing?"A dark, scary cave... I should talk to the King first.":"Sir Pip says I need the complete Holy Spear to face the dragon!"}]); }
   }
   if(here===T.EXIT && D && D.state!=='tamed') exitLair();
   if(map===LAIR) updateDragon(dt);
@@ -887,6 +1008,7 @@ function render(){
     const fx=FOUNTAIN.x*TS+32, fy=FOUNTAIN.y*TS+32;
     for(let i=0;i<6;i++){const a=(t*1.5+i/6)%1;const ang=i*Math.PI/3;circ(ctx,fx+Math.cos(ang)*a*18,fy-14+a*a*20*1+Math.sin(ang)*a*6-Math.sin(a*Math.PI)*12,2,'#cfefff');}
     circ(ctx,fx,fy-10,3,'#cfefff');
+    if(cy<17*TS && cx+W>26*TS && cx<40*TS) drawCastleLive(ctx,t);
   }
   // entities sorted
   const ents=[];
