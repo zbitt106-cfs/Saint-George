@@ -28,6 +28,7 @@
   body.touch.spear #btnSp{display:flex}
   #btnM{right:14px;top:calc(12px + env(safe-area-inset-top));width:42px;height:42px;background:rgba(120,60,170,.7);font-size:20px}
   #btnM.off{opacity:.45}
+  #btnH{right:118px;top:calc(12px + env(safe-area-inset-top));width:42px;height:42px;background:rgba(235,235,250,.8);font-size:22px}
   #btnQ{right:66px;top:calc(12px + env(safe-area-inset-top));width:42px;height:42px;background:rgba(60,120,220,.75);font-size:20px}
   #btnD{right:124px;bottom:calc(24px + env(safe-area-inset-bottom));width:56px;height:56px;background:rgba(60,170,110,.8);font-size:12px}
 </style>
@@ -42,6 +43,7 @@
   <div class="tbtn" id="btnSp">SPEAR</div>
   <div class="tbtn" id="btnD">DASH</div>
   <div class="tbtn" id="btnM">&#9834;</div>
+  <div class="tbtn" id="btnH">&#x1F434;</div>
 </div>
 <script>
 "use strict";
@@ -63,14 +65,18 @@ const tc = t => t*TS+TS/2; // tile center
 const keys = {}; let pv = {}; // pv = virtual buttons pressed this frame
 const touchDir = {x:0,y:0}; let touchBlock=false, padBlock=false;
 function blockHeld(){ return !!(keys['shift']||keys['x']||padBlock||touchBlock); }
-const KEYMAP = {' ':'action','e':'action','enter':'action','z':'action','q':'pause','tab':'pause','p':'pause','escape':'pause','r':'restart','m':'mute','n':'music','v':'voices','f':'spear','c':'dash','control':'dash'};
+const KEYMAP = {' ':'action','e':'action','enter':'action','z':'action','q':'pause','tab':'pause','p':'pause','escape':'pause','r':'restart','m':'mute','n':'music','v':'voices','f':'spear','c':'dash','control':'dash','h':'horse'};
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (!keys[k] && KEYMAP[k]) pv[KEYMAP[k]] = true;
   keys[k] = true;
   if ([' ','arrowup','arrowdown','arrowleft','arrowright','tab','control'].includes(k)) e.preventDefault();
-  initAudio();
+  initAudio(); voiceKick();
+  if(KEYMAP[k]==='action' && typeof G!=='undefined' && G && G.mode==='pause' && G.pause && PAUSE_ITEMS[G.pause.sel]==='test') voiceTest(); // mobile v11: speak inside the key gesture
 });
+// mobile v11: iOS Safari / Android Chrome only unlock speech + audio inside a real gesture (touchend / click / keydown), never in rAF
+{ const gest=()=>{ initAudio(); voiceKick(); };
+  addEventListener('touchend',gest,{capture:true,passive:true}); addEventListener('click',gest,true); addEventListener('mouseup',gest,true); }
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; touchBlock=false; });
 function inputDir(){
@@ -88,6 +94,7 @@ const padDir={x:0,y:0}; let padPrev=[], padSeen=false; const toast={text:'',t:0}
 function showToast(s){toast.text=s;toast.t=2.6;}
 addEventListener('gamepadconnected',()=>{if(!padSeen){padSeen=true;showToast('\uD83C\uDFAE Controller connected!');}});
 addEventListener('gamepaddisconnected',()=>{padSeen=false;padPrev=[];showToast('Controller disconnected');});
+let padUpAt=0;
 function pollGamepad(){
   padDir.x=0;padDir.y=0;
   let pads=[]; try{pads=navigator.getGamepads?navigator.getGamepads():[];}catch(e){}
@@ -110,6 +117,9 @@ function pollGamepad(){
   if(edge(3)){ if(m==='dialog') pv.action=true; else pv.dash=true; initAudio(); } // Y / Triangle = dash (dash v10)
   if(edge(9)){ if(m==='title'||m==='victory'||m==='dialog') pv.action=true; else pv.pause=true; initAudio(); } // Start / Options = pause menu (pause v10)
   if(edge(8)) pv.pause=true;                                               // Back / Share also opens / closes the pause menu
+  if(edge(10) && m==='play') pv.horse=true;                                // horse v11: L3 (left stick click) = mount / dismount
+  if(edge(12)) padUpAt=performance.now();                                  // horse v11: a quick TAP of D-pad Up also toggles the horse (holding it still walks up)
+  if(!now[12] && padPrev[12] && m==='play' && performance.now()-padUpAt<230) pv.horse=true;
   padPrev=now;
 }
 // touch
@@ -137,12 +147,17 @@ if (isTouch) document.body.classList.add('touch');
   function btn(id,name){const b=document.getElementById(id);
     b.addEventListener('pointerdown',e=>{pv[name]=true;initAudio();b.style.filter='brightness(1.4)';e.preventDefault();});
     const off=()=>b.style.filter=''; b.addEventListener('pointerup',off); b.addEventListener('pointercancel',off);}
-  btn('btnA','action'); btn('btnQ','pause'); btn('btnSp','spear'); btn('btnM','music'); btn('btnD','dash');
+  btn('btnA','action'); btn('btnQ','pause'); btn('btnSp','spear'); btn('btnM','music'); btn('btnD','dash'); btn('btnH','horse');
   { const b=document.getElementById('btnS'); const on=e=>{touchBlock=true;initAudio();b.style.filter='brightness(1.4)';e.preventDefault();};
     const off=()=>{touchBlock=false;b.style.filter='';};
     b.addEventListener('pointerdown',on); b.addEventListener('pointerup',off); b.addEventListener('pointercancel',off); b.addEventListener('pointerleave',off); }
-  cv.addEventListener('pointerdown',e=>{initAudio(); if(G.mode==='pause'){ const r=cv.getBoundingClientRect(); const i=pauseHit((e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height); if(i>=0) pv.pauseTap=i+1; }
-    else if(G.mode==='title'||G.mode==='victory'||G.mode==='dialog') pv.action=true;});
+  const cvHit=(cx,cy)=>{ const r=cv.getBoundingClientRect(); return pauseHit((cx-r.left)*W/r.width,(cy-r.top)*H/r.height); };
+  // mobile v11: 'Test voice' must speak from touchend / click (a real gesture on iOS), so the tap only selects it on pointerdown
+  const testTap=(cx,cy)=>{ if(G.mode!=='pause'||!G.pause) return; const i=cvHit(cx,cy); if(i>=0&&PAUSE_ITEMS[i]==='test'){ G.pause.sel=i; G.pause.confirm=false; voiceTest(); } };
+  cv.addEventListener('touchend',e=>{ const c=e.changedTouches&&e.changedTouches[0]; if(c) testTap(c.clientX,c.clientY); },{passive:true});
+  cv.addEventListener('click',e=>testTap(e.clientX,e.clientY));
+  cv.addEventListener('pointerdown',e=>{initAudio(); if(G.mode==='pause'){ const i=cvHit(e.clientX,e.clientY); if(i>=0&&PAUSE_ITEMS[i]==='test'){ G.pause.sel=i; G.pause.confirm=false; } else if(i>=0) pv.pauseTap=i+1; }
+    else if(G.mode==='title'||G.mode==='victory'||G.mode==='dialog'||G.mode==='prayer') pv.action=true;});
   document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
 })();
 function resize(){
@@ -216,6 +231,11 @@ const SONGS={
     {w:'square',v:0.02,t:TK(`G4 C5 E5 G5 - - E5 G5 | C6 - - - - - - - | . . . . . . . .`)},
     {w:'triangle',v:0.04,t:TK(`C3 - - - - - G2 - | C3 - - - - - - - | . . . . . . . .`)},
     {w:'triangle',v:0.008,t:padT(['C4+E4+G4','C4+E4+G4+C5','.'],8)}]},
+  feast:{bpm:116,voices:[                       // feast v11: soft, festive banquet tune (G major, lilting)
+    {w:'triangle',v:0.02,t:TK(`D5 - B4 - G4 - B4 D5 | E5 - D5 - B4 - G4 - | A4 - B4 C5 D5 - B4 - | A4 - - - - - . . |
+                               D5 - B4 - G4 - B4 D5 | E5 - G5 - E5 - D5 - | C5 - B4 - A4 - B4 - | G4 - - - - - . .`)},
+    {w:'triangle',v:0.03,t:bassT(['G2','C3','D3','D3','G2','C3','D3','G2'],'R . F . O . F .')},
+    {w:'sine',v:0.007,a:0.2,t:padT(['G3+B3+D4','C4+E4+G4','D4+F#4+A4','D4+F#4+A4','G3+B3+D4','C4+E4+G4','D4+F#4+A4','G3+B3+D4'],8)}]},
   victoryLoop:{bpm:100,voices:[                 // ...then a gentle loop
     {w:'triangle',v:0.022,t:TK(`E5 - D5 C5 D5 - E5 - | G5 - - - E5 - - - | F5 - E5 D5 C5 - D5 - | E5 - - - - - . . |
                                 E5 - D5 C5 D5 - E5 - | G5 - - - A5 - - - | G5 - E5 D5 D5 - C5 - | C5 - - - - - . .`)},
@@ -257,7 +277,8 @@ function musicWant(){
   if(!G||G.mode==='title') return 'overworld';
   if(G.mode==='storm') return null;                                  // storm: thunder & wind only
   const Q=G.prayer;
-  if(Q){ if(Q.kind==='hail') return Q.ph==='step'?'castle':'hymn'; if(Q.inside||Q.ph==='dark'||Q.ph==='out') return 'hymn'; }
+  if(Q){ if(Q.kind==='hail') return Q.ph==='step'?'castle':'hymn';
+    if(Q.kind==='grace') return (Q.ph==='eat'||Q.ph==='end'||Q.ph==='out')?'feast':Q.ph==='dark'?'castle':'hymn'; if(Q.inside||Q.ph==='dark'||Q.ph==='out') return 'hymn'; }
   if(G.mode==='victory') return 'victory';
   if(G.mode==='pause'&&G.pause&&G.pause.song!==undefined) return G.pause.song;
   if(map===LAIR) return G.dragonDefeated?'castle':'dragon';
@@ -273,15 +294,40 @@ function musicUpdate(){
   musicSet(want);
 }
 function initAudio(){                            // first user gesture: create the AudioContext, unlock music & voices
-  if(AC){ if(AC.state==='suspended'){ try{AC.resume();}catch(e){} } return; }
+  unlockSpeech();                                // mobile v11: speech unlock runs synchronously inside the gesture
+  if(AC){ if(AC.state==='suspended'){ try{AC.resume();}catch(e){} } acKick(); return; }
   try { AC = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){ AC=null; }
   audioUnlocked=true; voicesInit();
-  if(AC){ try{ MUS.master=AC.createGain(); MUS.master.gain.value=0; MUS.master.connect(AC.destination); }catch(e){ MUS.master=null; }
+  if(AC){ try{ if(AC.state==='suspended') AC.resume(); }catch(e){} acKick();
+    try{ MUS.master=AC.createGain(); MUS.master.gain.value=0; MUS.master.connect(AC.destination); }catch(e){ MUS.master=null; }
     if(!MUS.timer) MUS.timer=setInterval(musicStep,25); }
 }
 // ================== VOICES (voices v10) ==================
 // Dialog lines, captions and prayers read aloud with the Web Speech API (feature-detected; silently off when missing).
-const VO={list:[],pick:{},id:0,speaking:false,started:false,said:[]};
+const VO={list:[],pick:{},id:0,speaking:false,started:false,said:[],keep:[],unlocked:false,unlockTries:0,unlockAt:0,last:null,testAt:0};
+// mobile v11: iOS needs one silent buffer played inside the gesture before Web Audio makes sound
+function acKick(){ if(!AC||VO.acKicked) return; try{ const b=AC.createBuffer(1,1,22050), src=AC.createBufferSource(); src.buffer=b; src.connect(AC.destination); src.start(0); VO.acKicked=true; }catch(e){} }
+function keepU(u){ VO.keep.push(u); if(VO.keep.length>8) VO.keep.shift(); }          // hold utterances so iOS does not garbage-collect them mid-sentence
+function dropU(u){ const i=VO.keep.indexOf(u); if(i>=0) VO.keep.splice(i,1); }
+function freshVoices(){ const S=SSyn(); let l=[]; try{ l=(S&&S.getVoices())||[]; }catch(e){ l=[]; } if(l.length!==VO.list.length){ VO.list=l; VO.pick={}; } return l; }
+// mobile v11: speak a near-silent utterance from the first touch / click / key so iOS & Android allow speech later from the game loop
+function unlockSpeech(){ const S=SSyn(); if(!S||VO.unlocked) return; const now=Date.now();
+  if(VO.speaking||VO.unlockTries>=5||now-VO.unlockAt<700) return; VO.unlockTries++; VO.unlockAt=now;
+  try{ freshVoices(); S.cancel(); const u=new SpeechSynthesisUtterance('Saint George'); u.lang='en-US'; u.volume=0.01; u.rate=1.3;
+    u.onstart=()=>{ VO.unlocked=true; }; u.onend=()=>{ VO.unlocked=true; dropU(u); }; u.onerror=()=>dropU(u);
+    keepU(u); S.speak(u); try{ if(S.paused) S.resume(); }catch(e){} }catch(e){} }
+// mobile v11: if a line was queued from the game loop but the engine never started it, re-speak it inside this gesture
+function voiceKick(){ const L=VO.last; if(!L||!VO.speaking||VO.started||L.kicks>=2||Date.now()-L.at<250) return;
+  L.u._kicked=true; speak(L.text,L.who,Object.assign({},L.opts,{_k:L.kicks+1})); }
+// Chrome / Android Chrome can silently pause long utterances: nudge with resume() while speaking (never pause(), Android treats it as cancel)
+setInterval(()=>{ const S=SSyn(); if(S&&VO.speaking){ try{ S.resume(); }catch(e){} } },4000);
+addEventListener('visibilitychange',()=>{ const S=SSyn(); if(S&&!document.hidden&&VO.speaking){ try{ S.resume(); }catch(e){} } });
+function voiceTest(){ const now=Date.now(); if(now-VO.testAt<350) return; VO.testAt=now; initAudio(); const S=SSyn();
+  if(!S){ showToast('This browser has no speech voices'); return; }
+  if(muted){ showToast('Sound is muted - press M'); return; }
+  if(!voicesOn){ voicesOn=true; }
+  const ok=speak("Hello! I am George. If you can hear me, the voices are working!",'George');
+  showToast(ok?(isTouch?'Testing voice... (iPhone: Ring switch on!)':'Testing voice...'):'Voices not ready - tap again'); }
 function SSyn(){ try{ return (window.speechSynthesis&&window.SpeechSynthesisUtterance)?window.speechSynthesis:null; }catch(e){ return null; } }
 const VP={ 'George':{g:'m',p:1.0,r:1.0}, 'King of Silene':{g:'m2',p:0.55,r:0.8}, 'Princess Sabra':{g:'f',p:1.35,r:0.95},
   'Baker Anna':{g:'f2',p:1.25,r:1.0}, 'Mama Rose':{g:'f3',p:1.18,r:0.95}, 'Little Leo':{g:'k',p:1.7,r:1.12}, 'Little Mia':{g:'k2',p:1.85,r:1.1},
@@ -292,6 +338,7 @@ function vprof(who){ who=who||''; if(VP[who]) return VP[who]; if(/hissalot|snake
   if(/dragon/i.test(who)) return VP['Grumblefire the Dragon']; return VP.Narrator; }
 function voicesInit(){ const S=SSyn(); if(!S) return;
   const load=()=>{ try{ VO.list=S.getVoices()||[]; }catch(e){ VO.list=[]; } VO.pick={}; };
+  if(VO.inited) { load(); return; } VO.inited=true;
   load(); try{ if(S.addEventListener) S.addEventListener('voiceschanged',load); else S.onvoiceschanged=load; }catch(e){} }
 function pickVoice(g){
   if(g in VO.pick) return VO.pick[g];
@@ -315,14 +362,17 @@ function speakClean(s){ return String(s||'')
 function voiceReady(){ return !!(SSyn()&&voicesOn&&!muted&&audioUnlocked); }
 function speak(text,who,opts){ opts=opts||{}; const S=SSyn(); if(!voiceReady()) return false;
   const t=speakClean(text); if(!t||!/[a-z]/i.test(t)) return false;
-  try{ S.cancel(); const u=new SpeechSynthesisUtterance(t), pr=vprof(who), v=pickVoice(pr.g);
-    if(v){ u.voice=v; u.lang=v.lang; } else u.lang='en-US';
+  try{ S.cancel(); const live=freshVoices(), u=new SpeechSynthesisUtterance(t), pr=vprof(who), v0=pickVoice(pr.g);
+    // mobile v11: only use a voice object that is in the CURRENT getVoices() list; otherwise leave .voice alone and just set lang
+    const v=v0&&live.find(x=>x===v0||(x.voiceURI===v0.voiceURI&&x.name===v0.name));
+    if(v){ u.voice=v; u.lang=v.lang||'en-US'; } else u.lang='en-US';
     u.pitch=clamp(pr.p*(opts.prayer?0.97:1),0,2); u.rate=clamp(pr.r*(opts.prayer?0.78:1),0.1,4); u.volume=1;
     const id=++VO.id; VO.speaking=true; VO.started=false; let fin=false;
-    const done=()=>{ if(fin) return; fin=true; if(VO.id===id) VO.speaking=false; if(opts.onend) opts.onend(); };
-    u.onstart=()=>{ if(VO.id===id) VO.started=true; }; u.onend=done; u.onerror=done;
-    VO.said.push(t); if(VO.said.length>200) VO.said.shift();
-    S.speak(u); return true; }catch(e){ VO.speaking=false; return false; } }
+    const done=()=>{ if(fin) return; fin=true; dropU(u); if(VO.id===id) VO.speaking=false; if(opts.onend && !u._kicked) opts.onend(); };
+    u.onstart=()=>{ VO.unlocked=true; if(VO.id===id) VO.started=true; }; u.onend=done; u.onerror=done;
+    if(!opts._k){ VO.said.push(t); if(VO.said.length>200) VO.said.shift(); }
+    keepU(u); VO.cur=u; VO.last={text,who,opts,at:Date.now(),u,kicks:opts._k||0};
+    S.speak(u); try{ if(S.paused) S.resume(); }catch(e){} return true; }catch(e){ VO.speaking=false; return false; } }
 function voiceStop(){ const S=SSyn(); VO.id++; VO.speaking=false; if(S){ try{S.cancel();}catch(e){} } }
 const SFX = {
   swing:()=>beep(500,0.1,'triangle',0.06,200),
@@ -335,6 +385,8 @@ const SFX = {
   hit:()=>beep(180,0.12,'square',0.07,120),
   spear:()=>{beep(660,0.12,'triangle',0.05,1320); setTimeout(()=>beep(1320,0.28,'sine',0.035),70); setTimeout(()=>beep(1760,0.2,'sine',0.02),140);},
   dash:()=>{beep(260,0.16,'sawtooth',0.028,900); beep(1400,0.12,'triangle',0.018,500);},
+  hoof:(k)=>{ beep(k?190:150,0.05,'triangle',0.035,k?120:90); },                                  // horse v11: clip-clop
+  neigh:()=>{ beep(700,0.18,'sawtooth',0.02,1100); setTimeout(()=>beep(1000,0.22,'sawtooth',0.018,600),150); setTimeout(()=>beep(620,0.25,'triangle',0.02,380),360); },
   clang:()=>beep(1200,0.08,'triangle',0.05,800),
   win:()=>{[523,659,784,1047,784,1047,1319].forEach((f,i)=>setTimeout(()=>beep(f,0.22,'square',0.05),i*150));},
 };
@@ -382,7 +434,8 @@ function thinWoods(m){
   const keep=(x,y)=> x<1||y<1||x>w-2||y>h-2 ||
     inR(x,y,2,8,9,14) ||                              // Spear Head (sword) clearing ring
     ((x===11||x===14)&&y>=10&&y<=21) || ((y===10||y===13)&&x>=5&&x<=14) || // hidden path flanks
-    inR(x,y,14,26,20,32) || inR(x,y,40,1,46,7);       // Mia's clearing, lost-cross grove
+    inR(x,y,14,26,20,32) || inR(x,y,40,1,46,7) ||     // old meadow, lost-cross grove
+    inR(x,y,1,26,7,32);                               // mobile v11: Mia's deep-forest clearing
   const zone=(x,y)=>x>=1&&x<=22&&y>=1&&y<=h-2&&!keep(x,y);
   let start=0; for(let y=1;y<h-1;y++)for(let x=1;x<=22;x++) if(isT(x,y)&&zone(x,y)) start++;
   const target=Math.round(start*0.38); let removed=0; const log={meadow:0,corridor:0,noise:0};
@@ -466,8 +519,10 @@ function genWorld(){
   // side quests v6: church clearing, child's flower clearing, magpie grove
   for(let y=18;y<=25;y++)for(let x=23;x<=31;x++) if(m[y][x]===T.TREE) m[y][x]=T.GRASS;
   carve(27,23,31,23);           // church path to the castle road
-  for(let y=27;y<=31;y++)for(let x=15;x<=19;x++) m[y][x]=(x*3+y)%5===0?T.FLOWER:T.GRASS; // Mia's clearing
+  for(let y=27;y<=31;y++)for(let x=15;x<=19;x++) m[y][x]=(x*3+y)%5===0?T.FLOWER:T.GRASS; // old flower meadow by the forest path
   m[29][14]=T.GRASS; m[30][14]=T.GRASS;
+  // mobile v11: Mia's hidden flower clearing, deep in the far west of the West Forest
+  for(let y=27;y<=31;y++)for(let x=2;x<=6;x++){ const cor=(x===2||x===6)&&(y===27||y===31); if(!cor) m[y][x]=(x*2+y)%4===0?T.FLOWER:T.GRASS; }
   for(let y=2;y<=6;y++)for(let x=41;x<=45;x++) if(m[y][x]!==T.WATER) m[y][x]=(x+y)%3===0?T.FLOWER:T.GRASS; // magpie grove
   for(let y=CHURCH.y;y<CHURCH.y+3;y++)for(let x=CHURCH.x;x<CHURCH.x+5;x++) m[y][x]=T.HOUSE;
   // houses & fountain
@@ -505,6 +560,8 @@ function genTunnel(){
   return {t:m,w,h,name:'tunnel'};
 }
 function drawTunnelDeco(g){
+  // mobile v11: dusty cobwebs in the tunnel corners
+  for(const [tx,ty,dx,dy,r] of [[3,9,1,1,40],[13,2,1,1,44],[17,2,-1,1,44],[12,19,-1,1,36],[3,23,1,-1,36],[8,22,1,1,30],[12,29,-1,-1,30],[17,14,-1,-1,36]]) drawCobweb(g,tx*TS,ty*TS,dx,dy,r);
   // glowing crystals along the walls
   for(const [x,y,c] of [[7,27,'#7ef0ff'],[12,24,'#ff8ef0'],[2,20,'#a0ff8e'],[7,14,'#7ef0ff'],[2,12,'#ff8ef0'],[9,8,'#a0ff8e'],[17,11,'#7ef0ff'],[12,4,'#ff8ef0'],[17,3,'#a0ff8e']]){
     const px=x*TS+16, py=y*TS+20; const gr=g.createRadialGradient(px,py,2,px,py,34); gr.addColorStop(0,c+'55'); gr.addColorStop(1,'rgba(0,0,0,0)');
@@ -876,7 +933,44 @@ function drawSpear(g,x,y,s,ang,part){
   if(part!=='head'){ g.fillStyle='#f2c94c'; g.fillRect(-2.6,21,5.2,4); circ(g,0,26,2.6,'#f2c94c'); }
   g.restore();
 }
+// horse v11: white horse with a red & white saddle cloth. layer 'back' is drawn behind George, 'front' over his legs
+function drawHorse(g,x,y,dir,walk,layer,tied){
+  const W1='#fbfbff', W2='#dcdce8', MANE='#e9e2d0', HOOF='#5a5048', run=walk?walk*0.9:0, gl=k=>walk?Math.sin(run+k)*5:0;
+  const leg=(lx,top,k)=>{ const sw=gl(k); g.strokeStyle=W2; g.lineWidth=4; g.lineCap='round'; g.beginPath(); g.moveTo(lx,top); g.lineTo(lx+sw*0.7,y-3); g.stroke(); g.lineCap='butt'; g.fillStyle=HOOF; g.fillRect(lx+sw*0.7-2.5,y-3,5,3); };
+  const cloth=(cx,cy,w,h)=>{ rrect(g,cx-w/2,cy,w,h,3,'#d62828'); g.fillStyle='#fff'; g.fillRect(cx-w/2+2,cy+h-4,w-4,2); g.fillRect(cx-1.5,cy+2,3,h-7); g.fillRect(cx-5,cy+h/2-3.5,10,3); g.fillStyle='#f2c94c'; g.fillRect(cx-w/2,cy+h-1.5,w,1.5); };
+  if(dir==='left'||dir==='right'){ const f=dir==='left'?-1:1; g.save(); g.translate(x,0); g.scale(f,1);
+    if(layer==='back'){ ell(g,0,y+1,22,4.5,'rgba(0,0,0,.22)');
+      const tw=Math.sin((walk||0)*0.8)*3+(tied?Math.sin(Date.now()/400)*2:0); g.strokeStyle=MANE; g.lineWidth=5; g.lineCap='round'; g.beginPath(); g.moveTo(-16,y-20); g.quadraticCurveTo(-24,y-16+tw,-22,y-6); g.stroke(); g.lineCap='butt';
+      leg(-11,y-12,Math.PI); leg(10,y-12,0); g.restore(); return; }
+    leg(-13,y-12,0.2); leg(12,y-12,Math.PI+0.2);
+    ell(g,0,y-17,18,8.5,W1); ell(g,-2,y-13,13,3.5,W2);
+    g.fillStyle=W1; g.beginPath(); g.moveTo(10,y-22); g.lineTo(19,y-36); g.lineTo(25,y-33); g.lineTo(17,y-15); g.fill();
+    g.save(); g.translate(24,y-33); g.rotate(0.5); ell(g,0,0,8.5,5,W1); g.restore();
+    circ(g,29,y-28,2.2,'#e8c8c8'); circ(g,22,y-35,1.6,'#222'); circ(g,22.5,y-35.6,0.5,'#fff');
+    g.fillStyle=W1; g.beginPath(); g.moveTo(17,y-38); g.lineTo(19,y-44); g.lineTo(21,y-38); g.fill();
+    g.strokeStyle=MANE; g.lineWidth=3; g.beginPath(); g.moveTo(17,y-39); g.quadraticCurveTo(12,y-30,9,y-23); g.stroke();
+    g.strokeStyle='#7a3a1a'; g.lineWidth=1.2; g.beginPath(); g.moveTo(28,y-29); g.lineTo(8,y-22); g.stroke();   // reins
+    cloth(-3,y-26,17,14); g.restore(); return; }
+  if(dir==='down'){                                // facing us: head & chest in front of George
+    if(layer==='back'){ ell(g,x,y+1,14,5,'rgba(0,0,0,.22)'); ell(g,x,y-17,12,9,W2); leg(x-7,y-10,Math.PI); leg(x+7,y-10,0); return; }
+    cloth(x-11,y-25,6,14); cloth(x+11,y-25,6,14);
+    leg(x-4,y-8,0); leg(x+4,y-8,Math.PI);
+    ell(g,x,y-13,8,7,W1); ell(g,x,y-14,5,9,W1); ell(g,x,y-4,4.6,3.4,'#ecd8d8'); circ(g,x-1.6,y-4,0.9,'#a07070'); circ(g,x+1.6,y-4,0.9,'#a07070');
+    circ(g,x-4.2,y-16,1.5,'#222'); circ(g,x+4.2,y-16,1.5,'#222'); g.fillStyle=MANE; g.fillRect(x-2,y-24,4,5); return; }
+  // facing away: head & neck ahead (behind George), rump, tail and cloth over his legs
+  if(layer==='back'){ ell(g,x,y+1,14,5,'rgba(0,0,0,.22)'); g.fillStyle=W1; ell(g,x,y-30,5,8,W1); g.fillStyle=MANE; g.fillRect(x-2,y-38,4,10);
+    g.fillStyle=W1; g.beginPath(); g.moveTo(x-4,y-40); g.lineTo(x-3,y-45); g.lineTo(x-1,y-40); g.moveTo(x+4,y-40); g.lineTo(x+3,y-45); g.lineTo(x+1,y-40); g.fill(); leg(x-6,y-10,0); leg(x+6,y-10,Math.PI); return; }
+  leg(x-6,y-9,Math.PI); leg(x+6,y-9,0);
+  ell(g,x,y-15,12,9,W1); cloth(x-11,y-25,6,13); cloth(x+11,y-25,6,13);
+  const tw=Math.sin((walk||0)*0.8)*3; g.strokeStyle=MANE; g.lineWidth=5; g.lineCap='round'; g.beginPath(); g.moveTo(x,y-12); g.quadraticCurveTo(x+tw,y-4,x+tw*0.5,y+1); g.stroke(); g.lineCap='butt'; }
 function drawGeorge(g,x,y,P,t){
+  if(!P.horse) return drawGeorgeBody(g,x,y,P,t);
+  if(P.inv>0 && Math.floor(t*20)%2===0) return;
+  const dir=P.dir, side=dir==='left'||dir==='right', bob=P.walk?Math.abs(Math.sin(P.walk*0.9))*2.2:0;
+  drawHorse(g,x,y,dir,P.walk,'back');
+  drawGeorgeBody(g,x,y-(side?14:12)-bob,Object.assign({},P,{inv:0,walk:0,dashT:0}),t);
+  drawHorse(g,x,y,dir,P.walk,'front'); }
+function drawGeorgeBody(g,x,y,P,t){
   if(P.inv>0 && Math.floor(t*20)%2===0) return;
   const dir=P.dir;
   const o={shirt:'#ffffff',cross:true,helmet:true,skin:'#f6c9a0',hair:'#8a5a2b',legs:'#5b6b88',cape:'#d62828'};
@@ -923,6 +1017,9 @@ function drawFoe(g,s,t){
   if(s.kind==='cobra') drawCobra(g,s,t);
   else if(s.kind==='snake') drawSnake(g,s,t);
   else if(s.kind==='bat') drawBat(g,s,t);
+  else if(s.kind==='spider') drawSpider(g,s,t);
+  else if(s.kind==='scorpion') drawScorpion(g,s,t);
+  else if(s.kind==='rat') drawRat(g,s,t);
   else if(s.kind==='bear' && s.white){ g.save(); g.translate(s.x,s.y); g.scale(s.sc,s.sc); g.translate(-s.x,-s.y); drawBear(g,s,t,true); g.restore(); }
   else if(s.kind==='bear') drawBear(g,s,t);
   else if(s.white){ g.save(); g.translate(s.x,s.y); g.scale(s.sc,s.sc); g.translate(-s.x,-s.y); drawWolf(g,s,t,true); g.restore();
@@ -977,6 +1074,62 @@ function drawSnake(g,s,t){
   else { for(const e of [-1,4]){ circ(g,hx+e*f,hy-3,2.4,'#fff'); circ(g,hx+(e+0.6)*f,hy-3,1.3,'#222'); } circ(g,hx+7*f,hy+1,1.2,'rgba(255,120,120,.6)'); }
   if(Math.sin(t*6+s.phase)>0.2 && !s.flee){ g.strokeStyle='#e33';g.lineWidth=1.2;g.beginPath();g.moveTo(hx+10*f,hy+1);g.lineTo(hx+15*f,hy+1);g.lineTo(hx+17*f,hy-1);g.moveTo(hx+15*f,hy+1);g.lineTo(hx+17*f,hy+3);g.stroke(); }
 }
+// mobile v11: cute critters
+function cuteEyes(g,x,y,r,lx,ly,shut){ if(shut){ g.strokeStyle='#222'; g.lineWidth=1.3; g.beginPath(); g.arc(x-r-0.5,y,r*0.7,0.2,Math.PI-0.2); g.stroke(); g.beginPath(); g.arc(x+r+0.5,y,r*0.7,0.2,Math.PI-0.2); g.stroke(); return; }
+  for(const sx of [-1,1]){ const ex=x+sx*(r+0.5); circ(g,ex,y,r,'#fff'); circ(g,ex+lx*r*0.35,y+ly*r*0.35,r*0.55,'#1a1a2a'); circ(g,ex+lx*r*0.35-r*0.2,y+ly*r*0.35-r*0.25,r*0.2,'#fff'); } }
+function drawSpider(g,s,t){ const hurt=s.hurt>0, body=hurt?'#fff':'#5a4682', light=hurt?'#fff':'#7d68aa', x=s.x, y=s.y-8-(s.drop||0);
+  if(s.thread && (s.drop>0||s.state==='hang')){ g.strokeStyle='rgba(235,235,255,.75)'; g.lineWidth=1; g.beginPath(); g.moveTo(x,y-s.thread-40); g.lineTo(x,y-6); g.stroke(); }
+  if(!(s.drop>0)) ell(g,x,s.y+1,11,3.5,'rgba(0,0,0,.28)'); else ell(g,x,s.y+1,7*(1-s.drop/90),2.5,'rgba(0,0,0,.18)');
+  const mv=(s.drop>0||s.state==='hang')?Math.sin(t*3+s.phase)*0.35:Math.sin(s.anim)*0.6;
+  g.strokeStyle=hurt?'#ddd':'#2e2448'; g.lineWidth=2; g.lineCap='round';
+  for(const side of [-1,1]) for(let i=0;i<4;i++){ const w=(i%2?mv:-mv)*side, by=y-3+i*2.6;
+    g.beginPath(); g.moveTo(x+side*5,by); g.quadraticCurveTo(x+side*(11+i*0.4),by-7+w*3,x+side*(14+i*0.6),by+4+w*2.5+i*0.8); g.stroke(); }
+  g.lineCap='butt';
+  circ(g,x,y,9,body); circ(g,x-2.5,y-3,3.5,light);
+  const lx=clamp((P.x-x)/60,-1,1), ly=clamp((P.y-14-y)/60,-1,1);
+  cuteEyes(g,x,y-1,3.4,lx,ly,false);
+  g.strokeStyle='#2a1a3a'; g.lineWidth=1.2; g.beginPath(); g.arc(x,y+3,2.6,0.25,Math.PI-0.25); g.stroke();
+  circ(g,x-6,y+3,1.6,'rgba(255,140,190,.6)'); circ(g,x+6,y+3,1.6,'rgba(255,140,190,.6)'); }
+function drawScorpion(g,s,t){ const hurt=s.hurt>0, body=hurt?'#fff':'#f0a24a', dark=hurt?'#eee':'#c9772a', belly=hurt?'#fff':'#f7d39a', f=s.face||1, x=s.x, y=s.y;
+  ell(g,x,y+1,15,4,'rgba(0,0,0,.25)');
+  g.save(); g.translate(x,y); g.scale(f,1);
+  const mv=Math.sin(s.anim)*1.6; g.strokeStyle=dark; g.lineWidth=2; g.lineCap='round';
+  for(let i=0;i<3;i++){ const lx=-5+i*5, w=(i%2?mv:-mv); g.beginPath(); g.moveTo(lx,-5); g.lineTo(lx-2+w,2); g.stroke(); g.beginPath(); g.moveTo(lx+1,-5); g.lineTo(lx+3-w,1.5); g.stroke(); }
+  // pincers
+  const pin=s.state==='jab'?3:Math.sin(t*4+s.phase)*1; g.lineWidth=2.5; g.beginPath(); g.moveTo(7,-8); g.lineTo(14+pin,-12); g.stroke(); g.beginPath(); g.moveTo(7,-5); g.lineTo(15+pin,-3); g.stroke(); g.lineCap='butt';
+  for(const py of [-12,-3]){ ell(g,17+pin,py,4.5,3.2,body); g.fillStyle=belly; g.beginPath(); g.moveTo(21+pin,py); g.lineTo(17+pin,py-1); g.lineTo(21+pin,py+1.5); g.fill(); }
+  // body
+  ell(g,0,-7,11,6.5,body); ell(g,0,-5,8,3.5,belly); g.strokeStyle=dark; g.lineWidth=1; for(const sx of [-4,0,4]){ g.beginPath(); g.moveTo(sx,-12.5); g.lineTo(sx,-9); g.stroke(); }
+  // curled tail: relaxed curl over the back, rises tall when telegraphing
+  const k=s.tail||0, jab=s.state==='jab'?5:0, cx=-8+k*2+jab, cy=-16-k*9, r=7+k*4, a0=Math.PI/2, a1=a0+Math.PI*(1.2+0.35*k);
+  let last=null; for(let i=0;i<=5;i++){ const a=a0+(a1-a0)*i/5, px=cx-Math.cos(a)*r, py=cy+Math.sin(a)*r; circ(g,px,py,4.4-i*0.4,i%2?dark:body); last=[px,py,a]; }
+  const tx=last[0], ty=last[1], ta=last[2]; g.fillStyle='#5a2a1a'; g.beginPath(); g.moveTo(tx+2,ty-2); g.lineTo(tx+7+Math.cos(ta)*1,ty+4); g.lineTo(tx-1,ty+2); g.fill();
+  // cute face
+  cuteEyes(g,6,-10,2.6,0.8,0.2,false);
+  g.strokeStyle='#5a2a10'; g.lineWidth=1.1; g.beginPath(); g.arc(7,-6,2,0.2,Math.PI-0.2); g.stroke();
+  g.restore();
+  if(s.state==='raise'){ g.font='bold 16px Verdana'; g.textAlign='center'; outlined(g,'!',x,y-44-Math.sin(t*20)*1.5,'#ffe14d','#7a2a00',3); }
+  if(!s.flee && s.hp<s.maxHp){ for(let i=0;i<s.maxHp;i++){ const px=s.x-6+i*12, py=s.y-34; circ(g,px,py,4.5,'rgba(0,0,0,.55)'); circ(g,px,py,3.2,i<s.hp?'#ffe14d':'#3a3a4a'); } } }
+function drawRat(g,s,t){ const hurt=s.hurt>0, body=hurt?'#fff':s.brown?'#9a7a5c':'#9c9ca8', dark=hurt?'#eee':s.brown?'#7a5a40':'#7a7a88', f=s.face||1, x=s.x, y=s.y;
+  const moving=s.burst&&(Math.abs(s.vx)+Math.abs(s.vy)>5), nib=!moving?Math.max(0,Math.sin(t*9+s.phase*3))*1.6:0, hop=moving?Math.abs(Math.sin(s.anim))*1.5:0;
+  ell(g,x,y+1,12,3.5,'rgba(0,0,0,.25)');
+  g.save(); g.translate(x,y-hop); g.scale(f,1);
+  g.strokeStyle='#f2a0b4'; g.lineWidth=2.2; g.lineCap='round'; const tw=Math.sin(t*6+s.phase)*3;
+  g.beginPath(); g.moveTo(-9,-4); g.quadraticCurveTo(-18,-2+tw,-23,-8-tw*0.5); g.stroke(); g.lineCap='butt';
+  const fl=moving?Math.sin(s.anim)*2:0; g.fillStyle='#f2a0b4'; g.fillRect(-6+fl,-2,3,3); g.fillRect(3-fl,-2,3,3);
+  ell(g,-1,-6,10,6.5,body); ell(g,-1,-4,7,3,hurt?'#fff':'#d8d0d0');
+  ell(g,8,-8+nib,6,5,body); g.fillStyle=body; g.beginPath(); g.moveTo(11,-11+nib); g.lineTo(16,-7.5+nib); g.lineTo(11,-5+nib); g.fill();
+  circ(g,5,-14+nib,3.8,dark); circ(g,5,-14+nib,2.2,'#f7b8c8');
+  circ(g,10,-10+nib,2,'#111'); circ(g,10.6,-10.7+nib,0.7,'#fff');
+  circ(g,16.2,-7.5+nib,1.6,'#ff7aa0');
+  g.strokeStyle='rgba(60,60,60,.6)'; g.lineWidth=0.8; g.beginPath(); g.moveTo(15,-7+nib); g.lineTo(20,-9+nib); g.moveTo(15,-6.5+nib); g.lineTo(20,-5.5+nib); g.stroke();
+  if(!moving){ g.fillStyle='#f2a0b4'; g.fillRect(11,-4+nib*0.5,2,2); circ(g,15,-3,1.6,'#e8c070'); }   // little paws nibbling a crumb
+  g.restore(); }
+function drawCobweb(g,x,y,dx,dy,r){ g.save(); g.strokeStyle='rgba(225,225,240,.55)'; g.lineWidth=1;
+  const a0=Math.atan2(0,dx), a1=Math.atan2(dy,0); const pts=[];
+  for(let i=0;i<=4;i++){ const a=a0+(a1-a0)*i/4; pts.push([Math.cos(a),Math.sin(a)]); g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r); g.stroke(); }
+  for(const k of [0.3,0.55,0.8,1]){ g.beginPath(); pts.forEach(([c,sn],i)=>{ const rr=r*k*(i%2?0.92:1); const px=x+c*rr, py=y+sn*rr; if(!i) g.moveTo(px,py); else g.quadraticCurveTo(x+(pts[i-1][0]+c)/2*rr*0.8,y+(pts[i-1][1]+sn)/2*rr*0.8,px,py); }); g.stroke(); }
+  g.restore(); }
 function drawBat(g,s,t){
   const x=s.x, hurt=s.hurt>0, body=hurt?'#fff':'#6a4c8c', wing=hurt?'#eee':'#4a3466', light=hurt?'#fff':'#9c7cc4';
   if(s.state==='sleep'){ // hanging upside down, wings folded, gentle sway
@@ -1115,7 +1268,7 @@ function drawStar(g,x,y,r,col){g.fillStyle=col;g.beginPath();for(let i=0;i<10;i+
 function drawHeartSmall(g,x,y){heartPath(g,x,y-5,10);g.fillStyle='#ff5c8a';g.fill();}
 
 // ================== GAME STATE ==================
-const ATTACK_TIME = 0.28, SPEED = 135;
+const ATTACK_TIME = 0.28, SPEED = 135, HORSE_MUL = 1.8;   // horse v11: George's white horse runs 1.8x
 const SPEAR_TIME = 0.34, SPEAR_CD = 0.22;                   // spear v10: a little slower than the sword
 const DASH_TIME = 0.2, DASH_SPEED = 3*32/0.2, DASH_CD = 0.55; // dash v10: ~3 tiles in 0.2s, ~0.75s between dashes
 let WORLD, LAIR, TUNNEL, map, G, P, npcs, foes, items, chickens, particles, texts, fireballs, D, cam={x:0,y:0};
@@ -1135,7 +1288,7 @@ function makeNPCs(){
     {id:'rose',name:'Mama Rose',tx:35,ty:40,o:{shirt:'#ff9f43',hair:'#6a3a1a',longHair:true,dress:true,apron:true}},
     {id:'ben',name:'Shepherd Ben',tx:51,ty:39,o:{shirt:'#a1887f',hair:'#8a5a2b',beard:'#8a5a2b',hat:'#c9a45a',legs:'#5a4a3a'}},
     {id:'ambrose',name:'Father Ambrose',tx:26,ty:24,o:{shirt:'#3a3a4a',hair:'#bbb',beard:'#ddd',legs:'#2a2a3a',dress:true,trim:'#ffd23f'}},
-    {id:'mia',name:'Little Mia',tx:17,ty:29,o:{shirt:'#ff7eb6',hair:'#f0c040',longHair:true,dress:true},small:true},
+    {id:'mia',name:'Little Mia',tx:4,ty:29,o:{shirt:'#ff7eb6',hair:'#f0c040',longHair:true,dress:true},small:true},
   ];
   return list.map(n=>({...n, x:n.px||tc(n.tx), y:tc(n.ty)+8, dir:n.dir||'down', map:'world'}));
 }
@@ -1205,8 +1358,8 @@ function npcLines(n){
   case 'rose': {
     const C=G.side.child;
     if(C.st==='none'||C.st==='active') return C.st==='none'?[L(n.name,"Oh, George! My little girl MIA went to pick flowers in the West Forest, and she hasn't come back!"),
-      L(n.name,"She loves the sunny flower clearing just east of the forest path. Please find her and bring her home!")]
-      :[L(n.name,"Please find my Mia! Take the west road, go up the forest path, and look for the flower clearing on the right.")];
+      L(n.name,"She wandered DEEP into the West Forest, to a hidden flower clearing far on the west side. Please find her and bring her home!")]
+      :[L(n.name,"Please find my Mia! She wandered deep into the West Forest. Take the west road to the forest path, then go WEST through the trees, past a few little clearings, to the hidden flower clearing.")];
     if(C.st==='follow') return [L('Little Mia',"MAMA!!"),L(n.name,"Mia! Oh, my sweet girl! *gives Mia the biggest hug*"),
       L('Little Mia',"George was so brave, Mama! He walked me all the way home!"),
       L(n.name,"Thank you, George! You are the kindest knight in all of Silene. Here is a heart full of love: one more HEART for you!")];
@@ -1282,12 +1435,18 @@ function onTalkEnd(n){
     else if(S.cross.st==='ready'){ S.cross.st='done'; G.crossT=0; addParticles(CHURCH.x*TS+80,CHURCH.y*TS-70,30,['#ffe14d','#fff'],150); startPrayer(); } }
 }
 // w = wolf (fast, 2 hits), W = white wolf (a bit bigger, 3 hits), b = bear (slow, 4 hits, hits harder), B = big white bear (6 hits, guards the Spear Shaft), s = snake (1 hit)
-const FOE_SPOTS=[['w',16,38],['w',8,33],['w',12,24],['w',11,15],['w',7,9],['w',4,13],['w',20,44],
+const FOE_SPOTS=[['w',16,38],['w',9,36],['w',12,24],['w',11,15],['w',7,9],['w',4,13],['w',20,44],
   ['B',63,8],['b',53,16],['w',57,24],['w',58,33],['b',58,22],['w',60,20],['w',8,45],
   ['W',6,12],['w',13,19],['W',57,5],['W',56,13],['W',66,15],
   ['s',57,31],['s',44,30],['s',45,12],['s',40,20],['s',27,21],['s',18,47]];
 // bats rest on the cave walls in the tunnel: [tileX, tileY]
 const BAT_SPOTS=[[8,23],[11,25],[4,19],[6,17],[3,12],[8,9],[16,10],[13,6],[16,3]];
+// mobile v11: cute spiders in the bat tunnel: d = dangles from the ceiling on a silk thread and drops when George is near, f = scuttles on the floor
+const SPIDER_SPOTS=[['d',9,24],['d',4,15],['d',14,6],['f',5,20],['f',9,11],['f',15,10]];
+// mobile v11: cartoon scorpions on the sandy desert (kept off the roads), rats in the north meadow where the storm drops the golden cross
+const SCORP_SPOTS=[[56,31],[60,31],[57,34],[62,34],[69,36],[70,30],[68,38]];
+const RAT_SPOTS=[[41,2],[46,3],[38,2],[42,8],[46,9],[41,11],[44,14]];
+function openNear(M,tx,ty){ for(let r=0;r<4;r++) for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){ const x=tx+dx,y=ty+dy; if(M.t[y]&&M.t[y][x]!==undefined&&!SOLID.has(M.t[y][x])) return [x,y]; } return [tx,ty]; }
 function makeFoes(){
   const list = FOE_SPOTS.map(([k,tx,ty],i)=>{ if(k==='s') return makeSnake(tx,ty,i); const bear=k==='b'||k==='B', white=k==='W'||k==='B', wb=k==='B';
     for(let rr=0;rr<4&&SOLID.has(WORLD.t[ty][tx]);rr++){ let done=false; for(let dy=-rr;dy<=rr&&!done;dy++)for(let dx=-rr;dx<=rr&&!done;dx++){ if(!SOLID.has(WORLD.t[ty+dy][tx+dx])){tx+=dx;ty+=dy;done=true;} } }
@@ -1299,8 +1458,17 @@ function makeFoes(){
     list.push({kind:'cobra',map:'world',sc:1.7,x:tc(NEST.x),y:tc(NEST.y)+8,hx:tc(NEST.x),hy:tc(NEST.y)+8,hp:7,maxHp:7,dmg:2,kbMul:0.25,hw:14,
       state:'idle',st:0,cd:1.2,ldx:1,ldy:0,lt:0,ldur:0,hitP:false,vx:0,vy:0,t:0,phase:2,hurt:0,kbx:0,kby:0,face:-1,anim:0,flee:false,fleeT:0,name:'KING HISSALOT THE SNAKE KING'}); }
   [[63,30],[69,31],[64,35],[69,34],[66,29],[62,33]].forEach(([tx,ty],i)=>{const sn=makeSnake(tx,ty,40+i); sn.minion=true; sn.sight=95; list.push(sn);});
-  BAT_SPOTS.forEach(([tx,ty],i)=>list.push({kind:'bat',map:'tunnel',sc:1,x:tc(tx),y:tc(ty)+4,hx:tc(tx),hy:tc(ty)+4,hp:1,maxHp:1,dmg:1,
+  BAT_SPOTS.forEach(([tx,ty],i)=>list.push({kind:'bat',map:'tunnel',sc:1,x:tc(tx),y:tc(ty)+4,hx:tc(tx),hy:tc(ty)+4,hp:2,maxHp:2,dmg:1,   // mobile v11: bats take 2 hits
     chase:105,wander:0,sight:3.6*TS,kbMul:1,hw:7,state:'sleep',wakeT:0,swoopT:0,vx:0,vy:0,t:0,phase:i*1.7,hurt:0,kbx:0,kby:0,face:1,anim:Math.random()*6,flee:false,fleeT:0}));
+  SPIDER_SPOTS.forEach(([k,tx,ty],i)=>list.push({kind:'spider',map:'tunnel',sc:1,x:tc(tx),y:tc(ty)+6,hx:tc(tx),hy:tc(ty)+6,hp:1,maxHp:1,dmg:1,
+    chase:150,sight:4.5*TS,trig:2.3*TS,kbMul:1,hw:7,state:k==='d'?'hang':'crawl',drop:k==='d'?58:0,thread:k==='d'?58:0,burst:false,zig:1,biteCD:0,
+    vx:0,vy:0,t:Math.random()*0.6,phase:i*1.3,hurt:0,kbx:0,kby:0,face:1,anim:Math.random()*6,flee:false,fleeT:0}));
+  SCORP_SPOTS.forEach(([tx,ty],i)=>{ [tx,ty]=openNear(WORLD,tx,ty); list.push({kind:'scorpion',map:'world',sc:1,x:tc(tx),y:tc(ty),hx:tc(tx),hy:tc(ty),hp:2,maxHp:2,dmg:1,
+    chase:190,wander:16,sight:3.2*TS,kbMul:0.8,hw:9,state:'wander',st:0,cd:0.5+i*0.2,tail:0,hitP:false,
+    vx:0,vy:0,t:Math.random(),phase:i*1.1,hurt:0,kbx:0,kby:0,face:i%2?1:-1,anim:Math.random()*6,flee:false,fleeT:0}); });
+  RAT_SPOTS.forEach(([tx,ty],i)=>{ [tx,ty]=openNear(WORLD,tx,ty); list.push({kind:'rat',map:'world',sc:1,x:tc(tx),y:tc(ty),hx:tc(tx),hy:tc(ty),hp:1,maxHp:1,dmg:1,
+    chase:165,wander:120,sight:3.4*TS,kbMul:1,hw:7,burst:false,biteCD:0,brown:i%2===1,
+    vx:0,vy:0,t:Math.random()*1.5,phase:i*0.9,hurt:0,kbx:0,kby:0,face:i%2?1:-1,anim:Math.random()*6,flee:false,fleeT:0}); });
   return list;
 }
 function makeSnake(tx,ty,i){
@@ -1320,7 +1488,7 @@ function makeChickens(){return [[34,30],[29,42],[36,44],[27,36]].map(([tx,ty])=>
 function newGame(){
   G={mode:'play',talkedKing:false,hasSword:true,hasShield:true,pieces:{head:false,shaft:false},hasSpear:false,joinT:0,dragonDefeated:false,hp:10,maxHp:10,t:0,playTime:0,chased:0,
     seenLairIntro:false,seenTunnelIntro:false,side:newSide(),storm:null,prayer:null,hailed:false,pause:null,noSpearT:0,rewardT:0,crossT:0,dialog:null,fade:null,faintT:0,vt:0,noSwordT:0,shake:0};
-  P={x:START.x,y:START.y,dir:'up',walk:0,attackT:0,atk:'sword',atkDur:ATTACK_TIME,spearCD:0,dashT:0,dashCD:0,dashX:0,dashY:0,inv:0,kbx:0,kby:0,kbT:0,hitSet:null};
+  P={x:START.x,y:START.y,dir:'up',walk:0,horse:false,attackT:0,atk:'sword',atkDur:ATTACK_TIME,spearCD:0,dashT:0,dashCD:0,dashX:0,dashY:0,inv:0,kbx:0,kby:0,kbT:0,hitSet:null};
   map=WORLD; npcs=makeNPCs(); foes=makeFoes(); items=makeItems(); chickens=makeChickens(); P.carry=null;
   particles=[];texts=[];fireballs=[];D=null;
   startDialog([{who:'Narrator',text:"Long ago, in the town of Silene, lived a brave young knight named George..."},
@@ -1339,7 +1507,7 @@ let touchUI={spear:null,music:null};
 function syncTouchUI(){ const sp=!!(G&&G.hasSpear); if(touchUI.spear!==sp){ touchUI.spear=sp; document.body.classList.toggle('spear',sp); }
   const mo=musicOn&&!muted; if(touchUI.music!==mo){ touchUI.music=mo; const b=document.getElementById('btnM'); if(b) b.classList.toggle('off',!mo); } }
 // ---- pause v10: pause screen with the quest log, side quests, controls help and options
-const PAUSE_ITEMS=['resume','music','voices','restart'], PAUSE_BOX={x:438,y:66,w:182,h:32,gap:40};
+const PAUSE_ITEMS=['resume','music','voices','test','restart'], PAUSE_BOX={x:438,y:60,w:182,h:30,gap:36};
 function openPause(){ voiceStop(); G.pause={sel:0,confirm:false,from:'play',navPrev:0,navT:0}; G.mode='pause'; beep(520,0.06,'square',0.03); }
 function closePause(){ const f=(G.pause&&G.pause.from)||'play'; G.pause=null; G.mode=f; beep(420,0.06,'square',0.03); }
 function pauseHit(x,y){ const B=PAUSE_BOX; for(let i=0;i<PAUSE_ITEMS.length;i++){ const yy=B.y+i*B.gap; if(x>=B.x&&x<=B.x+B.w&&y>=yy&&y<=yy+B.h) return i; } return -1; }
@@ -1347,6 +1515,7 @@ function pauseActivate(i){ const Q=G.pause; Q.sel=i; const it=PAUSE_ITEMS[i];
   if(it==='resume') closePause();
   else if(it==='music') toggleMusic();
   else if(it==='voices') toggleVoices();
+  else if(it==='test') voiceTest();
   else if(it==='restart'){ if(!Q.confirm){ Q.confirm=true; beep(300,0.12,'square',0.04); } else { G.pause=null; newGame(); SFX.pickup(); } } }
 function updatePause(){ const Q=G.pause; if(!Q){ G.mode='play'; return; }
   if(pv.pause||pv.back){ closePause(); return; }
@@ -1354,12 +1523,12 @@ function updatePause(){ const Q=G.pause; if(!Q){ G.mode='play'; return; }
   if(iy!==0 && iy!==Q.navPrev){ Q.sel=(Q.sel+iy+PAUSE_ITEMS.length)%PAUSE_ITEMS.length; Q.confirm=false; beep(660,0.04,'square',0.025); }
   Q.navPrev=iy;
   if(pv.pauseTap){ pauseActivate(pv.pauseTap-1); return; }
-  if(pv.restart){ if(Q.sel!==3){ Q.sel=3; Q.confirm=false; } pauseActivate(3); return; }   // R (keyboard): restart, asks to confirm
+  if(pv.restart){ const RI=PAUSE_ITEMS.indexOf('restart'); if(Q.sel!==RI){ Q.sel=RI; Q.confirm=false; } pauseActivate(RI); return; }   // R (keyboard): restart, asks to confirm
   if(pv.action) pauseActivate(Q.sel); }
 function controlsHelp(){
-  if(padSeen) return ['Move: Stick / D-pad','Sword: A','Holy Spear: B','Dash: Y','Block: hold X / LB / RB','Pause: START','Menu: D-pad + A, B closes','Keyboard: N music, V voices, M mute'];
-  if(isTouch) return ['Move: joystick','Sword: A button','Holy Spear: SPEAR button','Dash: DASH button','Block: hold the shield','Pause: \u2630    Music: \u266A','Tap a menu item to choose'];
-  return ['Move: Arrows / WASD','Sword: SPACE / E','Holy Spear: F','Dash: C / Ctrl','Block: hold SHIFT / X','Pause: P / Esc / Q','Music: N    Voices: V','Mute everything: M','Menu: \u2191\u2193 + SPACE, R = restart'];
+  if(padSeen) return ['Move: Stick / D-pad','Sword: A','Holy Spear: B','Dash: Y','Block: hold X / LB / RB','Horse: L3 or tap D-pad Up','Pause: START','Menu: D-pad + A, B closes','Keyboard: N music, V voices, M mute'];
+  if(isTouch) return ['Move: joystick','Sword: A button','Holy Spear: SPEAR button','Dash: DASH button','Block: hold the shield','Horse: \uD83D\uDC34 button','Pause: \u2630    Music: \u266A','Tap a menu item to choose','No sound? iPhone: Ring switch on'];
+  return ['Move: Arrows / WASD','Sword: SPACE / E','Holy Spear: F','Dash: C / Ctrl','Block: hold SHIFT / X','Horse: H','Pause: P / Esc / Q','Music: N    Voices: V','Mute everything: M','Menu: \u2191\u2193 + SPACE, R = restart'];
 }
 function toTitle(){ G={mode:'title',t:0}; titleT=0; }
 let titleT=0;
@@ -1464,7 +1633,7 @@ function updateDragon(dt){
     if(D.stateT>2.4 && !D.saidBye){D.saidBye=true;
       startDialog([{who:'Grumblefire the Dragon',text:"Okay, okay! You win, George! You're too brave for me!"},
         {who:'Grumblefire the Dragon',text:"I promise to stop roaring at night and never scare the sheep again. Can we be friends?"},
-        {who:'George',text:"Of course! Silene is safe, and now we have a dragon friend!"}],()=>{G.mode='victory';G.vt=0;SFX.win();makeConfetti();});}
+        {who:'George',text:"Of course! Silene is safe, and now we have a dragon friend!"}],()=>{ startFeast(); });}   // feast v11: banquet + Grace before the victory screen
   }
   // fireballs
   for(const f of fireballs){f.x+=f.vx*dt;f.y+=f.vy*dt;f.life-=dt;
@@ -1540,6 +1709,14 @@ function updatePlay(dt){
   G.playTime+=dt;
   if(maybeStartStorm()) return;
   if(pv.pause){openPause();return;}
+  // horse v11: H / L3 / tap D-pad Up / touch horse button. updatePlay never runs while a dialog is open, so no toggling mid-dialog
+  const indoor = map!==WORLD || inCastle();
+  if(P.horse && indoor){ P.horse=false; addText(P.x,P.y-56,'George ties up his horse.','#fff'); showToast('George ties up his horse'); }
+  if(pv.horse){
+    if(P.horse){ P.horse=false; addText(P.x,P.y-56,'George hops off his horse.','#fff'); }
+    else if(indoor) addText(P.x,P.y-50,'No room for the horse in here!','#fff');
+    else if(P.carry) addText(P.x,P.y-50,'Put the hen down first!','#fff');
+    else { P.horse=true; P.dashT=0; G.rides=(G.rides||0)+1; SFX.neigh(); addText(P.x,P.y-66,'Giddy-up!','#ffe14d'); addParticles(P.x,P.y-4,8,['#d8c8a0','#efe3c4'],70); } }
   P.block = blockHeld() && G.hasShield && !P.carry; if(P.blockCD>0) P.blockCD-=dt;
   const inp=inputDir(); let dx=inp.x, dy=inp.y; const mag=Math.hypot(dx,dy);
   if(mag>0 && P.block){dx/=mag;dy/=mag;P.walk+=dt*8;}
@@ -1550,15 +1727,16 @@ function updatePlay(dt){
   } else P.walk=0;
   // dash v10: quick burst (~3 tiles in 0.2s) in the moving / facing direction, brief invulnerability, collision-safe sub-steps
   if(P.dashCD>0) P.dashCD-=dt;
-  if(pv.dash && !P.block && !P.carry && !(P.dashT>0) && !(P.dashCD>0)){
+  if(pv.dash && !P.block && !P.carry && !P.horse && !(P.dashT>0) && !(P.dashCD>0)){   // horse v11: no dash while mounted
     let ddx=dx, ddy=dy; if(!(mag>0)){ const v={right:[1,0],left:[-1,0],up:[0,-1],down:[0,1]}[P.dir]; ddx=v[0]; ddy=v[1]; }
     P.dashX=ddx; P.dashY=ddy; P.dashT=DASH_TIME; P.dashCD=DASH_TIME+DASH_CD; G.dashes=(G.dashes||0)+1; SFX.dash();
     addParticles(P.x,P.y-2,10,['#d8c8a0','#efe3c4','#b8a47a'],90); }
   if(P.dashT>0){ P.dashT-=dt; const st=DASH_SPEED*dt, n=Math.max(1,Math.ceil(st/4));
     for(let i=0;i<n;i++) moveEnt(P,P.dashX*st/n,P.dashY*st/n,8,6,true);
     if(Math.random()<0.6) addParticles(P.x-P.dashX*8,P.y-2,2,['#d8c8a0','#efe3c4'],40); }
-  else { const sp = P.block ? SPEED*0.5 : P.attackT>0 ? SPEED*0.55 : SPEED;
-  moveEnt(P,dx*sp*dt,dy*sp*dt,8,6,true); }
+  else { const sp = (P.block ? SPEED*0.5 : P.attackT>0 ? SPEED*0.55 : SPEED)*(P.horse?HORSE_MUL:1);
+  const ox=P.x, oy=P.y; moveEnt(P,dx*sp*dt,dy*sp*dt,8,6,true);
+  if(P.horse && Math.hypot(P.x-ox,P.y-oy)>0.5){ P.hoofT=(P.hoofT||0)-dt; if(P.hoofT<=0){ P.hoofT=0.17; P.hoofK=!P.hoofK; SFX.hoof(P.hoofK); if(Math.random()<0.25) addParticles(P.x,P.y,2,['#d8c8a0','#efe3c4'],30); } } }
   if(P.kbT>0){P.kbT-=dt;moveEnt(P,P.kbx*dt,P.kby*dt,8,6,true);}
   if(P.inv>0)P.inv-=dt; if(P.attackT>0)P.attackT-=dt; if(G.noSwordT>0)G.noSwordT-=dt; if(P.spearCD>0)P.spearCD-=dt; if(G.noSpearT>0)G.noSpearT-=dt;
   // spear v10: the Holy Spear is its own button (F / gamepad B / touch SPEAR); A / SPACE always swings the sword
@@ -1573,7 +1751,7 @@ function updatePlay(dt){
     if(map===WORLD) for(const n of npcs){ if(n.follow) continue; const d=Math.hypot(n.x-P.x,n.y-P.y);if(d<best){best=d;near=n;}}
     let hen=null; if(map===WORLD && !P.carry && G.side.hens.st==='active'){ let hb=32; for(const c of chickens){ if(!c.hen||c.penned) continue; const d=Math.hypot(c.x-P.x,c.y-P.y); if(d<hb){hb=d;hen=c;} } }
     if(P.carry){ dropHen(inPen(P.x,P.y)); }
-    else if(hen && !(near && best<Math.hypot(hen.x-P.x,hen.y-P.y))){ P.carry=hen; hen.carried=true; hen.air=true; hen.flap=0.5;
+    else if(hen && !(near && best<Math.hypot(hen.x-P.x,hen.y-P.y))){ if(P.horse){ P.horse=false; addText(P.x,P.y-56,'George hops off to pick her up.','#fff'); } P.carry=hen; hen.carried=true; hen.air=true; hen.flap=0.5;
       beep(1500,0.05,'square',0.04,2100); setTimeout(()=>beep(1200,0.06,'square',0.04,1600),80); addParticles(hen.x,hen.y-10,8,['#fff','#c97a35','#8a4a15'],90);
       addText(P.x,P.y-64,'Got a hen! Carry it to the pen!','#ffe14d'); }
     else if(near){
@@ -1588,19 +1766,23 @@ function updatePlay(dt){
     const ab=attackBox();
     for(const s of foes){ if(s.flee||P.hitSet.has(s)||s.map!==map.name) continue;
       if(s.kind==='cobra' && s.state==='lunge') continue;
-      if(Math.hypot(s.x-ab.x,(s.y-(s.kind==='bat'?16:s.kind==='cobra'?22:10))-ab.y)<ab.r+(s.kind==='cobra'?24:s.kind==='bear'?(s.white?25:18):s.kind==='bat'?14:s.white?16:12)){ P.hitSet.add(s); s.hp--; s.hurt=0.25;
+      if(Math.hypot(s.x-ab.x,(s.y-(s.kind==='bat'?16:s.kind==='cobra'?22:s.kind==='spider'?8+(s.drop||0):s.kind==='scorpion'?8:s.kind==='rat'?6:10))-ab.y)<ab.r+(s.kind==='cobra'?24:s.kind==='bear'?(s.white?25:18):s.kind==='bat'?14:s.kind==='spider'?12:s.kind==='scorpion'?14:s.kind==='rat'?11:s.white?16:12)){ P.hitSet.add(s); s.hp--; s.hurt=s.kind==='bat'?0.32:0.25;
+        if(s.kind==='bat' && s.hp>0){ if(s.state==='sleep'||s.state==='wake'){ s.state='fly'; s.t=0; } s.swoopT=0.75; beep(2000,0.07,'square',0.03,2600); }   // mobile v11: first hit on a bat: white flash + knockback, it backs off
+        if(s.kind==='scorpion' && s.hp>0){ s.state='rest'; s.st=0; s.vx=0; s.vy=0; }
         if(s.kind==='cobra'){ addText(s.x,s.y-86,s.state==='recover'?'Bonk!':'Hiss!',s.state==='recover'?'#ffe14d':'#fff'); beep(900,0.12,'sawtooth',0.03,300); }
         const d=Math.hypot(s.x-P.x,s.y-P.y)||1; s.kbx=(s.x-P.x)/d*300*s.kbMul; s.kby=(s.y-P.y)/d*300*s.kbMul; SFX.hit();
         addParticles(s.x,s.y-12,5,['#fff','#ffe14d'],80);
-        if(s.hp>0 && (s.white||s.kind==='wolf'||s.kind==='cobra')){ addText(s.x,s.y-(s.kind==='cobra'?66:s.kind==='bear'?74:s.white?50:42),s.hp===1?'One more hit!':s.hp+' more hits!','#cfe8ff'); addParticles(s.x,s.y-16,8,['#cfe8ff','#fff'],100); }
+        if(s.hp>0 && (s.white||s.kind==='wolf'||s.kind==='cobra'||s.kind==='bat'||s.kind==='scorpion')){ addText(s.x,s.y-(s.kind==='cobra'?66:s.kind==='bear'?74:s.white?50:s.kind==='bat'?40:s.kind==='scorpion'?36:42),s.hp===1?'One more hit!':s.hp+' more hits!','#cfe8ff'); addParticles(s.x,s.y-16,8,['#cfe8ff','#fff'],100); }
         if(s.hp<=0){ s.flee=true; s.fleeT=0.9; G.chased++; SFX.poof(); s.face=(s.x>=P.x)?1:-1;
           s.vx=(s.x-P.x)/d*230; s.vy=(s.y-P.y)/d*230; s.kbx=0; s.kby=0;
           addParticles(s.x,s.y-10,12,['#e8dcc0','#fff','#ffe14d'],110);
           if(s.kind==='bat'){ s.vx=(s.x-P.x)/d*120; s.vy=-160; }
+          if(s.kind==='spider' && s.drop>0){ s.vx=0; s.vy=-150; }                    // a dangling spider zips back up its thread
+          if(s.kind==='rat'||s.kind==='spider'){ beep(2300,0.05,'square',0.025,3000); setTimeout(()=>beep(2600,0.05,'square',0.02,1800),60); }
           if(s.kind==='cobra'){ s.fleeT=1.8; s.vx=(s.x-P.x)/d*120; s.vy=(s.y-P.y)/d*120; G.side.cobra.beaten=true; SFX.item(); G.shake=0.3;
             items.push({type:'snakeCrown',x:s.x,y:s.y,map:'world'}); addParticles(s.x,s.y-30,30,['#ffd23f','#fff','#7cfc8a'],160);
             addText(s.x,s.y-90,'The Snake King slithers away!','#ffe14d'); addText(s.x,s.y-70,'He dropped his crown!','#fff'); }
-          else addText(s.x,s.y-36,s.kind==='bat'?'Squeak! Flew away!':s.kind==='snake'?'Ssss! Slithered away!':s.kind==='bear'?(s.white?'The big white bear lumbers home!':'The bear runs home!'):s.white?'The white wolf runs off!':'Yelp! Ran away!','#ffe14d');
+          else addText(s.x,s.y-36,s.kind==='bat'?'Squeak! Flew away!':s.kind==='spider'?'Eek! Scurried away!':s.kind==='scorpion'?'Click-click! Scuttled away!':s.kind==='rat'?'Squeak! Scurried away!':s.kind==='snake'?'Ssss! Slithered away!':s.kind==='bear'?(s.white?'The big white bear lumbers home!':'The bear runs home!'):s.white?'The white wolf runs off!':'Yelp! Ran away!','#ffe14d');
           const chance = G.hp<G.maxHp?0.55:0.15; if(Math.random()<chance) items.push({type:'heart',x:s.x,y:s.y,map:map.name}); } } }
     if(D){ const inX=Math.abs(ab.x-D.x)<ab.r+40, inY=ab.y>D.y-75-ab.r && ab.y<D.y+40+ab.r; if(inX&&inY&&!P.hitSet.has('D')){P.hitSet.add('D');hitDragon();} }
     for(const f of fireballs){ if(Math.hypot(f.x-ab.x,f.y-ab.y)<ab.r+8){ f.life=0; addParticles(f.x,f.y,8,['#ffb347','#ffe14d','#fff']); SFX.clang(); addText(f.x,f.y-14,'Pop!','#ffb347'); } }
@@ -1613,6 +1795,9 @@ function updatePlay(dt){
       if(s.fleeT<=0){ s.gone=true; addParticles(s.x,s.y-10,10,['#e8dcc0','#fff'],70); } continue; }
     if(s.kind==='bat'){ updateBat(s,dt); continue; }
     if(s.kind==='cobra'){ updateCobra(s,dt); continue; }
+    if(s.kind==='spider'){ updateSpider(s,dt); continue; }
+    if(s.kind==='scorpion'){ updateScorp(s,dt); continue; }
+    if(s.kind==='rat'){ updateRat(s,dt); continue; }
     s.t-=dt;
     const dP=Math.hypot(P.x-s.x,P.y-s.y), dH=Math.hypot(s.hx-s.x,s.hy-s.y);
     if(s.t<=0){ s.t=s.kind==='wolf'?0.5+Math.random()*0.8:1+Math.random()*1.2;
@@ -1684,7 +1869,7 @@ function updateMia(dt){
   const dx=P.x-m.x, dy=P.y-m.y, d=Math.hypot(dx,dy);
   if(d>260){ placeMiaNear(); addParticles(m.x,m.y-12,10,['#fff','#ff9fd0'],80); addText(m.x,m.y-40,'Wait for me!','#ff9fd0'); return; }
   m.walk=m.walk||0;
-  if(d>34){ const sp=Math.min(175,60+d*1.6), ox=m.x, oy=m.y;
+  if(d>34){ const sp=Math.min(P.horse?265:175,60+d*1.6), ox=m.x, oy=m.y;   // horse v11: Mia hurries after the horse
     moveEnt(m,dx/d*sp*dt,dy/d*sp*dt,5,4,false);
     const moved=Math.hypot(m.x-ox,m.y-oy); m.walk+=dt*12;
     m.dir=Math.abs(dx)>Math.abs(dy)?(dx<0?'left':'right'):(dy<0?'up':'down');
@@ -1742,6 +1927,58 @@ function updateBat(s,dt){
   if(Math.abs(s.vx)>3) s.face=s.vx>0?1:-1;
   s.kbx*=Math.pow(0.02,dt); s.kby*=Math.pow(0.02,dt);
   if(dP<18 && P.inv<=0 && s.swoopT<=0){ if(hurtPlayer(s.dmg,s.x,s.y)==='blocked'){ const d=dP||1; s.kbx=(s.x-P.x)/d*260; s.kby=(s.y-P.y)/d*260; } s.swoopT=0.9; }
+}
+// mobile v11: spiders: hang on a thread -> drop when George is close -> quick zig-zag bursts along the floor
+function updateSpider(s,dt){ const dP=Math.hypot(P.x-s.x,P.y-s.y), dH=Math.hypot(s.hx-s.x,s.hy-s.y);
+  if(s.biteCD>0) s.biteCD-=dt;
+  if(s.state==='hang'){ s.anim+=dt*3; if(dP<s.trig){ s.state='drop'; beep(900,0.12,'sine',0.03,300); addText(s.x,s.y-30-s.drop,'Boing!','#e0c8ff'); } return; }
+  if(s.state==='drop'){ s.drop=Math.max(0,s.drop-dt*170); s.anim+=dt*10; if(s.drop<=0){ s.state='crawl'; s.t=0.35; s.burst=false; addParticles(s.x,s.y,4,['#9a8aa8','#ccc'],40); } return; }
+  s.t-=dt;
+  if(s.t<=0){ if(s.burst){ s.burst=false; s.t=0.25+Math.random()*0.45; s.vx=0; s.vy=0; }
+    else { s.burst=true; s.t=0.2+Math.random()*0.12; s.zig=-s.zig; let a;
+      if(dP<s.sight&&dH<5*TS) a=Math.atan2(P.y-s.y,P.x-s.x)+s.zig*0.75;
+      else if(dH>2*TS) a=Math.atan2(s.hy-s.y,s.hx-s.x)+s.zig*0.5; else a=Math.random()*Math.PI*2;
+      s.vx=Math.cos(a)*s.chase; s.vy=Math.sin(a)*s.chase; } }
+  moveEnt(s,s.vx*dt+s.kbx*dt,s.vy*dt+s.kby*dt,s.hw,5,false);
+  if(Math.abs(s.vx)>3) s.face=s.vx>0?1:-1;
+  s.anim+=dt*(s.burst?30:2); s.kbx*=Math.pow(0.02,dt); s.kby*=Math.pow(0.02,dt);
+  if(dP<17 && P.inv<=0 && s.biteCD<=0){ if(hurtPlayer(s.dmg,s.x,s.y)==='blocked'){ const d=dP||1; s.kbx=(s.x-P.x)/d*280; s.kby=(s.y-P.y)/d*280; s.burst=false; s.t=0.6; s.vx=0; s.vy=0; } s.biteCD=0.9; }
+}
+// mobile v11: scorpions: slow wander -> raise the tail (telegraph) -> quick tail-jab scuttle -> rest
+function updateScorp(s,dt){ const dP=Math.hypot(P.x-s.x,P.y-s.y), dH=Math.hypot(s.hx-s.x,s.hy-s.y); s.st+=dt; if(s.cd>0) s.cd-=dt;
+  const ox=s.x, oy=s.y;
+  if(s.state==='wander'){ s.t-=dt; s.tail=Math.max(0,s.tail-dt*3);
+    if(s.t<=0){ s.t=1+Math.random()*1.5;
+      if(dH>1.8*TS){ const a=Math.atan2(s.hy-s.y,s.hx-s.x); s.vx=Math.cos(a)*s.wander; s.vy=Math.sin(a)*s.wander; }
+      else if(Math.random()<0.6){ const a=Math.random()*Math.PI*2; s.vx=Math.cos(a)*s.wander; s.vy=Math.sin(a)*s.wander; } else { s.vx=0; s.vy=0; } }
+    if(dP<s.sight && s.cd<=0 && dH<3.5*TS && map===WORLD){ s.state='raise'; s.st=0; s.vx=0; s.vy=0; s.face=P.x>s.x?1:-1;
+      beep(1500,0.04,'square',0.02,1800); setTimeout(()=>beep(1500,0.04,'square',0.02,1800),90); } }
+  else if(s.state==='raise'){ s.tail=Math.min(1,s.st/0.3); s.face=P.x>s.x?1:-1;
+    if(s.st>=0.55){ const a=Math.atan2(P.y-s.y,P.x-s.x); s.state='jab'; s.st=0; s.vx=Math.cos(a)*s.chase; s.vy=Math.sin(a)*s.chase; s.hitP=false; beep(500,0.08,'sawtooth',0.02,900); } }
+  else if(s.state==='jab'){ if(s.st>=0.3){ s.state='rest'; s.st=0; s.vx=0; s.vy=0; } }
+  else if(s.state==='rest'){ s.tail=Math.max(0,1-s.st/0.5); if(s.st>=0.7){ s.state='wander'; s.t=0; s.cd=1.4; } }
+  moveEnt(s,s.vx*dt+s.kbx*dt,s.vy*dt+s.kby*dt,s.hw,6,false);
+  const row=WORLD.t[Math.floor(s.y/TS)], tt=row&&row[Math.floor(s.x/TS)];
+  if(tt===T.PATH||tt===T.BRIDGE){ s.x=ox; s.y=oy; s.vx=-s.vx*0.5; s.vy=-s.vy*0.5; s.kbx=0; s.kby=0; }   // never onto the roads
+  if(Math.abs(s.vx)>3) s.face=s.vx>0?1:-1;
+  s.anim+=dt*(Math.abs(s.vx)+Math.abs(s.vy)>2?(s.state==='jab'?26:10):1); s.kbx*=Math.pow(0.02,dt); s.kby*=Math.pow(0.02,dt);
+  if(s.state==='jab' && !s.hitP && dP<22 && P.inv<=0){ s.hitP=true;
+    if(hurtPlayer(s.dmg,s.x,s.y)==='blocked'){ s.state='rest'; s.st=0; s.vx=0; s.vy=0; const d=dP||1; s.kbx=(s.x-P.x)/d*240; s.kby=(s.y-P.y)/d*240; } }
+}
+// mobile v11: rats: nibble, dart about in quick bursts, rush George when he comes close
+function updateRat(s,dt){ const dP=Math.hypot(P.x-s.x,P.y-s.y), dH=Math.hypot(s.hx-s.x,s.hy-s.y);
+  if(s.biteCD>0) s.biteCD-=dt; s.t-=dt;
+  if(s.t<=0){ const near=dP<s.sight&&dH<4*TS&&map===WORLD;
+    if(s.burst){ s.burst=false; s.t=near?0.2+Math.random()*0.2:0.8+Math.random()*1.6; s.vx=0; s.vy=0; }
+    else { s.burst=true; s.t=near?0.3:0.18+Math.random()*0.12; let a,sp;
+      if(near){ a=Math.atan2(P.y-s.y,P.x-s.x)+(Math.random()-0.5)*0.6; sp=s.chase; }
+      else if(dH>2.2*TS){ a=Math.atan2(s.hy-s.y,s.hx-s.x)+(Math.random()-0.5)*0.5; sp=s.wander; }
+      else { a=Math.random()*Math.PI*2; sp=s.wander; }
+      s.vx=Math.cos(a)*sp; s.vy=Math.sin(a)*sp; } }
+  moveEnt(s,s.vx*dt+s.kbx*dt,s.vy*dt+s.kby*dt,s.hw,5,false);
+  if(Math.abs(s.vx)>3) s.face=s.vx>0?1:-1;
+  s.anim+=dt*(s.burst?28:5); s.kbx*=Math.pow(0.02,dt); s.kby*=Math.pow(0.02,dt);
+  if(dP<16 && P.inv<=0 && s.biteCD<=0){ if(hurtPlayer(s.dmg,s.x,s.y)==='blocked'){ const d=dP||1; s.kbx=(s.x-P.x)/d*280; s.kby=(s.y-P.y)/d*280; s.burst=false; s.t=0.7; s.vx=0; s.vy=0; } s.biteCD=0.9; }
 }
 function updateCamera(snap){
   const tx=clamp(P.x-W/2,0,map.w*TS-W), ty=clamp(P.y-20-H/2,0,map.h*TS-H);
@@ -1888,11 +2125,93 @@ const HAIL_MARY=[
   ["Blessed art thou among women,","and blessed is the fruit of thy womb, Jesus."],
   ["Holy Mary, Mother of God,","pray for us sinners,","now and at the hour of our death."],
   ["Amen."]];
-const PRAYERS={our:{title:'The Our Father',pages:OUR_FATHER,who:'Father Ambrose'},hail:{title:'The Hail Mary',pages:HAIL_MARY,who:'Princess Sabra'}};
+// feast v11: Catholic Grace Before Meals, opened and closed with the Sign of the Cross
+const SIGN_CROSS=["In the name of the Father,","and of the Son, and of the Holy Spirit. Amen."];
+const GRACE=[SIGN_CROSS,["Bless us, O Lord, and these Thy gifts,","which we are about to receive"],["from Thy bounty,","through Christ our Lord. Amen."],SIGN_CROSS];
+const PRAYERS={our:{title:'The Our Father',pages:OUR_FATHER,who:'Father Ambrose'},hail:{title:'The Hail Mary',pages:HAIL_MARY,who:'Princess Sabra'},
+  grace:{title:'Grace Before Meals',pages:GRACE,who:'Father Ambrose'}};
+function startFeast(){ if(P.carry) dropHen(false); P.horse=false; P.attackT=0; P.kbT=0; P.block=false; P.walk=0; P.dashT=0; fireballs=[];
+  G.feasted=true; G.prayer={kind:'grace',ph:'dark',t:0,inside:false,page:0,eat:0}; G.mode='prayer'; }
+const FEAST_SEATS=[['giles',105],['baker',158],['rose',210],['mia',254],['king',300],['george',350],['princess',400],['leo',446],['ben',494],['knight',546]];
+const FEAST_CHAT=[[0.2,'giles','Yum!'],[0.9,'king','Hooray for George!'],[1.7,'mia','Delicious!'],[2.4,'ben','Pass the bread!'],[3.1,'princess','What a feast!'],[3.8,'leo','More pie, please!'],[4.5,'rose','So yummy!'],[5.2,'baker','Fresh bread for all!']];
+const FEAST_FOOD=[['bread',128,0.6],['chicken',185,1.4],['fruit',236,2.2],['pie',282,3.0],['chicken',338,1.0],['bread',388,3.6],['pie',428,2.6],['fruit',472,1.8],['chicken',522,4.2],['bread',560,4.8]];
+function updateGrace(Q,dt){ const go=(ph)=>{Q.ph=ph;Q.t=0;};
+  switch(Q.ph){
+  case 'dark': if(Q.t>=0.9){ Q.inside=true; go('reveal'); } break;                   // fade out of the dragon's lair...
+  case 'reveal': if(Q.t>=1.0){ go('intro');                                                     // ...into the castle banquet hall
+      startDialog([{who:'King of Silene',text:"Hooray for George! Silene is saved! Tonight we feast in the castle hall!"},
+        {who:'Princess Sabra',text:"Thank you, brave George. And thank you, everyone, for helping!"},
+        {who:'King of Silene',text:"Father Ambrose, will you lead us in Grace?"},
+        {who:'Father Ambrose',text:"Of course, Your Majesty. Let us all bow our heads."}],()=>{ G.mode='prayer'; go('bow'); }); } break;
+  case 'bow': if(Q.t>=0.9) go('page'); break;
+  case 'page': if(prayerPages(Q,dt)){ go('amen'); startDialog([{who:'Father Ambrose',text:"Amen! Now, everyone... let us eat!"}],()=>{ G.mode='prayer'; go('eat'); SFX.win&&beep(784,0.12,'triangle',0.03); }); } break;
+  case 'eat': Q.eat=Q.t; if((pv.action&&Q.t>1.2)||Q.t>=7){ Q.eat=99; go('end'); startDialog([{who:'George',text:"Thank you, everyone! God bless Silene!"}],()=>{ G.mode='prayer'; go('out'); }); } break;
+  case 'end': Q.eat=99; break;
+  case 'out': if(Q.t>=0.9){ G.prayer=null; G.mode='victory'; G.vt=0; SFX.win(); makeConfetti(); } break;
+  default: go('out'); } }
+function drawFood(g,kind,x,y,k){ if(k<=0){ ell(g,x,y+4,15,5,'#e8e4dc'); ell(g,x,y+4,11,3.5,'#f8f6f0'); circ(g,x-3,y+3,1.2,'#c9a060'); circ(g,x+4,y+5,1,'#c9a060'); return; }
+  ell(g,x,y+4,16,5.5,'#e8e4dc'); ell(g,x,y+4,12,4,'#f8f6f0'); g.save(); g.translate(x,y+2); g.scale(k,k);
+  if(kind==='chicken'){ ell(g,0,-4,12,8,'#c8782e'); ell(g,-3,-7,6,3,'#e4a050'); for(const sx of [-1,1]){ g.strokeStyle='#b0642a'; g.lineWidth=4; g.beginPath(); g.moveTo(sx*8,-6); g.lineTo(sx*14,-12); g.stroke(); circ(g,sx*15,-13,2.6,'#fff'); } }
+  else if(kind==='bread'){ ell(g,0,-4,13,6.5,'#d9a050'); g.strokeStyle='#a86a28'; g.lineWidth=1.5; for(const sx of [-5,0,5]){ g.beginPath(); g.moveTo(sx-2,-8); g.lineTo(sx+2,-2); g.stroke(); } }
+  else if(kind==='pie'){ ell(g,0,-2,12,5,'#c98a3a'); ell(g,0,-4,11,4,'#e8b860'); g.strokeStyle='#b07030'; g.lineWidth=1; for(const sx of [-6,-2,2,6]){ g.beginPath(); g.moveTo(sx,-7); g.lineTo(sx,-1); g.stroke(); } circ(g,0,-5,1.6,'#a0203a'); }
+  else { circ(g,-5,-5,4.5,'#e53935'); circ(g,4,-5,4.5,'#7cb342'); circ(g,0,-10,4.5,'#ffb300'); for(const [gx,gy] of [[8,-11],[10,-8],[6,-9]]) circ(g,gx,gy,2.2,'#7e57c2'); g.fillStyle='#5a3a1a'; g.fillRect(-0.5,-16,1.5,3); }
+  g.restore(); }
+function drawGoblet(g,x,y){ g.fillStyle='#d9a93a'; g.beginPath(); g.moveTo(x-5,y-12); g.lineTo(x+5,y-12); g.lineTo(x+3,y-6); g.lineTo(x-3,y-6); g.fill(); g.fillRect(x-1,y-6,2,5); g.fillRect(x-4,y-1.5,8,2); g.fillStyle='#8a1a2a'; g.fillRect(x-4,y-12,8,2); }
+function drawFeastHall(g,t,Q){
+  const bowed=Q.ph==='bow'||Q.ph==='page', eating=Q.ph==='eat';
+  let gr=g.createLinearGradient(0,0,0,300); gr.addColorStop(0,'#5a4a5e'); gr.addColorStop(1,'#7a6870'); g.fillStyle=gr; g.fillRect(0,0,W,300);
+  g.strokeStyle='rgba(0,0,0,.13)'; g.lineWidth=1; for(let y=16;y<300;y+=26){ g.beginPath();g.moveTo(0,y);g.lineTo(W,y);g.stroke(); for(let x=((y/26)%2)*28;x<W;x+=56){g.beginPath();g.moveTo(x,y);g.lineTo(x,y+26);g.stroke();} }
+  gr=g.createLinearGradient(0,300,0,H); gr.addColorStop(0,'#7a5434'); gr.addColorStop(1,'#93683f'); g.fillStyle=gr; g.fillRect(0,290,W,H-290);
+  g.strokeStyle='rgba(0,0,0,.14)'; for(let x=0;x<W;x+=48){ g.beginPath(); g.moveTo(x,290); g.lineTo(x,H); g.stroke(); }
+  // arched doorway on the right: the courtyard with George's white horse tied to a post
+  const dx=548, dw=70, dy=70, dh=190; g.fillStyle='#3a2e38'; g.beginPath(); g.moveTo(dx-6,dy+dh); g.lineTo(dx-6,dy+30); g.arc(dx+dw/2,dy+30,dw/2+6,Math.PI,0); g.lineTo(dx+dw+6,dy+dh); g.fill();
+  g.save(); g.beginPath(); g.moveTo(dx,dy+dh); g.lineTo(dx,dy+30); g.arc(dx+dw/2,dy+30,dw/2,Math.PI,0); g.lineTo(dx+dw,dy+dh); g.closePath(); g.clip();
+  gr=g.createLinearGradient(0,dy,0,dy+dh); gr.addColorStop(0,'#2a3a7a'); gr.addColorStop(0.6,'#e88a5a'); gr.addColorStop(0.61,'#5aa84a'); gr.addColorStop(1,'#3e8a3a'); g.fillStyle=gr; g.fillRect(dx,dy,dw,dh);
+  drawStar(g,dx+16,dy+24,2,'#fff6c0'); drawStar(g,dx+52,dy+40,1.6,'#fff6c0');
+  g.fillStyle='#7a5434'; g.fillRect(dx+56,dy+dh-46,5,30); g.fillRect(dx+50,dy+dh-46,17,4);
+  g.save(); g.translate(dx+30,dy+dh-14); g.scale(0.9,0.9); drawHorse(g,0,0,'right',0,'back',true); drawHorse(g,0,0,'right',0,'front',true); g.restore();
+  g.strokeStyle='#7a3a1a'; g.lineWidth=1; g.beginPath(); g.moveTo(dx+54,dy+dh-40); g.lineTo(dx+58,dy+dh-43); g.stroke();
+  g.restore();
+  // banners & windows
+  for(const bx of [40,190,450]){ g.fillStyle='#7a1a24'; g.fillRect(bx-4,40,58,4); g.fillStyle='#b8202c'; g.beginPath(); g.moveTo(bx,44); g.lineTo(bx+50,44); g.lineTo(bx+50,150); g.lineTo(bx+25,170); g.lineTo(bx,150); g.fill();
+    g.fillStyle='#fff'; g.fillRect(bx+21,62,8,70); g.fillRect(bx+8,84,34,8); g.fillStyle='#f2c94c'; g.fillRect(bx,44,50,4); }
+  for(const wx of [130,320,390]){ g.fillStyle='#2a2030'; g.beginPath(); g.moveTo(wx-22,190); g.lineTo(wx-22,80); g.arc(wx,80,22,Math.PI,0); g.lineTo(wx+22,190); g.fill();
+    gr=g.createLinearGradient(0,60,0,190); gr.addColorStop(0,'#26306a'); gr.addColorStop(1,'#d07a52'); g.fillStyle=gr; g.beginPath(); g.moveTo(wx-18,186); g.lineTo(wx-18,80); g.arc(wx,80,18,Math.PI,0); g.lineTo(wx+18,186); g.fill();
+    g.strokeStyle='#2a2030'; g.lineWidth=2; g.beginPath(); g.moveTo(wx,62); g.lineTo(wx,186); g.moveTo(wx-18,124); g.lineTo(wx+18,124); g.stroke(); }
+  drawGoldCross(g,255,150,1.1,true);
+  // Father Ambrose stands at the head of the table
+  const am=npcById('ambrose'); g.save(); g.translate(44,400); g.scale(1.7,1.7); drawPerson(g,0,0,am?am.o:{},'down',0); if(bowed) closedEyes(g,am?am.o:{}); g.restore();
+  // seated guests (behind the table, facing us)
+  FEAST_SEATS.forEach(([id,x],i)=>{ const n=id==='george'?null:npcById(id), small=n&&n.small, sc=small?1.25:1.6, by=small?314:318;
+    const bob=eating?Math.max(0,Math.sin(t*7+i*1.3))*1.5:0;
+    g.save(); g.translate(x,by+(bowed?2:0)-bob); g.scale(sc,sc);
+    if(id==='george') drawGeorgeBody(g,0,0,{dir:'down',inv:0,walk:0,block:false,attackT:0,dashT:0},t); else drawPerson(g,0,0,n?n.o:{},'down',0);
+    if(bowed){ closedEyes(g,n?n.o:{skin:'#f6c9a0'}); circ(g,0,-13,3.2,(n&&n.o.skin)||'#f6c9a0'); }   // folded hands
+    g.restore(); });
+  // the long table
+  rrect(g,70,300,512,52,6,'#f4f0e6'); g.fillStyle='#b8202c'; g.fillRect(70,318,512,14); g.fillStyle='#f2c94c'; g.fillRect(70,318,512,2); g.fillRect(70,330,512,2);
+  g.fillStyle='#e8e2d4'; g.fillRect(70,350,512,38); g.fillStyle='#f4f0e6'; for(let x=70;x<582;x+=24){ g.beginPath(); g.arc(x+12,388,12,0,Math.PI); g.fill(); }
+  g.fillStyle='#6a4428'; g.fillRect(84,396,10,40); g.fillRect(558,396,10,40); g.fillRect(320,396,10,40);
+  for(const [,x] of FEAST_SEATS) drawGoblet(g,x+14,312);
+  for(const [kind,x,ti] of FEAST_FOOD){ const k=Q.eat>ti?clamp(1-(Q.eat-ti)/0.7,0,1):1; drawFood(g,kind,x,334,k); }
+  for(const cx of [160,330,500]){ g.fillStyle='#d9a93a'; g.fillRect(cx-5,322,10,3); g.fillStyle='#fffbe8'; g.fillRect(cx-2.5,300,5,22);
+    const fl=1+0.15*Math.sin(t*11+cx)+0.08*Math.sin(t*23+cx); const gl=g.createRadialGradient(cx,294,1,cx,294,26*fl); gl.addColorStop(0,'rgba(255,220,120,.55)'); gl.addColorStop(1,'rgba(255,220,120,0)');
+    g.fillStyle=gl; g.beginPath(); g.arc(cx,294,26*fl,0,7); g.fill(); g.fillStyle='#ffb52e'; g.beginPath(); g.ellipse(cx,294,2.6*fl,6*fl,0,0,7); g.fill(); }
+  // happy chatter while everyone eats
+  if(eating){ for(const [t0,id,txt] of FEAST_CHAT){ const a=Q.t-t0; if(a<0||a>1.5) continue; const seat=FEAST_SEATS.find(s2=>s2[0]===id); if(!seat) continue;
+      const x=seat[1], y=232-Math.min(a,0.3)*20; g.globalAlpha=clamp(Math.min(a/0.2,(1.5-a)/0.3),0,1); g.font='bold 13px Verdana'; const w=g.measureText(txt).width+16;
+      rrect(g,x-w/2,y-18,w,24,9,'#fff'); g.fillStyle='#fff'; g.beginPath(); g.moveTo(x-5,y+6); g.lineTo(x+5,y+6); g.lineTo(x,y+13); g.fill();
+      g.fillStyle='#3a2410'; g.textAlign='center'; g.fillText(txt,x,y-1); g.globalAlpha=1; }
+    for(let i=0;i<5;i++){ const ph=(t*0.7+i*0.37)%1; drawStar(g,120+i*100+Math.sin(t+i)*10,250-ph*60,2,'rgba(255,230,120,'+(1-ph)+')'); } }
+  g.textAlign='center'; g.font='bold 26px Georgia, serif'; outlined(g,'The Victory Feast',W/2,30,'#ffe14d','#3a1a08',5);
+  if(eating && Q.t>1.2 && Math.sin(G.t*4)>0){ g.font='bold 12px Verdana'; outlined(g,(padSeen?'A':isTouch?'Tap':'SPACE')+' ▶ continue',W-70,H-12,'#fff','#000',3); }
+  const vg=g.createRadialGradient(W/2,260,140,W/2,260,470); vg.addColorStop(0,'rgba(255,200,120,0.06)'); vg.addColorStop(1,'rgba(10,5,20,0.5)'); g.fillStyle=vg; g.fillRect(0,0,W,H); }
+function closedEyes(g,o){ g.fillStyle=(o&&o.skin)||'#f6c9a0'; g.fillRect(-5.5,-31,10,5); g.strokeStyle='#3a2410'; g.lineWidth=1; g.beginPath(); g.arc(-3,-29,1.8,0.2,Math.PI-0.2); g.stroke(); g.beginPath(); g.arc(3,-29,1.8,0.2,Math.PI-0.2); g.stroke(); }
 function startPrayer(){ const X=G.side.cross; if(X.prayed) { sideReward('The Lost Cross'); return; } X.prayed=true;
+  if(P.horse){ P.horse=false; addText(P.x,P.y-56,'George ties up his horse.','#fff'); }
   if(P.carry) dropHen(false); P.attackT=0; P.kbT=0; P.block=false; P.walk=0; P.dashT=0;
   G.prayer={kind:'our',ph:'look',t:0,inside:false,page:0,alpha:0}; G.mode='prayer'; }
-function startHail(){ if(G.hailed) return false; const s=npcById('princess'); if(!s) return false; G.hailed=true;
+function startHail(){ if(G.hailed) return false; const s=npcById('princess'); if(!s) return false; G.hailed=true; P.horse=false;
   if(P.carry) dropHen(false); P.attackT=0; P.kbT=0; P.block=false; P.walk=0; P.dashT=0;
   const side=P.x<s.x?1:-1;
   G.prayer={kind:'hail',ph:'step',t:0,inside:false,page:0,sx:s.x,sy:s.y,tx:P.x+side*30,ty:P.y+2}; G.mode='prayer'; return true; }
@@ -1912,6 +2231,7 @@ function prayerPages(Q,dt){ const PR=PRAYERS[Q.kind], pages=PR.pages;
   if(Q.page<pages.length-1){ Q.page++; Q.t=0; return false; }
   return true; }
 function updatePrayer(dt){ const Q=G.prayer; if(!Q) { G.mode='play'; return; } Q.t+=dt;
+  if(Q.kind==='grace'){ updateGrace(Q,dt); return; }
   const go=(ph)=>{Q.ph=ph;Q.t=0;};
   if(Q.kind==='hail'){ const s=npcById('princess'), e=k=>k<0?0:k>1?1:k*k*(3-2*k);
     switch(Q.ph){
@@ -1993,9 +2313,9 @@ function renderPrayer(){ const Q=G.prayer; if(!Q) return;
         gr.addColorStop(0,'rgba(255,230,160,'+(0.28*k)+')'); gr.addColorStop(1,'rgba(255,230,160,0)'); ctx.fillStyle=gr; ctx.fillRect(0,0,W,H); } }
     if(Q.ph==='page') renderPrayerBox(Q);
     return; }
-  if(Q.inside){ drawChurchInterior(ctx,G.t);
+  if(Q.inside){ if(Q.kind==='grace') drawFeastHall(ctx,G.t,Q); else drawChurchInterior(ctx,G.t);
     if(Q.ph==='page') renderPrayerBox(Q);
-    if(Q.ph==='reward'||Q.ph==='out'){ const a=clamp(Q.t/0.4,0,1); ctx.globalAlpha=Q.ph==='out'?1:a; drawHeart(ctx,W/2,330,46,1);
+    if(Q.kind!=='grace' && (Q.ph==='reward'||Q.ph==='out')){ const a=clamp(Q.t/0.4,0,1); ctx.globalAlpha=Q.ph==='out'?1:a; drawHeart(ctx,W/2,330,46,1);
       ctx.font='bold 22px Verdana'; ctx.textAlign='center'; outlined(ctx,'+1 HEART CONTAINER!',W/2,410,'#ff7b95','#2a1020',4); ctx.globalAlpha=1; } }
   let k=0; if(Q.ph==='dark'||Q.ph==='out') k=clamp(Q.t/0.9,0,1); else if(Q.ph==='reveal') k=1-clamp(Q.t/1.0,0,1); else if(Q.ph==='back') k=1-clamp(Q.t/0.9,0,1);
   if(k>0){ ctx.fillStyle='rgba(0,0,0,'+k+')'; ctx.fillRect(0,0,W,H); } }
@@ -2125,13 +2445,13 @@ function renderPause(){
   const rx=430, rw=W-rx-8, ry=10, rh=H-20, Q=G.pause;
   rrect(ctx,rx,ry,rw,rh,14,'rgba(24,20,56,.95)'); ctx.strokeStyle='#ffe14d';ctx.lineWidth=3;ctx.strokeRect(rx+6,ry+6,rw-12,rh-12);
   ctx.textAlign='center'; ctx.font='bold 26px Georgia, serif'; outlined(ctx,'PAUSED',rx+rw/2,ry+40,'#ffe14d','#5a1a1a',5);
-  const B=PAUSE_BOX, lab=[ 'Resume', 'Music: '+(musicOn?'On':'Off'), 'Voices: '+(voicesOn?'On':'Off'), Q&&Q.confirm?'Really restart? (A)':'Restart' ];
+  const B=PAUSE_BOX, lab=[ 'Resume', 'Music: '+(musicOn?'On':'Off'), 'Voices: '+(voicesOn?'On':'Off'), 'Test voice \uD83D\uDD0A', Q&&Q.confirm?'Really restart? (A)':'Restart' ], RI=PAUSE_ITEMS.indexOf('restart');
   lab.forEach((l,i)=>{ const y=B.y+i*B.gap, sel=Q&&Q.sel===i;
-    rrect(ctx,B.x,y,B.w,B.h,9,sel?(i===3&&Q.confirm?'#d62828':'#ffe14d'):'rgba(255,255,255,.12)');
-    ctx.font='bold 15px Verdana'; ctx.textAlign='center'; ctx.fillStyle=sel?(i===3&&Q.confirm?'#fff':'#2a1a08'):'#fff'; ctx.fillText(l,B.x+B.w/2,y+21);
-    if(sel){ ctx.textAlign='left'; ctx.fillText('\u25B6',B.x+8,y+21); } });
-  ctx.textAlign='center'; ctx.fillStyle='#ffe14d'; ctx.font='bold 14px Verdana'; ctx.fillText('Controls',rx+rw/2,ry+250);
-  ctx.fillStyle='#e8e4ff'; ctx.font='11px Verdana'; controlsHelp().forEach((l,i)=>ctx.fillText(l,rx+rw/2,ry+272+i*18));
+    rrect(ctx,B.x,y,B.w,B.h,9,sel?(i===RI&&Q.confirm?'#d62828':'#ffe14d'):'rgba(255,255,255,.12)');
+    ctx.font='bold 15px Verdana'; ctx.textAlign='center'; ctx.fillStyle=sel?(i===RI&&Q.confirm?'#fff':'#2a1a08'):'#fff'; ctx.fillText(l,B.x+B.w/2,y+20);
+    if(sel){ ctx.textAlign='left'; ctx.fillText('\u25B6',B.x+8,y+20); } });
+  ctx.textAlign='center'; ctx.fillStyle='#ffe14d'; ctx.font='bold 14px Verdana'; ctx.fillText('Controls',rx+rw/2,ry+252);
+  ctx.fillStyle='#e8e4ff'; ctx.font='11px Verdana'; controlsHelp().forEach((l,i)=>ctx.fillText(l,rx+rw/2,ry+270+i*16));
   ctx.fillStyle='#9a96c8'; ctx.font='10px Verdana'; ctx.fillText(padSeen?'START / B: back to the game':isTouch?'\u2630 : back to the game':'P / Esc: back to the game',rx+rw/2,ry+rh-16);
 }
 function renderQuestPanel(bx,by,bw,bh){
@@ -2157,7 +2477,7 @@ function renderQuestPanel(bx,by,bw,bh){
   const sq=[
     ["Chicken Roundup",st(S.hens),{none:"Talk to Farmer Giles (east side of the village)",active:"Carry his brown hens into the pen by the river",ready:"All hens home! Tell Farmer Giles",done:"Hooray! The hens are safe"}[S.hens.st],
       S.hens.st==='none'?'':'Chickens '+(S.hens.st==='active'?hensPenned():5)+'/5'],
-    ["Lost Child",st(S.child),{none:"Talk to Mama Rose (south of the plaza)",active:"Find Mia in the flower clearing, West Forest",follow:"Walk Mia home to Mama Rose",done:"Mia is home with her mama"}[S.child.st],
+    ["Lost Child",st(S.child),{none:"Talk to Mama Rose (south of the plaza)",active:"Find Mia deep in the West Forest (far west)",follow:"Walk Mia home to Mama Rose",done:"Mia is home with her mama"}[S.child.st],
       S.child.st==='none'?'':S.child.st==='active'?'Find Mia':S.child.st==='follow'?'Mia is following':'Home!'],
     ["The Snake King",st(S.cobra),{none:S.cobra.beaten?"Bring the crown to Shepherd Ben":"Talk to Shepherd Ben (east of the bridge)",active:"Chase King Hissalot from his sandy nest (east)",ready:"Bring his crown to Shepherd Ben",done:"The sheep are safe again"}[S.cobra.st],
       S.cobra.st==='none'&&!S.cobra.beaten?'':'Hits '+(S.cobra.beaten?7:hits)+'/7'],
@@ -2197,7 +2517,7 @@ function renderTitle(){
   if(Math.sin(t*4)>-0.3){ctx.font='bold 22px Verdana';outlined(ctx,padSeen?'Press A or START!':isTouch?'Tap to start!':'Press SPACE to start!',W/2,H-58,'#fff','#d62828',6);}
   ctx.font='11px Verdana';
   outlined(ctx,'Move: Arrows/WASD/Stick   Talk & Sword: SPACE/E (A)   Holy Spear: F (B)   Dash: C/Ctrl (Y)',W/2,H-30,'#fff','#000',3);
-  outlined(ctx,'Block: hold SHIFT/X (X, LB/RB)   Pause & Quests: P/Esc (START)   Music: N   Voices: V   Mute: M',W/2,H-14,'#fff','#000',3);
+  outlined(ctx,'Block: SHIFT/X (X, LB/RB)   Horse: H (L3)   Pause: P/Esc (START)   Music: N   Voices: V   Mute: M',W/2,H-14,'#fff','#000',3);
 }
 function renderVictory(){
   const a=clamp(G.vt/1,0,1);ctx.fillStyle='rgba(20,30,80,'+(0.75*a)+')';ctx.fillRect(0,0,W,H);
