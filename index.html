@@ -232,6 +232,13 @@ function genWorld(){
   carve(12,11,6,11,T.GRASS);
   for(let y=9;y<=13;y++)for(let x=3;x<=8;x++) m[y][x] = (x+y)%4===0?T.FLOWER:T.GRASS; // sword clearing
   for(let y=5;y<=10;y++)for(let x=61;x<=67;x++) m[y][x]=T.HILL; // shield clearing
+  // side quests v6: church clearing, child's flower clearing, magpie grove
+  for(let y=18;y<=25;y++)for(let x=23;x<=31;x++) if(m[y][x]===T.TREE) m[y][x]=T.GRASS;
+  carve(27,23,31,23);           // church path to the castle road
+  for(let y=27;y<=31;y++)for(let x=15;x<=19;x++) m[y][x]=(x*3+y)%5===0?T.FLOWER:T.GRASS; // Mia's clearing
+  m[29][14]=T.GRASS; m[30][14]=T.GRASS;
+  for(let y=2;y<=6;y++)for(let x=41;x<=45;x++) if(m[y][x]!==T.WATER) m[y][x]=(x+y)%3===0?T.FLOWER:T.GRASS; // magpie grove
+  for(let y=CHURCH.y;y<CHURCH.y+3;y++)for(let x=CHURCH.x;x<CHURCH.x+5;x++) m[y][x]=T.HOUSE;
   // houses & fountain
   for(const h of HOUSES) for(let y=h.y;y<h.y+3;y++)for(let x=h.x;x<h.x+4;x++) m[y][x]=T.HOUSE;
   for(let y=0;y<2;y++)for(let x=0;x<2;x++) m[FOUNTAIN.y+y][FOUNTAIN.x+x]=T.FOUNTAIN;
@@ -345,6 +352,67 @@ function drawHouse(g,h){
     g.fillStyle='#fff';g.fillRect(wx+8,py+56,2,16);g.fillRect(wx,py+63,18,2);}
   g.fillStyle='#9a5a3a';g.fillRect(px+96,py-14,12,18); // chimney
 }
+function drawChurch(g){
+  const px=CHURCH.x*TS, py=CHURCH.y*TS, cx=px+80;
+  ell(g,px+80,py+94,78,8,'rgba(0,0,0,.18)');
+  g.fillStyle='#efe8da';g.fillRect(px+8,py+40,144,54);
+  g.fillStyle='#d8cfbd';g.fillRect(px+8,py+88,144,6);
+  g.fillStyle='#4f6a9a';g.beginPath();g.moveTo(px-4,py+44);g.lineTo(px+22,py+2);g.lineTo(px+138,py+2);g.lineTo(px+164,py+44);g.closePath();g.fill();
+  g.fillStyle='rgba(0,0,0,.15)';for(let i=0;i<4;i++)g.fillRect(px+4+i*2,py+12+i*8,152-i*4,2);
+  // bell tower
+  g.fillStyle='#e4dccb';g.fillRect(cx-16,py-34,32,50);g.fillStyle='#c9bfa9';g.fillRect(cx-16,py+12,32,4);
+  g.fillStyle='#3a2a4a';g.beginPath();g.arc(cx,py-14,7,Math.PI,0);g.fill();g.fillRect(cx-7,py-14,14,10);
+  circ(g,cx,py-10,4,'#f2c94c');
+  g.fillStyle='#4f6a9a';g.beginPath();g.moveTo(cx-21,py-32);g.lineTo(cx,py-62);g.lineTo(cx+21,py-32);g.closePath();g.fill();
+  // round window + arched door
+  circ(g,cx,py+34,9,'#fff');circ(g,cx,py+34,7,'#8fd3ff');g.fillStyle='#ff7eb6';g.fillRect(cx-1,py+27,2,14);g.fillRect(cx-7,py+33,14,2);
+  g.fillStyle='#8a5a2b';g.beginPath();g.moveTo(cx-13,py+94);g.lineTo(cx-13,py+64);g.arc(cx,py+64,13,Math.PI,0);g.lineTo(cx+13,py+94);g.fill();
+  g.fillStyle='#6a4520';g.fillRect(cx-1,py+54,2,40);circ(g,cx-5,py+78,1.6,'#f2c94c');circ(g,cx+5,py+78,1.6,'#f2c94c');
+  // stained-glass windows
+  const cols=['#ff6b8a','#ffd23f','#7cfc8a','#8fd3ff'];
+  for(const wx of [px+28,px+52,px+100,px+124]){ g.fillStyle='#fff';g.beginPath();g.moveTo(wx-7,py+82);g.lineTo(wx-7,py+60);g.arc(wx,py+60,7,Math.PI,0);g.lineTo(wx+7,py+82);g.fill();
+    for(let k=0;k<4;k++){g.fillStyle=cols[(k+wx)%4];g.fillRect(wx-5+(k%2)*5,py+58+Math.floor(k/2)*11,5,11);} }
+  // sign
+  g.fillStyle='#7a4a21';g.fillRect(px+170,py+70,4,24);rrect(g,px+156,py+56,34,18,3,'#c9925a');
+  g.fillStyle='#5a3a1a';g.fillRect(px+172,py+59,2,12);g.fillRect(px+168,py+62,10,2);
+}
+function drawPen(g){
+  const x0=PEN.x0,y0=PEN.y0,x1=PEN.x1,y1=PEN.y1;
+  g.fillStyle='#d9c27a';g.fillRect(x0+4,y0+4,x1-x0-8,y1-y0-8);
+  g.fillStyle='#c4aa5c';for(let i=0;i<60;i++){const a=(i*37)%120,b=(i*53)%120;g.fillRect(x0+6+a,y0+6+b,4,1.5);}
+  // little hen house in the corner
+  g.fillStyle='#b5651d';g.fillRect(x1-44,y1-40,34,26);g.fillStyle='#d62828';g.beginPath();g.moveTo(x1-48,y1-38);g.lineTo(x1-27,y1-54);g.lineTo(x1-6,y1-38);g.fill();
+  g.fillStyle='#3a2410';g.beginPath();g.arc(x1-27,y1-14,7,Math.PI,0);g.fill();
+  // water trough
+  rrect(g,x0+10,y1-24,26,10,3,'#8a5a2b');g.fillStyle='#8fd3ff';g.fillRect(x0+13,y1-22,20,5);
+  // fence posts & rails
+  const post=(x,y)=>{g.fillStyle='#6a4520';g.fillRect(x-3,y-12,6,14);g.fillStyle='#8a5a2b';g.fillRect(x-2,y-12,4,3);};
+  g.fillStyle='#a8743f';
+  const railH=(xa,xb,y)=>{g.fillRect(xa,y-9,xb-xa,3);g.fillRect(xa,y-4,xb-xa,3);};
+  railH(x0,x0+32,y0);railH(x0+96,x1,y0);railH(x0,x1,y1);
+  g.fillRect(x0-2,y0-6,4,y1-y0);g.fillRect(x1-2,y0-6,4,y1-y0);
+  for(let x=x0;x<=x1;x+=32){post(x,y1); if(x<=x0+32||x>=x0+96) post(x,y0);}
+  for(let y=y0+32;y<y1;y+=32){post(x0,y);post(x1,y);}
+  // open gate
+  g.fillStyle='#c9925a';g.save();g.translate(x0+32,y0);g.rotate(-0.9);g.fillRect(0,-9,30,3);g.fillRect(0,-4,30,3);g.restore();
+  // sign
+  g.fillStyle='#7a4a21';g.fillRect(x0+60,y0-30,4,20);rrect(g,x0+42,y0-44,40,16,3,'#e8c98a');
+  g.fillStyle='#5a3a1a';g.font='bold 9px Verdana';g.textAlign='center';g.fillText('HENS',x0+62,y0-32);
+}
+function drawNest(g){
+  const x=NEST.x*TS+16,y=NEST.y*TS+16;
+  ell(g,x,y+4,58,24,'rgba(0,0,0,.12)');ell(g,x,y,56,22,'#b8945a');ell(g,x,y-2,44,16,'#9a7840');
+  g.strokeStyle='#d2b070';g.lineWidth=2;for(let i=0;i<14;i++){const a=i*Math.PI/7;g.beginPath();g.moveTo(x+Math.cos(a)*40,y+Math.sin(a)*14);g.lineTo(x+Math.cos(a+0.5)*54,y+Math.sin(a+0.5)*21);g.stroke();}
+  for(const [dx,dy] of [[-70,-30],[74,-22],[-60,36],[66,34],[0,-46]]){ell(g,x+dx,y+dy+6,14,5,'rgba(0,0,0,.2)');ell(g,x+dx,y+dy,13,10,'#a09080');ell(g,x+dx-3,y+dy-3,6,4,'#c0b4a6');}
+  // warning sign
+  const sx=x-112,sy=y-40; g.fillStyle='#7a4a21';g.fillRect(sx-2,sy,4,26);rrect(g,sx-26,sy-16,52,18,3,'#e8c98a');
+  g.fillStyle='#5a3a1a';g.font='bold 9px Verdana';g.textAlign='center';g.fillText('SNAKES!',sx,sy-3);
+}
+function drawGrove(g){
+  const x=CROSS_POS.x*TS+16,y=CROSS_POS.y*TS+16;
+  for(let i=0;i<10;i++){const a=i*Math.PI/5;circ(g,x+Math.cos(a)*42,y+Math.sin(a)*30,3,i%2?'#fff35c':'#ff9fd0');}
+  ell(g,x,y+6,20,7,'rgba(0,0,0,.15)');
+}
 function drawCastleDeco(g,C){
   const towers=[[C.x0,C.y0],[C.x1,C.y0],[C.x0,C.y1],[C.x1,C.y1]];
   for(const [tx,ty] of towers){const x=tx*TS+16,y=ty*TS+16;circ(g,x,y+4,24,'rgba(0,0,0,.2)');circ(g,x,y,22,'#8a9098');circ(g,x,y,16,'#a7adb5');
@@ -361,7 +429,14 @@ function drawCastleDeco(g,C){
 const CASTLE_PILLARS=[[30,7],[35,7],[30,11],[35,11]];
 const CASTLE_ARMOR=[[31,13],[34,13]];
 const CASTLE_TORCHES=[]; // filled with [x,y] flame positions for flicker
+// ---- side quests v6 locations
+const CHURCH={x:25,y:20};                 // 5x3 church, north-west of the village
+const PEN={x0:40*TS,y0:44*TS,x1:44*TS,y1:48*TS}; // Farmer Giles's hen pen (south-east of the village)
+const NEST={x:66,y:32};                   // Snake King's nest on the sandy land
+const CROSS_POS={x:44,y:4};               // magpie grove by the river, north
+const HEN_SPOTS=[[43,22],[44,41],[36,48],[26,47],[21,39]];
 const DECO_SOLID=[
+  [PEN.x0,PEN.y0-3,32,6],[PEN.x0+96,PEN.y0-3,32,6],[PEN.x0,PEN.y1-3,128,6],[PEN.x0-3,PEN.y0-3,6,134],[PEN.x1-3,PEN.y0-3,6,134], // pen fence (gate on top)
   ...CASTLE_PILLARS.map(([x,y])=>[x*TS+8,y*TS+14,16,14]),
   ...CASTLE_ARMOR.map(([x,y])=>[x*TS+8,y*TS+16,16,12]),
   [27*TS+18,8*TS+6,TS+12,3*TS-6],   // left feast table
@@ -493,6 +568,7 @@ function prerender(map){
   if(map.fountain) drawFountain(g,map.fountain);
   if(map.name==='lair') drawLairDeco(g);
   if(map.name==='tunnel'){ TUNNEL_TMP=map; drawTunnelDeco(g); }
+  if(map.name==='world'){ drawChurch(g); drawPen(g); drawNest(g); drawGrove(g); }
   if(map.name==='world'){ // cave mouth
     const x=CAVE_POS.x*TS, y=CAVE_POS.y*TS; g.fillStyle='#5a4535';g.beginPath();g.arc(x+32,y+30,38,Math.PI,0);g.fill();
     g.fillStyle='#1a1020';g.beginPath();g.arc(x+32,y+32,28,Math.PI,0);g.lineTo(x+60,y+32);g.lineTo(x+4,y+32);g.fill();
@@ -605,7 +681,8 @@ function drawGeorge(g,x,y,P,t){
 }
 function drawFoe(g,s,t){
   g.save(); if(s.flee) g.globalAlpha=clamp(s.fleeT/0.6,0,1);
-  if(s.kind==='snake') drawSnake(g,s,t);
+  if(s.kind==='cobra') drawCobra(g,s,t);
+  else if(s.kind==='snake') drawSnake(g,s,t);
   else if(s.kind==='bat') drawBat(g,s,t);
   else if(s.kind==='bear' && s.white){ g.save(); g.translate(s.x,s.y); g.scale(s.sc,s.sc); g.translate(-s.x,-s.y); drawBear(g,s,t,true); g.restore(); }
   else if(s.kind==='bear') drawBear(g,s,t);
@@ -689,6 +766,66 @@ function drawChicken(g,c,t){
   ell(g,x,y-8,8,6,'#fff');circ(g,x+5*f,y-14,4.5,'#fff');g.fillStyle='#f0a030';g.beginPath();g.moveTo(x+9*f,y-15);g.lineTo(x+13*f,y-13.5);g.lineTo(x+9*f,y-12);g.fill();
   circ(g,x+5*f,y-19,2,'#e33');circ(g,x+6*f,y-15,1,'#222');ell(g,x-2*f,y-8,4,3,'#eee');
 }
+function drawHen(g,c,t){ // Farmer Giles's brown hens
+  const x=c.x,y=c.y,f=c.vx<0?-1:1, fl=c.flap>0?Math.sin(t*40)*4:0;
+  if(!c.air) ell(g,x,y+1,7,3,'rgba(0,0,0,.2)');
+  g.fillStyle='#f0a030';g.fillRect(x-3,y-4,1.5,4);g.fillRect(x+1,y-4,1.5,4);
+  ell(g,x,y-8,8.5,6.5,'#b5651d');circ(g,x+5*f,y-14,4.5,'#c97a35');
+  g.fillStyle='#f0a030';g.beginPath();g.moveTo(x+9*f,y-15);g.lineTo(x+13*f,y-13.5);g.lineTo(x+9*f,y-12);g.fill();
+  circ(g,x+5*f,y-19,2,'#e33');circ(g,x+3.5*f,y-19.5,1.6,'#e33');circ(g,x+6*f,y-15,1,'#222');
+  ell(g,x-2*f,y-8-fl,4.5,3+Math.abs(fl)*0.4,'#8a4a15');ell(g,x-7*f,y-10,3,4,'#7a3a10');
+}
+function drawGoldCross(g,x,y,s,glow){
+  if(glow){const gl=g.createRadialGradient(x,y,1,x,y,26*s);gl.addColorStop(0,'rgba(255,240,150,.85)');gl.addColorStop(1,'rgba(255,240,150,0)');g.fillStyle=gl;g.beginPath();g.arc(x,y,26*s,0,Math.PI*2);g.fill();}
+  g.fillStyle='#a8781a';g.fillRect(x-3.5*s,y-15*s,7*s,30*s);g.fillRect(x-11*s,y-8.5*s,22*s,7*s);
+  g.fillStyle='#ffd23f';g.fillRect(x-2.5*s,y-14*s,5*s,28*s);g.fillRect(x-10*s,y-7.5*s,20*s,5*s);
+  g.fillStyle='#fff6c8';g.fillRect(x-1.5*s,y-13*s,1.5*s,10*s);circ(g,x,y-5*s,2.2*s,'#ff3b5c');
+}
+function drawCrownIcon(g,x,y,s){
+  g.fillStyle='#ffd23f';g.beginPath();g.moveTo(x-12*s,y+6*s);g.lineTo(x-12*s,y-6*s);g.lineTo(x-6*s,y);g.lineTo(x,y-9*s);g.lineTo(x+6*s,y);g.lineTo(x+12*s,y-6*s);g.lineTo(x+12*s,y+6*s);g.closePath();g.fill();
+  g.strokeStyle='#a8781a';g.lineWidth=1.5;g.stroke();circ(g,x,y+2*s,2.2*s,'#ff3b5c');circ(g,x-7*s,y+3*s,1.6*s,'#4fc3f7');circ(g,x+7*s,y+3*s,1.6*s,'#7cfc8a');
+}
+function drawCobra(g,s,t){ // King Hissalot, the Snake King
+  const x=s.x,y=s.y,st=s.state,dirx=st==='lunge'?(s.ldx>=0?1:-1):s.face;
+  g.save();g.translate(x,y);g.scale(s.sc,s.sc);
+  const body=s.hurt>0?'#fff':'#5f8f2a', dark=s.hurt>0?'#ddd':'#43681a', band='#e8d878';
+  ell(g,0,2,24,7,'rgba(0,0,0,.25)');
+  if(st==='lunge'){ g.strokeStyle='rgba(255,255,255,.6)';g.lineWidth=1.5;for(let i=0;i<3;i++){g.beginPath();g.moveTo(-dirx*(14+i*5),-6-i*5);g.lineTo(-dirx*(30+i*6),-6-i*5);g.stroke();} }
+  if(st==='rear'){ const fl=Math.sin(t*30)>0; ell(g,0,-22,26,30,fl?'rgba(255,70,70,.35)':'rgba(255,220,80,.25)'); }
+  // coils
+  const sw=Math.sin(s.anim)*1.5;
+  ell(g,-3*dirx,-3,18,7,dark);ell(g,-3*dirx,-4,16,6,body);
+  for(let i=0;i<6;i++){const a=i/6*Math.PI*2+s.anim*0.3;g.fillStyle=band;g.fillRect(-3*dirx+Math.cos(a)*13-1,-4+Math.sin(a)*4.5-2,2,4);}
+  ell(g,-2*dirx,-7,11,4.5,dark);ell(g,-2*dirx,-8,9.5,3.8,body);
+  // neck to head
+  let hx,hy;
+  if(st==='rear'){hx=-4*dirx+Math.sin(t*14)*1.2;hy=-36;}
+  else if(st==='lunge'){hx=16*dirx;hy=-11;}
+  else if(st==='recover'){hx=11*dirx;hy=-12+Math.sin(t*3)*1;}
+  else {hx=4*dirx+sw;hy=-26+Math.sin(t*2)*1.5;}
+  const bx=2*dirx,by=-9;
+  for(let i=0;i<=8;i++){const k=i/8;const nx=bx+(hx-bx)*k+Math.sin(k*Math.PI)*(st==='rear'?-5*dirx:3*dirx),ny=by+(hy-by)*k;
+    circ(g,nx,ny,5.2-k*0.8,dark);circ(g,nx,ny-0.6,4.4-k*0.8,body); if(i%2===0){g.fillStyle=band;g.fillRect(nx-3,ny-0.5,6,1.4);} }
+  // hood
+  const hood=st==='rear'?1.35:st==='recover'?0.75:1;
+  ell(g,hx,hy+3,10.5*hood,11*hood,dark);ell(g,hx,hy+3,9*hood,9.5*hood,'#c8b060');ell(g,hx,hy+5,5*hood,6*hood,'#efe2a8');
+  if(hood>0.9){circ(g,hx-5*hood,hy+1,1.8,'#3a3a20');circ(g,hx+5*hood,hy+1,1.8,'#3a3a20');}
+  // head
+  ell(g,hx+1.5*dirx,hy-3,6.8,5.6,dark);ell(g,hx+1.5*dirx,hy-3.5,6,4.8,body);
+  // eyes
+  if(st==='recover'){ g.strokeStyle='#222';g.lineWidth=1.2; for(const ex of [-2.5,2.5]){const exx=hx+1.5*dirx+ex;g.beginPath();g.moveTo(exx-1.5,hy-5.5);g.lineTo(exx+1.5,hy-2.5);g.moveTo(exx+1.5,hy-5.5);g.lineTo(exx-1.5,hy-2.5);g.stroke();}
+    for(let i=0;i<3;i++){const a=t*5+i*2.1;drawStar(g,hx+Math.cos(a)*10,hy-14+Math.sin(a)*3,2.4,'#ffe14d');} }
+  else { for(const ex of [-2.5,2.5]){const exx=hx+1.5*dirx+ex;circ(g,exx,hy-4,2.2,'#fff');circ(g,exx+0.8*dirx,hy-3.8,1.2,'#222');}
+    if(st==='rear'){g.strokeStyle='#222';g.lineWidth=1.2;g.beginPath();g.moveTo(hx+1.5*dirx-5,hy-7.5);g.lineTo(hx+1.5*dirx-1,hy-6);g.moveTo(hx+1.5*dirx+5,hy-7.5);g.lineTo(hx+1.5*dirx+1,hy-6);g.stroke();} }
+  // tongue
+  if(st==='rear'||st==='lunge'||Math.sin(t*3+s.phase)>0.7){g.strokeStyle='#e33';g.lineWidth=1.2;const tx=hx+7.5*dirx,ty=hy-1;g.beginPath();g.moveTo(tx,ty);g.lineTo(tx+4*dirx,ty);g.lineTo(tx+6*dirx,ty-1.5);g.moveTo(tx+4*dirx,ty);g.lineTo(tx+6*dirx,ty+1.5);g.stroke();}
+  // crown
+  g.fillStyle='#ffd23f';g.beginPath();const cxx=hx+1.5*dirx,cy=hy-8;g.moveTo(cxx-5,cy+1);g.lineTo(cxx-5,cy-4);g.lineTo(cxx-2.5,cy-1.5);g.lineTo(cxx,cy-5.5);g.lineTo(cxx+2.5,cy-1.5);g.lineTo(cxx+5,cy-4);g.lineTo(cxx+5,cy+1);g.closePath();g.fill();
+  g.strokeStyle='#a8781a';g.lineWidth=0.8;g.stroke();circ(g,cxx,cy-0.8,1,'#ff3b5c');
+  if(Math.sin(t*4)>0.6) drawStar(g,cxx+4,cy-5,1.8,'#fff');
+  g.restore();
+  if(st==='rear'){ g.font='bold 18px Verdana';g.textAlign='center';outlined(g,'!',x,y-74+Math.sin(t*20)*2,'#ff5252','#000',4); }
+}
 function heartPath(g,x,y,s){g.beginPath();g.moveTo(x,y+s*0.3);g.bezierCurveTo(x,y,x-s*0.5,y,x-s*0.5,y+s*0.3);
   g.bezierCurveTo(x-s*0.5,y+s*0.6,x,y+s*0.75,x,y+s);g.bezierCurveTo(x,y+s*0.75,x+s*0.5,y+s*0.6,x+s*0.5,y+s*0.3);
   g.bezierCurveTo(x+s*0.5,y,x,y,x,y+s*0.3);g.closePath();}
@@ -754,10 +891,45 @@ function makeNPCs(){
     {id:'king',name:'King of Silene',tx:33,ty:5,o:{shirt:'#8e24aa',hair:'#eee',beard:'#eee',crown:true,legs:'#5a1a6a'},px:33*TS},
     {id:'princess',name:'Princess Sabra',tx:35,ty:5,o:{shirt:'#ff7eb6',hair:'#f0c040',longHair:true,dress:true,crown:true,trim:'#ffd23f'}},
     {id:'knight',name:'Sir Pip',tx:61,ty:39,o:{shirt:'#9aa0a8',helmet:true,plume:'#ffd23f',legs:'#666'}},
+    {id:'rose',name:'Mama Rose',tx:35,ty:40,o:{shirt:'#ff9f43',hair:'#6a3a1a',longHair:true,dress:true,apron:true}},
+    {id:'ben',name:'Shepherd Ben',tx:51,ty:39,o:{shirt:'#a1887f',hair:'#8a5a2b',beard:'#8a5a2b',hat:'#c9a45a',legs:'#5a4a3a'}},
+    {id:'ambrose',name:'Father Ambrose',tx:26,ty:24,o:{shirt:'#3a3a4a',hair:'#bbb',beard:'#ddd',legs:'#2a2a3a',dress:true,trim:'#ffd23f'}},
+    {id:'mia',name:'Little Mia',tx:17,ty:29,o:{shirt:'#ff7eb6',hair:'#f0c040',longHair:true,dress:true},small:true},
   ];
   return list.map(n=>({...n, x:n.px||tc(n.tx), y:tc(n.ty)+8, dir:n.dir||'down', map:'world'}));
 }
 function bothItems(){return !!G.hasSpear;}
+// ---- side quests v6: Chicken Roundup, Lost Child, Snake King, Lost Cross
+function newSide(){ return {hens:{st:'none'},child:{st:'none'},cobra:{st:'none',beaten:false},cross:{st:'none'},done:0}; }
+function hensPenned(){ return chickens.filter(c=>c.hen&&c.penned).length; }
+function inPen(x,y){ return x>PEN.x0+4&&x<PEN.x1-4&&y>PEN.y0+6&&y<PEN.y1-4; }
+function npcById(id){ return npcs.find(n=>n.id===id); }
+function cobraFoe(){ return foes.find(f=>f.kind==='cobra'&&!f.flee); }
+function sideMark(n){ const S=G.side; if(!S) return null;
+  if(n.id==='giles') return S.hens.st==='none'?'!':S.hens.st==='ready'?'?':null;
+  if(n.id==='rose') return S.child.st==='none'?'!':S.child.st==='follow'?'?':null;
+  if(n.id==='ben') return S.cobra.st==='none'?'!':S.cobra.st==='ready'?'?':null;
+  if(n.id==='ambrose') return S.cross.st==='none'?'!':S.cross.st==='ready'?'?':null;
+  if(n.id==='mia') return (S.child.st==='active'||S.child.st==='none')&&!n.follow?'?':null;
+  return null; }
+function sideReward(name){
+  const S=G.side; S.done++; G.maxHp=Math.min(20,G.maxHp+2); G.hp=G.maxHp;
+  setTimeout(()=>SFX.win(),50); addParticles(P.x,P.y-20,40,['#ffe14d','#fff','#ff7eb6','#7cfc8a','#8fd3ff'],170);
+  addText(P.x,P.y-56,'+1 HEART CONTAINER!','#ff7b95'); addText(P.x,P.y-74,'Full hearts!','#7cfc8a');
+  showToast('\u2605 Side quest done: '+name+'! ('+S.done+'/4)'); G.rewardT=2.2;
+}
+function sideStart(name){ SFX.item(); showToast('New side quest: '+name+'!'); addText(P.x,P.y-50,'Side quest!','#ff9fd0'); }
+function dropHen(inside){ const c=P.carry; if(!c) return; P.carry=null; c.carried=false; c.air=false;
+  if(inside){ c.penned=true; c.x=clamp(P.x,PEN.x0+16,PEN.x1-16); c.y=clamp(P.y+4,PEN.y0+20,PEN.y1-14);
+    beep(1300,0.06,'square',0.04,1700); setTimeout(()=>beep(1500,0.06,'square',0.04,1900),90);
+    addParticles(c.x,c.y-10,10,['#fff','#c97a35','#ffe14d'],90);
+    const n=hensPenned(); addText(c.x,c.y-30,'Into the pen! '+n+'/5','#ffe14d');
+    if(n>=5 && G.side.hens.st==='active'){ G.side.hens.st='ready'; SFX.item(); showToast('All 5 hens are home! Tell Farmer Giles.'); } }
+  else { c.x=P.x+(P.dir==='left'?-18:P.dir==='right'?18:0); c.y=P.y+(P.dir==='up'?-10:P.dir==='down'?14:4); c.flap=0.6; c.t=0.2;
+    if(boxHits(WORLD,c.x,c.y,6,4)){c.x=P.x;c.y=P.y;}
+    beep(1400,0.05,'square',0.03,1800); addParticles(c.x,c.y-10,6,['#fff','#c97a35'],80); addText(c.x,c.y-28,'Bawk!','#fff'); } }
+function placeMiaNear(){ const m=npcById('mia'); if(!m) return; m.x=P.x+(P.dir==='left'?24:-24); m.y=P.y+(P.dir==='up'?14:-2);
+  if(boxHits(WORLD,m.x,m.y,5,4)){m.x=P.x;m.y=P.y+2;} m.trail=[]; m.stuck=0; }
 function npcLines(n){
   const L=(who,text)=>({who,text});
   const pc=(G.pieces.head?1:0)+(G.pieces.shaft?1:0);
@@ -776,9 +948,54 @@ function npcLines(n){
   case 'leo': if(!G.pieces.head) return [L(n.name,"Psst, George! I saw something SHINY deep in the West Forest!"),
       L(n.name,"Follow the forest path to the end, then sneak north through the gap in the trees. I heard a big WHITE wolf howling there!")];
     return [L(n.name,"WOW, a piece of the Holy Spear! You're the coolest knight ever!")];
-  case 'giles': return [L(n.name,"Howdy! Cross the bridge to go east over the river."),
-    L(n.name,"Up north are the Eastern Hills. A huge grumpy WHITE bear sits at the very top, guarding something golden!"),
-    L(n.name,"The dragon's cave is down south-east, past the sandy land.")];
+  case 'giles': {
+    const H=G.side.hens, pn=hensPenned();
+    if(H.st==='none') return [L(n.name,"Oh dear, oh dear! My five BROWN HENS flew out of their pen and wandered off!"),
+      L(n.name,"Could you round them up, George? Walk up close to a hen and press "+(padSeen?"A":"SPACE")+" to pick it up."),
+      L(n.name,"Carry it over to my pen, just south of here by the river, and walk through the open gate. In it goes!"),
+      L(n.name,"Some are hiding around the village, and one went up north past the road. Look for brown feathers!")];
+    if(H.st==='active') return [L(n.name,pn===0?"My brown hens are still out there! Pick one up and carry it into the pen by the river.":"You've got "+pn+" of my 5 hens back! Keep going, the others are scattered around the village."),
+      L(n.name,"Psst: up north is a huge grumpy WHITE bear, and the dragon's cave is south-east, past the sandy land.")];
+    if(H.st==='ready') return [L(n.name,"Bawk bawk! All FIVE hens are safe in the pen! You're a champion chicken catcher!"),
+      L(n.name,"Here, take this. Grandma's magic egg! It gives you one more HEART!")];
+    return [L(n.name,"My hens are laying the biggest eggs ever, thanks to you!"),L(n.name,"Howdy! Cross the bridge to go east over the river."),
+      L(n.name,"Up north are the Eastern Hills. A huge grumpy WHITE bear sits at the very top, guarding something golden!")]; }
+  case 'rose': {
+    const C=G.side.child;
+    if(C.st==='none'||C.st==='active') return C.st==='none'?[L(n.name,"Oh, George! My little girl MIA went to pick flowers in the West Forest, and she hasn't come back!"),
+      L(n.name,"She loves the sunny flower clearing just east of the forest path. Please find her and bring her home!")]
+      :[L(n.name,"Please find my Mia! Take the west road, go up the forest path, and look for the flower clearing on the right.")];
+    if(C.st==='follow') return [L('Little Mia',"MAMA!!"),L(n.name,"Mia! Oh, my sweet girl! *gives Mia the biggest hug*"),
+      L('Little Mia',"George was so brave, Mama! He walked me all the way home!"),
+      L(n.name,"Thank you, George! You are the kindest knight in all of Silene. Here is a heart full of love: one more HEART for you!")];
+    return [L(n.name,"Mia is safe and happy, picking flowers right here by the house. Thank you, George!")]; }
+  case 'mia': {
+    const C=G.side.child;
+    if(C.st==='done') return [L(n.name,"Thank you for walking me home, Sir George! You're my hero!")];
+    return [L(n.name,"*sniff* I was picking flowers... and now I don't know the way home..."),
+      L('George',"Don't worry, Mia! I'm George. Stay close behind me and I'll take you home to your mama."),
+      L(n.name,"Okay! I'll follow you! Not too fast, okay?")]; }
+  case 'ben': {
+    const K=G.side.cobra;
+    if(K.st==='none') return K.beaten?[L(n.name,"You already chased away the Snake King?! Wow! Did he drop his golden crown? Bring it here!")]:
+      [L(n.name,"Baa-d news, George! The SNAKE KING lives in a nest on the sandy land, east of here."),
+      L(n.name,"He's a giant cobra called KING HISSALOT, with a golden crown! He scares my sheep, and little snakes follow him everywhere."),
+      L(n.name,"Watch out! When he rears up and puffs out his hood, he's about to LUNGE! Hold up your SHIELD toward him, or step out of the way!"),
+      L(n.name,"After a lunge he gets dizzy. That's your chance! It takes SEVEN pokes to send him slithering away.")];
+    if(K.st==='active') return [L(n.name,"The Snake King's nest is on the sand, east of me and south of the hills. Shield up when he rears!")];
+    if(K.st==='ready') return [L(n.name,"You chased King Hissalot away! And you got his shiny crown! Hooray!"),
+      L(n.name,"My sheep can graze in peace again. Take this lucky woolly charm: one more HEART for you!")];
+    return [L(n.name,"Baa! My sheep say thank you, George!")]; }
+  case 'ambrose': {
+    const X=G.side.cross;
+    if(X.st==='none') return [L(n.name,"Welcome to the little church of Silene, George."),
+      L(n.name,"Oh dear... our GOLDEN CROSS is missing from the top of the bell tower! A naughty magpie flew off with it."),
+      L(n.name,"I saw the magpie fly NORTH, past the castle, toward the river. Could you look for it? It will sparkle!")];
+    if(X.st==='active') return [L(n.name,"The magpie flew north, past the castle, near the river. Look for something sparkly in the flowers!")];
+    if(X.st==='ready') return [L('George',"Father Ambrose! I found the golden cross!"),
+      L(n.name,"Wonderful! Let's put it back on top of the bell tower... there! Look how it shines!"),
+      L(n.name,"Bless you, George! May it shine over Silene forever. And may your heart grow strong: one more HEART for you!")];
+    return [L(n.name,"Look how the golden cross shines on our bell tower! Thank you, George.")]; }
   case 'guard': if(!G.talkedKing) return [L(n.name,"Welcome, George! The King is in the throne room, just straight ahead.")];
     return [L(n.name,"Good luck on your quest, Sir George!")];
   case 'king':
@@ -801,12 +1018,24 @@ function npcLines(n){
 }
 function onTalkEnd(n){
   if(n.id==='king' && !G.talkedKing){ G.talkedKing=true; SFX.item(); addText(P.x,P.y-50,'Quest updated!','#ffe14d'); }
+  const S=G.side;
+  if(n.id==='giles'){ if(S.hens.st==='none'){ S.hens.st='active'; sideStart('Chicken Roundup'); } else if(S.hens.st==='ready'){ S.hens.st='done'; sideReward('Chicken Roundup'); } }
+  if(n.id==='rose'){ if(S.child.st==='none'){ S.child.st='active'; sideStart('Lost Child'); }
+    else if(S.child.st==='follow'){ S.child.st='done'; const m=npcById('mia'); m.follow=false; m.x=n.x+24; m.y=n.y; m.dir='left'; n.dir='right';
+      for(let i=0;i<6;i++) setTimeout(()=>addParticles(n.x+12,n.y-30,4,['#ff7eb6','#ff3b5c','#fff'],60),i*120);
+      addText(n.x+12,n.y-60,'\u2665 Hug! \u2665','#ff7eb6'); sideReward('Lost Child'); } }
+  if(n.id==='mia' && S.child.st!=='done' && !n.follow){ if(S.child.st==='none') sideStart('Lost Child'); S.child.st='follow'; n.follow=true; n.trail=[]; n.stuck=0;
+    addText(n.x,n.y-40,'Yay!','#ff9fd0'); SFX.pickup(); }
+  if(n.id==='ben'){ if(S.cobra.st==='none' && !S.cobra.beaten){ S.cobra.st='active'; sideStart('The Snake King'); }
+    else if(S.cobra.st==='ready'){ S.cobra.st='done'; sideReward('The Snake King'); } }
+  if(n.id==='ambrose'){ if(S.cross.st==='none'){ S.cross.st='active'; sideStart('The Lost Cross'); if(!items.some(i=>i.type==='goldCross')) items.push({type:'goldCross',x:tc(CROSS_POS.x),y:tc(CROSS_POS.y),map:'world'}); }
+    else if(S.cross.st==='ready'){ S.cross.st='done'; G.crossT=0; addParticles(CHURCH.x*TS+80,CHURCH.y*TS-70,30,['#ffe14d','#fff'],150); sideReward('The Lost Cross'); } }
 }
 // w = wolf (fast, 2 hits), W = white wolf (a bit bigger, 3 hits), b = bear (slow, 4 hits, hits harder), B = big white bear (6 hits, guards the Spear Shaft), s = snake (1 hit)
-const FOE_SPOTS=[['w',16,38],['w',13,30],['w',12,24],['w',11,15],['w',7,9],['w',4,13],['w',20,44],
-  ['B',63,8],['b',53,16],['w',57,24],['w',58,33],['b',62,32],['w',67,35],['w',40,44],
+const FOE_SPOTS=[['w',16,38],['w',8,33],['w',12,24],['w',11,15],['w',7,9],['w',4,13],['w',20,44],
+  ['B',63,8],['b',53,16],['w',57,24],['w',58,33],['b',58,22],['w',60,20],['w',8,45],
   ['W',6,12],['w',13,19],['W',57,5],['W',56,13],['W',66,15],
-  ['s',57,31],['s',66,32],['s',69,37],['s',44,30],['s',45,12],['s',40,20],['s',27,21],['s',18,47]];
+  ['s',57,31],['s',44,30],['s',45,12],['s',40,20],['s',27,21],['s',18,47]];
 // bats rest on the cave walls in the tunnel: [tileX, tileY]
 const BAT_SPOTS=[[8,23],[11,25],[4,19],[6,17],[3,12],[8,9],[16,10],[13,6],[16,3]];
 function makeFoes(){
@@ -815,6 +1044,11 @@ function makeFoes(){
     return {kind:bear?'bear':'wolf',white,sc:wb?1.38:white?1.3:1,x:tc(tx),y:tc(ty),hx:tc(tx),hy:tc(ty),map:'world',hp:wb?6:bear?4:white?3:2,maxHp:wb?6:bear?4:white?3:2,dmg:bear?2:1,
       chase:wb?50:bear?52:white?84:88,wander:bear?20:34,sight:wb?110:bear?115:white?150:140,kbMul:wb?0.32:bear?0.45:white?0.75:1,hw:wb?19:bear?14:white?13:10,
       vx:0,vy:0,t:Math.random()*2,phase:i,hurt:0,kbx:0,kby:0,face:1,anim:0,flee:false,fleeT:0};});
+  // the Snake King and his little snakes (side quest)
+  if(!(G.side&&G.side.cobra.beaten)){
+    list.push({kind:'cobra',map:'world',sc:1.7,x:tc(NEST.x),y:tc(NEST.y)+8,hx:tc(NEST.x),hy:tc(NEST.y)+8,hp:7,maxHp:7,dmg:2,kbMul:0.25,hw:14,
+      state:'idle',st:0,cd:1.2,ldx:1,ldy:0,lt:0,ldur:0,hitP:false,vx:0,vy:0,t:0,phase:2,hurt:0,kbx:0,kby:0,face:-1,anim:0,flee:false,fleeT:0,name:'KING HISSALOT THE SNAKE KING'}); }
+  [[63,30],[69,31],[64,35],[69,34],[66,29],[62,33]].forEach(([tx,ty],i)=>{const sn=makeSnake(tx,ty,40+i); sn.minion=true; sn.sight=95; list.push(sn);});
   BAT_SPOTS.forEach(([tx,ty],i)=>list.push({kind:'bat',map:'tunnel',sc:1,x:tc(tx),y:tc(ty)+4,hx:tc(tx),hy:tc(ty)+4,hp:1,maxHp:1,dmg:1,
     chase:105,wander:0,sight:3.6*TS,kbMul:1,hw:7,state:'sleep',wakeT:0,swoopT:0,vx:0,vy:0,t:0,phase:i*1.7,hurt:0,kbx:0,kby:0,face:1,anim:Math.random()*6,flee:false,fleeT:0}));
   return list;
@@ -831,12 +1065,13 @@ function makeItems(){
   for(const [tx,ty] of [[14,33],[52,20],[60,35],[8,11],[30,44],[60,9]]) it.push({type:'heart',x:tc(tx),y:tc(ty),map:'world'});
   return it;
 }
-function makeChickens(){return [[34,30],[29,42],[36,44],[27,36]].map(([tx,ty])=>({x:tc(tx),y:tc(ty),vx:20,vy:0,t:0}));}
+function makeChickens(){return [[34,30],[29,42],[36,44],[27,36]].map(([tx,ty])=>({x:tc(tx),y:tc(ty),vx:20,vy:0,t:0}))
+  .concat(HEN_SPOTS.map(([tx,ty])=>({hen:true,x:tc(tx),y:tc(ty),hx:tc(tx),hy:tc(ty),vx:0,vy:0,t:0,flap:0,penned:false})));}
 function newGame(){
   G={mode:'play',talkedKing:false,hasSword:true,hasShield:true,pieces:{head:false,shaft:false},hasSpear:false,joinT:0,dragonDefeated:false,hp:10,maxHp:10,t:0,playTime:0,chased:0,
-    seenLairIntro:false,seenTunnelIntro:false,dialog:null,fade:null,faintT:0,vt:0,noSwordT:0,shake:0};
+    seenLairIntro:false,seenTunnelIntro:false,side:newSide(),rewardT:0,crossT:0,dialog:null,fade:null,faintT:0,vt:0,noSwordT:0,shake:0};
   P={x:START.x,y:START.y,dir:'up',walk:0,attackT:0,inv:0,kbx:0,kby:0,kbT:0,hitSet:null};
-  map=WORLD; npcs=makeNPCs(); foes=makeFoes(); items=makeItems(); chickens=makeChickens();
+  map=WORLD; npcs=makeNPCs(); foes=makeFoes(); items=makeItems(); chickens=makeChickens(); P.carry=null;
   particles=[];texts=[];fireballs=[];D=null;
   startDialog([{who:'Narrator',text:"Long ago, in the town of Silene, lived a brave young knight named George..."},
     {who:'Narrator',text:"George already has his trusty sword and shield. Walk with the ARROW KEYS, WASD or a controller stick."},
@@ -851,7 +1086,7 @@ function tileAt(m,px,py){const tx=Math.floor(px/TS),ty=Math.floor(py/TS);if(tx<0
 function solidAt(m,px,py){return SOLID.has(tileAt(m,px,py));}
 function decoHit(x,y,hw,hh){ for(const r of DECO_SOLID){ if(x+hw>r[0]&&x-hw<r[0]+r[2]&&y+hh>r[1]&&y-hh<r[1]+r[3]) return true; } return false; }
 function boxHits(m,x,y,hw,hh){return solidAt(m,x-hw,y-hh)||solidAt(m,x+hw,y-hh)||solidAt(m,x-hw,y+hh)||solidAt(m,x+hw,y+hh)||(m===WORLD&&decoHit(x,y,hw,hh));}
-function npcBlock(x,y){ if(map!==WORLD) return false; for(const n of npcs){ if(Math.abs(n.x-x)<16&&Math.abs(n.y-y)<12) return true; } return false; }
+function npcBlock(x,y){ if(map!==WORLD) return false; for(const n of npcs){ if(n.follow) continue; if(Math.abs(n.x-x)<16&&Math.abs(n.y-y)<12) return true; } return false; }
 function moveEnt(e,dx,dy,hw,hh,isPlayer){
   const steps=Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/8)||1;
   for(let i=0;i<steps;i++){
@@ -872,7 +1107,7 @@ function hurtPlayer(amount,fromX,fromY){
       G.blocks=(G.blocks||0)+1; }
     const dx=P.x-fromX,dy=P.y-fromY,d=Math.hypot(dx,dy)||1; P.kbx=dx/d*90;P.kby=dy/d*90;P.kbT=0.08;
     return 'blocked'; }
-  G.hp=Math.max(0,G.hp-amount);P.inv=1.1;SFX.hurt();G.shake=0.25;
+  G.hp=Math.max(0,G.hp-amount);P.inv=1.1;SFX.hurt();G.shake=0.25; if(P.carry) dropHen(false);
   const dx=P.x-fromX,dy=P.y-fromY,d=Math.hypot(dx,dy)||1;P.kbx=dx/d*260;P.kby=dy/d*260;P.kbT=0.18;
   addParticles(P.x,P.y-16,6,['#ff3b5c','#ffd1dc']);
   if(G.hp<=0){G.mode='faint';G.faintT=2.6;}
@@ -893,13 +1128,13 @@ function objective(){
 
 // ================== LAIR / DRAGON ==================
 function enterTunnel(){
-  G.fade={t:0,dur:0.8,done:false,mid:()=>{map=TUNNEL;P.x=10*TS;P.y=27*TS+10;P.dir='up';fireballs=[];D=null;},
+  G.fade={t:0,dur:0.8,done:false,mid:()=>{if(P.carry)dropHen(false);map=TUNNEL;P.x=10*TS;P.y=27*TS+10;P.dir='up';fireballs=[];D=null;},
     after:()=>{ if(!G.seenTunnelIntro){G.seenTunnelIntro=true; startDialog([{who:'George',text:"It's dark in here... I can hear squeaking. Bats!"},
       {who:'Tip',text:"Sleeping bats wake up when you get close. One poke and they flutter away! The dragon is through the glowing door at the end."}]);} }};
   G.mode='fade';
 }
 function exitTunnel(){
-  G.fade={t:0,dur:0.8,done:false,mid:()=>{map=WORLD;P.x=tc(CAVE_POS.x)+16;P.y=tc(CAVE_POS.y-2);P.dir='down';D=null;fireballs=[];}};
+  G.fade={t:0,dur:0.8,done:false,mid:()=>{map=WORLD;P.x=tc(CAVE_POS.x)+16;P.y=tc(CAVE_POS.y-2);P.dir='down';D=null;fireballs=[];if(G.side.child.st==='follow')placeMiaNear();}};
   G.mode='fade';
 }
 function enterLair(){
@@ -1007,14 +1242,15 @@ function updateDialog(dt){
 }
 function respawn(){
   const wasLair = map===LAIR || map===TUNNEL;
+  if(P.carry) dropHen(false);
   map=WORLD; P.x=START.x; P.y=START.y; P.dir='up'; P.inv=1.5; P.kbT=0; G.hp=G.maxHp; D=null; fireballs=[];
-  foes=makeFoes(); G.mode='play'; updateCamera(true);
+  foes=makeFoes(); G.mode='play'; updateCamera(true); if(G.side.child.st==='follow') placeMiaNear();
   startDialog([{who:'Elder Tom',text: wasLair?"Phew! You had a little rest, George. Your hearts are full again! Try the dragon once more. Remember: poke it with the spear when it lands!":"Phew! You had a little rest, George. Your hearts are full again!"}]);
 }
 function updatePlay(dt){
   G.playTime+=dt;
   if(pv.log){G.mode='log';return;}
-  P.block = blockHeld() && G.hasShield; if(P.blockCD>0) P.blockCD-=dt;
+  P.block = blockHeld() && G.hasShield && !P.carry; if(P.blockCD>0) P.blockCD-=dt;
   const inp=inputDir(); let dx=inp.x, dy=inp.y; const mag=Math.hypot(dx,dy);
   if(mag>0 && P.block){dx/=mag;dy/=mag;P.walk+=dt*8;}
   else if(mag>0){dx/=mag;dy/=mag;
@@ -1029,8 +1265,13 @@ function updatePlay(dt){
   // action
   if(pv.action){
     let near=null,best=46;
-    if(map===WORLD) for(const n of npcs){const d=Math.hypot(n.x-P.x,n.y-P.y);if(d<best){best=d;near=n;}}
-    if(near){
+    if(map===WORLD) for(const n of npcs){ if(n.follow) continue; const d=Math.hypot(n.x-P.x,n.y-P.y);if(d<best){best=d;near=n;}}
+    let hen=null; if(map===WORLD && !P.carry && G.side.hens.st==='active'){ let hb=32; for(const c of chickens){ if(!c.hen||c.penned) continue; const d=Math.hypot(c.x-P.x,c.y-P.y); if(d<hb){hb=d;hen=c;} } }
+    if(P.carry){ dropHen(inPen(P.x,P.y)); }
+    else if(hen && !(near && best<Math.hypot(hen.x-P.x,hen.y-P.y))){ P.carry=hen; hen.carried=true; hen.air=true; hen.flap=0.5;
+      beep(1500,0.05,'square',0.04,2100); setTimeout(()=>beep(1200,0.06,'square',0.04,1600),80); addParticles(hen.x,hen.y-10,8,['#fff','#c97a35','#8a4a15'],90);
+      addText(P.x,P.y-64,'Got a hen! Carry it to the pen!','#ffe14d'); }
+    else if(near){
       near.dir = Math.abs(P.x-near.x)>Math.abs(P.y-near.y) ? (P.x<near.x?'left':'right') : (P.y<near.y?'up':'down');
       startDialog(npcLines(near),()=>onTalkEnd(near)); SFX.talk(); return;
     } else if(P.block){ /* can't swing while blocking */ }
@@ -1041,15 +1282,20 @@ function updatePlay(dt){
   if(P.attackT>0){
     const ab=attackBox();
     for(const s of foes){ if(s.flee||P.hitSet.has(s)||s.map!==map.name) continue;
-      if(Math.hypot(s.x-ab.x,(s.y-(s.kind==='bat'?16:10))-ab.y)<ab.r+(s.kind==='bear'?(s.white?25:18):s.kind==='bat'?14:s.white?16:12)){ P.hitSet.add(s); s.hp--; s.hurt=0.25;
+      if(s.kind==='cobra' && s.state==='lunge') continue;
+      if(Math.hypot(s.x-ab.x,(s.y-(s.kind==='bat'?16:s.kind==='cobra'?22:10))-ab.y)<ab.r+(s.kind==='cobra'?24:s.kind==='bear'?(s.white?25:18):s.kind==='bat'?14:s.white?16:12)){ P.hitSet.add(s); s.hp--; s.hurt=0.25;
+        if(s.kind==='cobra'){ addText(s.x,s.y-86,s.state==='recover'?'Bonk!':'Hiss!',s.state==='recover'?'#ffe14d':'#fff'); beep(900,0.12,'sawtooth',0.03,300); }
         const d=Math.hypot(s.x-P.x,s.y-P.y)||1; s.kbx=(s.x-P.x)/d*300*s.kbMul; s.kby=(s.y-P.y)/d*300*s.kbMul; SFX.hit();
         addParticles(s.x,s.y-12,5,['#fff','#ffe14d'],80);
-        if(s.hp>0 && (s.white||s.kind==='wolf')){ addText(s.x,s.y-(s.kind==='bear'?74:s.white?50:42),s.hp===1?'One more hit!':s.hp+' more hits!','#cfe8ff'); addParticles(s.x,s.y-16,8,['#cfe8ff','#fff'],100); }
+        if(s.hp>0 && (s.white||s.kind==='wolf'||s.kind==='cobra')){ addText(s.x,s.y-(s.kind==='cobra'?66:s.kind==='bear'?74:s.white?50:42),s.hp===1?'One more hit!':s.hp+' more hits!','#cfe8ff'); addParticles(s.x,s.y-16,8,['#cfe8ff','#fff'],100); }
         if(s.hp<=0){ s.flee=true; s.fleeT=0.9; G.chased++; SFX.poof(); s.face=(s.x>=P.x)?1:-1;
           s.vx=(s.x-P.x)/d*230; s.vy=(s.y-P.y)/d*230; s.kbx=0; s.kby=0;
           addParticles(s.x,s.y-10,12,['#e8dcc0','#fff','#ffe14d'],110);
           if(s.kind==='bat'){ s.vx=(s.x-P.x)/d*120; s.vy=-160; }
-          addText(s.x,s.y-36,s.kind==='bat'?'Squeak! Flew away!':s.kind==='snake'?'Ssss! Slithered away!':s.kind==='bear'?(s.white?'The big white bear lumbers home!':'The bear runs home!'):s.white?'The white wolf runs off!':'Yelp! Ran away!','#ffe14d');
+          if(s.kind==='cobra'){ s.fleeT=1.8; s.vx=(s.x-P.x)/d*120; s.vy=(s.y-P.y)/d*120; G.side.cobra.beaten=true; SFX.item(); G.shake=0.3;
+            items.push({type:'snakeCrown',x:s.x,y:s.y,map:'world'}); addParticles(s.x,s.y-30,30,['#ffd23f','#fff','#7cfc8a'],160);
+            addText(s.x,s.y-90,'The Snake King slithers away!','#ffe14d'); addText(s.x,s.y-70,'He dropped his crown!','#fff'); }
+          else addText(s.x,s.y-36,s.kind==='bat'?'Squeak! Flew away!':s.kind==='snake'?'Ssss! Slithered away!':s.kind==='bear'?(s.white?'The big white bear lumbers home!':'The bear runs home!'):s.white?'The white wolf runs off!':'Yelp! Ran away!','#ffe14d');
           const chance = G.hp<G.maxHp?0.55:0.15; if(Math.random()<chance) items.push({type:'heart',x:s.x,y:s.y,map:map.name}); } } }
     if(D){ const inX=Math.abs(ab.x-D.x)<ab.r+40, inY=ab.y>D.y-75-ab.r && ab.y<D.y+40+ab.r; if(inX&&inY&&!P.hitSet.has('D')){P.hitSet.add('D');hitDragon();} }
     for(const f of fireballs){ if(Math.hypot(f.x-ab.x,f.y-ab.y)<ab.r+8){ f.life=0; addParticles(f.x,f.y,8,['#ffb347','#ffe14d','#fff']); SFX.clang(); addText(f.x,f.y-14,'Pop!','#ffb347'); } }
@@ -1061,6 +1307,7 @@ function updatePlay(dt){
     if(s.flee){ s.fleeT-=dt; s.anim+=dt*22; s.x+=s.vx*dt; s.y+=s.vy*dt;
       if(s.fleeT<=0){ s.gone=true; addParticles(s.x,s.y-10,10,['#e8dcc0','#fff'],70); } continue; }
     if(s.kind==='bat'){ updateBat(s,dt); continue; }
+    if(s.kind==='cobra'){ updateCobra(s,dt); continue; }
     s.t-=dt;
     const dP=Math.hypot(P.x-s.x,P.y-s.y), dH=Math.hypot(s.hx-s.x,s.hy-s.y);
     if(s.t<=0){ s.t=s.kind==='wolf'?0.5+Math.random()*0.8:1+Math.random()*1.2;
@@ -1076,13 +1323,21 @@ function updatePlay(dt){
       if(s.kind==='bear') beep(110,0.25,'sawtooth',0.05,70); }
   }
   // chickens
-  if(map===WORLD) for(const c of chickens){ c.t-=dt; if(c.t<=0){c.t=0.6+Math.random()*1.5;const a=Math.random()*Math.PI*2,s=Math.random()<0.3?0:22;c.vx=Math.cos(a)*s;c.vy=Math.sin(a)*s;}
+  if(map===WORLD) for(const c of chickens){ if(c.hen){ updateHen(c,dt); continue; } c.t-=dt; if(c.t<=0){c.t=0.6+Math.random()*1.5;const a=Math.random()*Math.PI*2,s=Math.random()<0.3?0:22;c.vx=Math.cos(a)*s;c.vy=Math.sin(a)*s;}
     const dP=Math.hypot(P.x-c.x,P.y-c.y); if(dP<40){const a=Math.atan2(c.y-P.y,c.x-P.x);c.vx=Math.cos(a)*70;c.vy=Math.sin(a)*70;c.t=0.4; if(Math.random()<0.02)beep(1400,0.05,'square',0.02,1800);}
     moveEnt(c,c.vx*dt,c.vy*dt,6,4,false);
     c.x=clamp(c.x,VILLAGE.x0*TS,VILLAGE.x1*TS); c.y=clamp(c.y,VILLAGE.y0*TS,VILLAGE.y1*TS); }
+  if(map===WORLD){ updateMia(dt);
+    if(P.carry && inPen(P.x,P.y)) dropHen(true); }
+  if(G.rewardT>0) G.rewardT-=dt; G.crossT+=dt;
   // items
   for(const it of items){ if(it.map!==map.name||it.got) continue;
     if(Math.hypot(it.x-P.x,it.y-(P.y-8))<22){
+      if(it.type==='snakeCrown'){ it.got=true; SFX.item(); addParticles(it.x,it.y-10,24,['#ffd23f','#fff','#ff3b5c'],140);
+        if(G.side.cobra.st!=='done') G.side.cobra.st='ready';
+        startDialog([{who:'George',text:"You got the SNAKE KING'S CROWN! It sparkles like the sun!"},{who:'Tip',text:"Bring the crown to Shepherd Ben, just east of the bridge."}]); continue; }
+      if(it.type==='goldCross'){ it.got=true; SFX.item(); addParticles(it.x,it.y-10,24,['#ffe14d','#fff'],140); G.side.cross.st='ready';
+        startDialog([{who:'George',text:"You found the GOLDEN CROSS! The magpie hid it in the flowers!"},{who:'Tip',text:"Bring it back to Father Ambrose at the little church, west of the castle road."}]); continue; }
       if(it.type==='heart'){ if(G.hp>=G.maxHp) continue; it.got=true; G.hp=Math.min(G.maxHp,G.hp+2); SFX.pickup(); addText(it.x,it.y-20,'+1 heart','#ff7b95'); addParticles(it.x,it.y-8,8,['#ff3b5c','#fff']); }
       else if(it.type==='spearHead'||it.type==='spearShaft'){ it.got=true; const head=it.type==='spearHead';
         G.pieces[head?'head':'shaft']=true; SFX.item(); addParticles(it.x,it.y-10,24,['#fff','#ffe14d','#7ef0ff'],140);
@@ -1104,6 +1359,67 @@ function updatePlay(dt){
   if(here===T.LAIRDOOR && map===TUNNEL) enterLair();
   if(map===LAIR) updateDragon(dt);
   updateCamera(false);
+}
+function updateHen(c,dt){
+  if(c.flap>0) c.flap-=dt;
+  if(c.carried){ c.x=P.x; c.y=P.y-30; c.vx=P.dir==='left'?-1:1; return; }
+  c.t-=dt;
+  if(c.penned){ if(c.t<=0){c.t=0.8+Math.random()*1.6;const a=Math.random()*Math.PI*2,sp=Math.random()<0.4?0:16;c.vx=Math.cos(a)*sp;c.vy=Math.sin(a)*sp; if(Math.random()<0.25)beep(1300,0.05,'square',0.015,1600);}
+    moveEnt(c,c.vx*dt,c.vy*dt,6,4,false); c.x=clamp(c.x,PEN.x0+12,PEN.x1-12); c.y=clamp(c.y,PEN.y0+18,PEN.y1-10); return; }
+  const dP=Math.hypot(P.x-c.x,P.y-c.y), dH=Math.hypot(c.hx-c.x,c.hy-c.y);
+  if(dP<44 && G.side.hens.st!=='active'){ const a=Math.atan2(c.y-P.y,c.x-P.x); c.vx=Math.cos(a)*55; c.vy=Math.sin(a)*55; c.t=0.4; }
+  else if(c.t<=0){ c.t=0.7+Math.random()*1.5;
+    if(dH>110){const a=Math.atan2(c.hy-c.y,c.hx-c.x);c.vx=Math.cos(a)*28;c.vy=Math.sin(a)*28;}
+    else {const a=Math.random()*Math.PI*2,sp=Math.random()<0.35?0:20;c.vx=Math.cos(a)*sp;c.vy=Math.sin(a)*sp;}
+    if(dP<300 && Math.random()<0.3){ beep(1350,0.05,'square',0.02,1750); if(Math.random()<0.5) texts.push({x:c.x,y:c.y-26,txt:'cluck!',col:'#fff',life:0.8}); } }
+  moveEnt(c,c.vx*dt,c.vy*dt,6,4,false);
+}
+function updateMia(dt){
+  const m=npcById('mia'); if(!m||!m.follow) return;
+  const dx=P.x-m.x, dy=P.y-m.y, d=Math.hypot(dx,dy);
+  if(d>260){ placeMiaNear(); addParticles(m.x,m.y-12,10,['#fff','#ff9fd0'],80); addText(m.x,m.y-40,'Wait for me!','#ff9fd0'); return; }
+  m.walk=m.walk||0;
+  if(d>34){ const sp=Math.min(175,60+d*1.6), ox=m.x, oy=m.y;
+    moveEnt(m,dx/d*sp*dt,dy/d*sp*dt,5,4,false);
+    const moved=Math.hypot(m.x-ox,m.y-oy); m.walk+=dt*12;
+    m.dir=Math.abs(dx)>Math.abs(dy)?(dx<0?'left':'right'):(dy<0?'up':'down');
+    if(moved<sp*dt*0.3) m.stuck+=dt; else m.stuck=Math.max(0,m.stuck-dt);
+    if(m.stuck>0.9 || (d>120&&m.stuck>0.4)){ addParticles(m.x,m.y-12,10,['#fff','#ff9fd0'],80); placeMiaNear(); addParticles(m.x,m.y-12,10,['#fff','#ff9fd0'],80); }
+  } else m.walk=0;
+}
+function updateCobra(s,dt){ // King Hissalot: rear up (telegraph) -> lunge -> dizzy recover
+  s.st+=dt; s.anim+=dt*3; if(s.cd>0) s.cd-=dt;
+  const dP=Math.hypot(P.x-s.x,P.y-s.y), dH=Math.hypot(s.hx-s.x,s.hy-s.y);
+  if(s.state!=='lunge') moveEnt(s,s.kbx*dt,s.kby*dt,s.hw,6,false);
+  s.kbx*=Math.pow(0.02,dt); s.kby*=Math.pow(0.02,dt);
+  if(s.state==='idle'){
+    let vx=0,vy=0;
+    if(dP<190 && dH<240 && G.mode==='play'){ s.face=P.x<s.x?-1:1; const a=Math.atan2(P.y-s.y,P.x-s.x);
+      if(dP>80){vx=Math.cos(a)*36;vy=Math.sin(a)*36;} else if(dP<50){vx=-Math.cos(a)*30;vy=-Math.sin(a)*30;}
+      if(s.cd<=0 && dP<160){ s.state='rear'; s.st=0; beep(2400,0.7,'sawtooth',0.03,600); addText(s.x,s.y-96,'HISSSS!','#ff9f43'); } }
+    else if(dH>30){const a=Math.atan2(s.hy-s.y,s.hx-s.x);vx=Math.cos(a)*40;vy=Math.sin(a)*40; s.face=vx<0?-1:1;}
+    moveEnt(s,vx*dt,vy*dt,s.hw,6,false);
+    if(dP<26 && P.inv<=0){ const bl=hurtPlayer(1,s.x,s.y)==='blocked'; s.kbx=(s.x-P.x)/(dP||1)*(bl?260:160); s.kby=(s.y-P.y)/(dP||1)*(bl?260:160); s.cd=Math.max(s.cd,0.8); }
+  } else if(s.state==='rear'){
+    s.face=P.x<s.x?-1:1;
+    if(s.st>=0.7){ const a=Math.atan2(P.y-s.y,P.x-s.x), dist=Math.min(250,dP+40);
+      s.ldx=Math.cos(a); s.ldy=Math.sin(a); s.ldur=dist/440; s.lt=0; s.hitP=false; s.state='lunge'; s.st=0; beep(300,0.25,'sawtooth',0.05,900); }
+  } else if(s.state==='lunge'){
+    const ox=s.x, oy=s.y, sp=440;
+    moveEnt(s,s.ldx*sp*dt,s.ldy*sp*dt,s.hw,6,false);
+    const moved=Math.hypot(s.x-ox,s.y-oy);
+    const hx=s.x+s.ldx*14, hy=s.y+s.ldy*6;
+    if(!s.hitP && Math.hypot(P.x-hx,P.y-hy)<30){ s.hitP=true;
+      const r=hurtPlayer(2,s.x,s.y);
+      if(r==='blocked'){ SFX.clang(); setTimeout(()=>SFX.clang(),60); s.kbx=-s.ldx*320; s.kby=-s.ldy*320; G.shake=0.15; s.blocked=(s.blocked||0)+1;
+        addText(s.x,s.y-80,'CLANG!','#cfe8ff'); addParticles(P.x,P.y-16,14,['#fff','#ffe14d','#cfe8ff'],170);
+        s.state='recover'; s.st=-0.4; return; }
+      if(r===undefined && P.inv>0 && G.hp>=0) {} // already invincible: no extra damage
+    }
+    if(s.st>=s.ldur || moved<sp*dt*0.25){ s.state='recover'; s.st=0; }
+  } else if(s.state==='recover'){
+    if(s.st>=1.0){ s.state='idle'; s.st=0; s.cd=1.3+Math.random()*0.9; }
+  }
 }
 function updateBat(s,dt){
   const dP=Math.hypot(P.x-s.x,P.y-s.y);
@@ -1155,14 +1471,25 @@ function render(){
   const ents=[];
   for(const it of items) if(it.map===map.name) ents.push({y:it.y,draw:()=>drawItem(it,t)});
   if(map===WORLD){
-    for(const n of npcs) ents.push({y:n.y,draw:()=>{drawPerson(ctx,n.x,n.y+Math.sin(t*2+n.tx)*0.6,n.o,n.dir,0);
-      if(Math.hypot(n.x-P.x,n.y-P.y)<46 && G.mode==='play'){ rrect(ctx,n.x-9,n.y-62,18,16,4,'#fff'); ctx.fillStyle='#222';ctx.font='bold 12px Verdana';ctx.textAlign='center';ctx.fillText('!',n.x,n.y-50);}
+    for(const n of npcs) ents.push({y:n.y,draw:()=>{
+      if(n.small){ ctx.save(); ctx.translate(n.x,n.y+(n.walk?0:Math.sin(t*2+n.tx)*0.6)); ctx.scale(0.72,0.72); drawPerson(ctx,0,0,n.o,n.dir,n.walk||0); ctx.restore(); }
+      else drawPerson(ctx,n.x,n.y+Math.sin(t*2+n.tx)*0.6,n.o,n.dir,0);
+      const mk=sideMark(n), top=n.small?44:62;
+      if(n.follow){ if(Math.sin(t*3)>0.5) drawStar(ctx,n.x+10,n.y-48,3,'#ff9fd0'); }
+      else if(Math.hypot(n.x-P.x,n.y-P.y)<46 && G.mode==='play'){ rrect(ctx,n.x-9,n.y-top,18,16,4,'#fff'); ctx.fillStyle='#222';ctx.font='bold 12px Verdana';ctx.textAlign='center';ctx.fillText(mk==='?'?'?':'!',n.x,n.y-top+12);}
+      else if(mk){ const b=Math.sin(t*5)*2; rrect(ctx,n.x-10,n.y-top-4+b,20,18,5,mk==='?'?'#7cfc8a':'#ffe14d'); ctx.strokeStyle='#222';ctx.lineWidth=1.5;ctx.strokeRect(n.x-9,n.y-top-3+b,18,16);
+        ctx.fillStyle='#222';ctx.font='bold 13px Verdana';ctx.textAlign='center';ctx.fillText(mk,n.x,n.y-top+10+b);}
+      else if(false){ rrect(ctx,n.x-9,n.y-62,18,16,4,'#fff'); ctx.fillStyle='#222';ctx.font='bold 12px Verdana';ctx.textAlign='center';ctx.fillText('!',n.x,n.y-50);}
       else if(n.id==='king'&&!G.talkedKing){ const b=Math.sin(t*5)*2; rrect(ctx,n.x-9,n.y-64+b,18,16,4,'#ffe14d');ctx.fillStyle='#222';ctx.font='bold 12px Verdana';ctx.textAlign='center';ctx.fillText('!',n.x,n.y-52+b);} }});
-    for(const c of chickens) ents.push({y:c.y,draw:()=>drawChicken(ctx,c,t)});
+    for(const c of chickens) if(!c.carried) ents.push({y:c.y,draw:()=>c.hen?drawHen(ctx,c,t):drawChicken(ctx,c,t)});
+    // golden cross back on the church bell tower
+    if(G.side.cross.st==='done'){ const bx=CHURCH.x*TS+80, by=CHURCH.y*TS-74; ents.push({y:CHURCH.y*TS+90,draw:()=>{ drawGoldCross(ctx,bx,by,0.85,true);
+      if(Math.sin(t*3)>0.2) drawStar(ctx,bx+12,by-10,3,'#fff'); if(G.crossT<3) for(let i=0;i<6;i++){const a=t*3+i;drawStar(ctx,bx+Math.cos(a)*24,by+Math.sin(a)*18,3,'#ffe14d');} }}); }
   }
   for(const s of foes) if(s.map===map.name) ents.push({y:s.y,draw:()=>drawFoe(ctx,s,t)});
   if(D && G.mode!=='victory') ents.push({y:D.y+40,draw:()=>drawDragon(ctx,D,t)});
-  ents.push({y:P.y,draw:()=>drawGeorge(ctx,P.x,P.y,P,t)});
+  ents.push({y:P.y,draw:()=>{ drawGeorge(ctx,P.x,P.y,P,t);
+    if(P.carry){ const c=P.carry; const bob=Math.abs(Math.sin(P.walk*0.5))*2; c.x=P.x; c.y=P.y-34-bob; drawHen(ctx,c,t); } }});
   ents.sort((a,b)=>a.y-b.y).forEach(e=>e.draw());
   for(const f of fireballs){const gr=ctx.createRadialGradient(f.x,f.y,1,f.x,f.y,11);gr.addColorStop(0,'#fff8c0');gr.addColorStop(0.5,'#ffb347');gr.addColorStop(1,'rgba(255,80,40,0)');
     ctx.fillStyle=gr;ctx.beginPath();ctx.arc(f.x,f.y,11+Math.sin(t*20)*1.5,0,Math.PI*2);ctx.fill();}
@@ -1182,7 +1509,7 @@ function render(){
   renderToast();
 }
 function renderToast(){
-  if(toast.t<=0) return;
+  if(toast.t<=0 || G.mode==='log') return;
   ctx.save(); ctx.globalAlpha=clamp(toast.t/0.4,0,1);
   ctx.font='bold 15px Verdana'; const w=ctx.measureText(toast.text).width+30, y=56+(toast.t>2.3?(toast.t-2.3)*-60:0);
   rrect(ctx,(W-w)/2,y,w,30,10,'rgba(20,16,48,.9)'); ctx.strokeStyle='#7cfc8a';ctx.lineWidth=2;ctx.strokeRect((W-w)/2+3,y+3,w-6,24);
@@ -1212,13 +1539,15 @@ function drawItem(it,t){
   const gl=ctx.createRadialGradient(it.x,it.y-12,2,it.x,it.y-12,30);gl.addColorStop(0,'rgba(255,240,150,.8)');gl.addColorStop(1,'rgba(255,240,150,0)');
   ctx.fillStyle=gl;ctx.beginPath();ctx.arc(it.x,it.y-12,30,0,Math.PI*2);ctx.fill();
   for(let i=0;i<4;i++){const a=t*2+i*Math.PI/2;drawStar(ctx,it.x+Math.cos(a)*20,it.y-12+Math.sin(a)*14,3+Math.sin(t*6+i)*1.5,'#fff');}
+  if(it.type==='goldCross'){ drawGoldCross(ctx,it.x,it.y-14+b,0.9,false); return; }
+  if(it.type==='snakeCrown'){ drawCrownIcon(ctx,it.x,it.y-12+b,1.1); return; }
   rrect(ctx,it.x-13,it.y-2,26,10,3,'#8f949a');
   if(it.type==='spearHead') drawSpear(ctx,it.x,it.y+4+b*0.5,0.9,0.5,'head');
   else drawSpear(ctx,it.x,it.y-20+b*0.5,0.9,-0.5,'shaft');
 }
 function renderHUD(){
   // hearts
-  rrect(ctx,6,6,5*26+12,34,8,'rgba(0,0,0,.45)');
+  rrect(ctx,6,6,Math.ceil(G.maxHp/2)*26+12,34,8,G.rewardT>0&&Math.sin(G.t*14)>0?'rgba(255,215,80,.6)':'rgba(0,0,0,.45)');
   for(let i=0;i<G.maxHp/2;i++){const units=clamp(G.hp-i*2,0,2);drawHeart(ctx,24+i*26,12,22,units/2);}
   // items
   const ix=W-176; rrect(ctx,ix,6,170,34,8,'rgba(0,0,0,.45)');
@@ -1226,6 +1555,20 @@ function renderHUD(){
   if(G.hasSpear){ drawSpear(ctx,ix+80,23,0.42,1.0,'full'); }
   else { ctx.globalAlpha=G.pieces.head?1:0.25; drawSpear(ctx,ix+80,30,0.42,1.0,'head'); ctx.globalAlpha=G.pieces.shaft?1:0.25; drawSpear(ctx,ix+76,25,0.42,1.0,'shaft'); ctx.globalAlpha=1; }
   ctx.font='bold 11px Verdana';ctx.textAlign='left';outlined(ctx,padSeen?'B: Quests':'Q: Quests',ix+104,27,'#fff','#000',3);
+  // side quest tracker (under the hearts)
+  if(map===WORLD && G.mode!=='victory'){ const lines=sideTracker(); if(lines.length){ ctx.font='bold 11px Verdana'; let w=0; for(const l of lines) w=Math.max(w,ctx.measureText(l).width);
+    rrect(ctx,6,44,w+28,lines.length*16+8,7,'rgba(60,20,60,.5)'); ctx.textAlign='left';
+    lines.forEach((l,i)=>{ circ(ctx,16,56+i*16,4,'#ff9fd0'); outlined(ctx,l,24,60+i*16,'#fff','#000',3); }); } }
+  // Snake King health bar
+  const cb=map===WORLD&&foes.find(f=>f.kind==='cobra'&&!f.gone);
+  if(cb && G.mode!=='victory' && Math.hypot(cb.x-P.x,cb.y-P.y)<330){
+    const bw=260,bx=(W-bw)/2,by=H-70; rrect(ctx,bx-6,by-6,bw+12,36,8,'rgba(0,0,0,.6)');
+    ctx.font='bold 11px Verdana';ctx.textAlign='center';outlined(ctx,cb.name,W/2,by+6,'#ffd23f','#000',3);
+    for(let i=0;i<cb.maxHp;i++){const sw=bw/cb.maxHp; ctx.fillStyle=i<cb.hp?(cb.state==='recover'?'#ffe14d':'#7cfc8a'):'#3a1a2a'; ctx.fillRect(bx+i*sw+1,by+11,sw-2,12);}
+    ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.strokeRect(bx,by+11,bw,12);
+    if(cb.state==='rear'){ctx.font='bold 16px Verdana';outlined(ctx,'He is rearing up! SHIELD or dodge!',W/2,H-86,'#ff9f43','#000',4);}
+    if(cb.state==='recover'){ctx.font='bold 16px Verdana';outlined(ctx,'He is dizzy! Poke him now!',W/2,H-86,'#ffe14d','#000',4);}
+  }
   // objective
   if(map===WORLD && G.mode!=='victory'){
     const ob=objective(); ctx.font='bold 13px Verdana'; const w=ctx.measureText(ob.text).width+40;
@@ -1238,6 +1581,7 @@ function renderHUD(){
     const blink=Math.sin(G.t*6)>0;
     drawStar(ctx,mx+(ob.tx+0.5)*s,my+(ob.ty+0.5)*s,blink?6:5,'#ffe14d');
     if(ob.tx2!==undefined) drawStar(ctx,mx+(ob.tx2+0.5)*s,my+(ob.ty2+0.5)*s,blink?6:5,'#ffe14d');
+    for(const [qx,qy] of sideMarkers()){ ctx.fillStyle=blink?'#ff4fa8':'#ff9fd0'; ctx.beginPath(); const px=mx+qx*s, py=my+qy*s; ctx.moveTo(px,py-4);ctx.lineTo(px+4,py);ctx.lineTo(px,py+4);ctx.lineTo(px-4,py);ctx.fill(); }
     circ(ctx,mx+P.x/TS*s,my+P.y/TS*s,3,'#fff');circ(ctx,mx+P.x/TS*s,my+P.y/TS*s,2,'#d62828');
   }
   if(map===TUNNEL && G.mode!=='victory'){ const txt='Bat Cave: find the glowing door to the dragon!'; ctx.font='bold 13px Verdana'; const w=ctx.measureText(txt).width+40;
@@ -1250,6 +1594,27 @@ function renderHUD(){
     if(D.state==='rest'){ctx.font='bold 16px Verdana';outlined(ctx,'The dragon is tired! Hit it now!',W/2,H-16,'#ffe14d','#000',4);}
   }
 }
+function sideTracker(){ const S=G.side, out=[]; if(!S) return out;
+  if(S.hens.st==='active') out.push('Hens '+hensPenned()+'/5'+(P.carry?'  (carrying one!)':''));
+  if(S.hens.st==='ready') out.push('Hens 5/5: tell Farmer Giles!');
+  if(S.child.st==='active') out.push('Find Mia in the West Forest');
+  if(S.child.st==='follow') out.push('Walk Mia home to Mama Rose');
+  const cb=foes.find(f=>f.kind==='cobra'&&!f.flee);
+  if(S.cobra.st==='active'&&cb) out.push('Snake King hits '+(cb.maxHp-cb.hp)+'/7');
+  if(S.cobra.st==='ready'||(S.cobra.st==='active'&&!cb)) out.push(S.cobra.st==='ready'?'Bring the crown to Shepherd Ben':'Pick up the Snake King\'s crown!');
+  if(S.cross.st==='active') out.push('Find the golden cross (north)');
+  if(S.cross.st==='ready') out.push('Bring the cross to Father Ambrose');
+  return out; }
+function sideMarkers(){ const S=G.side, out=[]; if(!S) return out;
+  if(S.hens.st==='active'){ if(P.carry) out.push([(PEN.x0+PEN.x1)/2/TS,(PEN.y0+PEN.y1)/2/TS]); else for(const c of chickens) if(c.hen&&!c.penned) out.push([c.x/TS,c.y/TS]); }
+  if(S.child.st==='active'){ const m=npcById('mia'); out.push([m.x/TS,m.y/TS]); }
+  if(S.child.st==='follow'){ const r=npcById('rose'); out.push([r.x/TS,r.y/TS]); }
+  if(S.cobra.st==='active'){ const cb=foes.find(f=>f.kind==='cobra'&&!f.gone); if(cb) out.push([cb.x/TS,cb.y/TS]); else { const it=items.find(i=>i.type==='snakeCrown'); if(it) out.push([it.x/TS,it.y/TS]); } }
+  if(S.cobra.st==='ready'){ const b=npcById('ben'); out.push([b.x/TS,b.y/TS]); }
+  if(S.cross.st==='active') out.push([CROSS_POS.x+0.5,CROSS_POS.y+0.5]);
+  if(S.cross.st==='ready'){ const a=npcById('ambrose'); out.push([a.x/TS,a.y/TS]); }
+  if(S.hens.st==='ready'){ const gi=npcById('giles'); out.push([gi.x/TS,gi.y/TS]); }
+  return out; }
 function renderDialog(){
   const d=G.dialog; if(!d) return; const line=d.lines[d.i];
   const bx=20,by=H-140,bw=W-40,bh=118;
@@ -1263,21 +1628,43 @@ function renderDialog(){
 }
 function renderLog(){
   ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(0,0,W,H);
-  const bx=70,by=50,bw=W-140,bh=H-100;
+  const bx=60,by=12,bw=W-120,bh=H-24;
   rrect(ctx,bx,by,bw,bh,14,'#f6e7c1'); ctx.strokeStyle='#8a5a2b';ctx.lineWidth=5;ctx.strokeRect(bx+8,by+8,bw-16,bh-16);
-  ctx.textAlign='center';ctx.fillStyle='#5a3a1a';ctx.font='bold 26px Georgia, serif';ctx.fillText('Quest Log',W/2,by+46);
+  ctx.textAlign='center';ctx.fillStyle='#5a3a1a';ctx.font='bold 24px Georgia, serif';ctx.fillText('Quest Log',W/2,by+38);
   const qs=[["Talk to the King in the castle",G.talkedKing,"North of the village, up the road"],
     ["Find the Spear Head",G.pieces.head,"Deep in the West Forest (wolves live there!)"],
     ["Find the Spear Shaft",G.pieces.shaft,"Top of the Eastern Hills (a big white bear guards it!)"],
     ["Join them into the Holy Spear",G.hasSpear,"Happens by magic when you have both pieces"],
     ["Make the dragon leave Silene alone",G.dragonDefeated,"In the cave to the south-east"]];
+  const box=(x,y,done,col)=>{ rrect(ctx,x,y-15,20,20,4,done?col:'#fff'); ctx.strokeStyle='#5a3a1a';ctx.lineWidth=2;ctx.strokeRect(x,y-15,20,20);
+    if(done){ctx.strokeStyle='#fff';ctx.lineWidth=3.5;ctx.beginPath();ctx.moveTo(x+4,y-5);ctx.lineTo(x+9,y+1);ctx.lineTo(x+17,y-11);ctx.stroke();} };
   ctx.textAlign='left';
-  qs.forEach((q,i)=>{const y=by+84+i*54; rrect(ctx,bx+34,y-18,24,24,5,q[1]?'#4caf50':'#fff'); ctx.strokeStyle='#5a3a1a';ctx.lineWidth=2;ctx.strokeRect(bx+34,y-18,24,24);
-    if(q[1]){ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(bx+39,y-6);ctx.lineTo(bx+45,y+1);ctx.lineTo(bx+54,y-13);ctx.stroke();}
-    ctx.fillStyle=q[1]?'#6a8a5a':'#3a2a1a';ctx.font='bold 18px Verdana';ctx.fillText(q[0],bx+72,y);
-    ctx.fillStyle='#8a6a4a';ctx.font='13px Verdana';ctx.fillText(q[2],bx+72,y+20);});
-  ctx.textAlign='center';ctx.fillStyle='#5a3a1a';ctx.font='13px Verdana';
-  ctx.fillText(padSeen?'B / Start / A: close   \u2022   Hold X or LB/RB: block   \u2022   Back (Share): restart':(isTouch?'Tap to close   \u2022   Hold the shield button to block':'Q / SPACE: close   \u2022   Hold SHIFT/X: block   \u2022   R: restart   \u2022   M: sound'),W/2,by+bh-22);
+  qs.forEach((q,i)=>{const y=by+70+i*36; box(bx+30,y,q[1],'#4caf50');
+    ctx.fillStyle=q[1]?'#6a8a5a':'#3a2a1a';ctx.font='bold 15px Verdana';ctx.fillText(q[0],bx+62,y);
+    ctx.fillStyle='#8a6a4a';ctx.font='11px Verdana';ctx.fillText(q[2],bx+62,y+14);});
+  // side quests
+  const S=G.side, sy=by+252;
+  ctx.strokeStyle='#c9a46a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(bx+30,sy-22);ctx.lineTo(bx+bw-30,sy-22);ctx.stroke();
+  ctx.textAlign='center';ctx.fillStyle='#8a2a6a';ctx.font='bold 18px Georgia, serif';ctx.fillText('Side Quests  ('+S.done+'/4)',W/2,sy);
+  const cb=foes.find(f=>f.kind==='cobra'&&!f.flee), hits=cb?(cb.maxHp-cb.hp):7;
+  const st=(x)=>x.st;
+  const sq=[
+    ["Chicken Roundup",st(S.hens),{none:"Talk to Farmer Giles (east side of the village)",active:"Carry his brown hens into the pen by the river",ready:"All hens home! Tell Farmer Giles",done:"Hooray! The hens are safe"}[S.hens.st],
+      S.hens.st==='none'?'':'Chickens '+(S.hens.st==='active'?hensPenned():5)+'/5'],
+    ["Lost Child",st(S.child),{none:"Talk to Mama Rose (south of the plaza)",active:"Find Mia in the flower clearing, West Forest",follow:"Walk Mia home to Mama Rose",done:"Mia is home with her mama"}[S.child.st],
+      S.child.st==='none'?'':S.child.st==='active'?'Find Mia':S.child.st==='follow'?'Mia is following':'Home!'],
+    ["The Snake King",st(S.cobra),{none:S.cobra.beaten?"Bring the crown to Shepherd Ben":"Talk to Shepherd Ben (east of the bridge)",active:"Chase King Hissalot from his sandy nest (east)",ready:"Bring his crown to Shepherd Ben",done:"The sheep are safe again"}[S.cobra.st],
+      S.cobra.st==='none'&&!S.cobra.beaten?'':'Hits '+(S.cobra.beaten?7:hits)+'/7'],
+    ["The Lost Cross",st(S.cross),{none:"Talk to Father Ambrose (church, west of the castle road)",active:"Find the golden cross up north, by the river",ready:"Bring it to Father Ambrose",done:"The cross shines on the church"}[S.cross.st],
+      S.cross.st==='none'?'':S.cross.st==='active'?'Cross 0/1':'Cross 1/1'],
+  ];
+  sq.forEach((q,i)=>{const y=sy+28+i*35, done=q[1]==='done', fresh=q[1]==='none';
+    box(bx+30,y,done,'#e26aa8'); ctx.textAlign='left';
+    ctx.fillStyle=done?'#8a6a8a':fresh?'#9a8a7a':'#3a2a1a';ctx.font='bold 15px Verdana';ctx.fillText(q[0]+(fresh?'  (!)':''),bx+62,y);
+    ctx.fillStyle='#8a6a4a';ctx.font='11px Verdana';ctx.fillText(q[2],bx+62,y+14);
+    if(q[3]){ctx.textAlign='right';ctx.fillStyle=done?'#4caf50':'#8a2a6a';ctx.font='bold 13px Verdana';ctx.fillText(q[3],bx+bw-28,y);} });
+  ctx.textAlign='center';ctx.fillStyle='#5a3a1a';ctx.font='11px Verdana';
+  ctx.fillText(padSeen?'B / Start / A: close   \u2022   Hold X or LB/RB: block   \u2022   Back (Share): restart':(isTouch?'Tap to close   \u2022   Hold the shield button to block':'Q / SPACE: close   \u2022   Hold SHIFT/X: block   \u2022   R: restart   \u2022   M: sound'),W/2,by+bh-16);
 }
 function renderTitle(){
   const t=titleT;
@@ -1318,8 +1705,9 @@ function renderVictory(){
   drawSpear(ctx,13,-22-Math.abs(Math.sin(G.vt*4))*4,0.6,0.15);drawShieldIcon(ctx,-11,-14,0.72);ctx.restore();
   ctx.font='16px Verdana';outlined(ctx,'The dragon promised to be friendly, and the sheep can sleep again!',W/2,385,'#fff','#000',4);
   const m=Math.floor(G.playTime/60), s=Math.floor(G.playTime%60);
-  ctx.font='bold 15px Verdana';outlined(ctx,'Time: '+m+':'+(s<10?'0':'')+s+'      Creatures chased away: '+G.chased,W/2,414,'#7cfc8a','#000',4);
-  if(G.vt>1.5 && Math.sin(G.vt*4)>-0.3){ctx.font='bold 20px Verdana';outlined(ctx,padSeen?'Press A or START to play again':isTouch?'Tap to play again':'Press SPACE or R to play again',W/2,454,'#fff','#d62828',6);}
+  ctx.font='bold 15px Verdana';outlined(ctx,'Time: '+m+':'+(s<10?'0':'')+s+'      Creatures chased away: '+G.chased,W/2,410,'#7cfc8a','#000',4);
+  ctx.font='bold 14px Verdana';outlined(ctx,'Side quests: '+(G.side?G.side.done:0)+'/4'+(G.side&&G.side.done===4?'   ★ Super helper of Silene! ★':''),W/2,431,'#ff9fd0','#000',4);
+  if(G.vt>1.5 && Math.sin(G.vt*4)>-0.3){ctx.font='bold 20px Verdana';outlined(ctx,padSeen?'Press A or START to play again':isTouch?'Tap to play again':'Press SPACE or R to play again',W/2,458,'#fff','#d62828',6);}
 }
 
 // ================== MAIN LOOP ==================
