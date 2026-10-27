@@ -23,6 +23,7 @@
   .tbtn{position:fixed;border-radius:50%;border:3px solid rgba(255,255,255,.6);color:#fff;font-weight:bold;
     display:flex;align-items:center;justify-content:center;touch-action:none;text-shadow:0 2px 2px rgba(0,0,0,.5)}
   #btnA{right:22px;bottom:calc(40px + env(safe-area-inset-bottom));width:86px;height:86px;background:rgba(220,50,60,.75);font-size:30px}
+  #btnS{right:124px;bottom:calc(92px + env(safe-area-inset-bottom));width:58px;height:58px;background:rgba(200,200,215,.75);font-size:26px}
   #btnQ{right:124px;bottom:calc(24px + env(safe-area-inset-bottom));width:54px;height:54px;background:rgba(60,120,220,.75);font-size:22px}
 </style>
 </head>
@@ -32,6 +33,7 @@
   <div id="dpad"><div id="knob"></div></div>
   <div class="tbtn" id="btnA">A</div>
   <div class="tbtn" id="btnQ">&#9776;</div>
+  <div class="tbtn" id="btnS">&#128737;</div>
 </div>
 <script>
 "use strict";
@@ -41,7 +43,7 @@ const ctx = cv.getContext('2d');
 const TS = 32, W = 640, H = 480;
 const MW = 72, MH = 52;
 const T = {GRASS:0,TREE:1,WATER:2,BRIDGE:3,PATH:4,WALL:5,FLOOR:6,HOUSE:7,FLOWER:8,ROCK:9,SAND:10,CAVE:11,
-  CARPET:12,FOUNTAIN:13,MOUNTAIN:14,HILL:15,CFLOOR:16,CWALL:17,EXIT:18};
+  CARPET:12,FOUNTAIN:13,MOUNTAIN:14,HILL:15,CFLOOR:16,CWALL:17,EXIT:18,LAIRDOOR:19};
 const SOLID = new Set([T.TREE,T.WATER,T.WALL,T.HOUSE,T.ROCK,T.FOUNTAIN,T.MOUNTAIN,T.CWALL]);
 
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
@@ -51,7 +53,8 @@ const tc = t => t*TS+TS/2; // tile center
 
 // ================== INPUT ==================
 const keys = {}; let pv = {}; // pv = virtual buttons pressed this frame
-const touchDir = {x:0,y:0};
+const touchDir = {x:0,y:0}; let touchBlock=false, padBlock=false;
+function blockHeld(){ return !!(keys['shift']||keys['x']||padBlock||touchBlock); }
 const KEYMAP = {' ':'action','e':'action','enter':'action','z':'action','q':'log','tab':'log','r':'restart','m':'mute'};
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
@@ -61,7 +64,7 @@ addEventListener('keydown', e => {
   initAudio();
 });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
-addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; touchBlock=false; });
 function inputDir(){
   let x=0,y=0;
   if (keys['arrowleft']||keys['a']) x-=1;
@@ -81,7 +84,7 @@ function pollGamepad(){
   padDir.x=0;padDir.y=0;
   let pads=[]; try{pads=navigator.getGamepads?navigator.getGamepads():[];}catch(e){}
   let gp=null; for(const p of (pads||[])){ if(p&&p.connected!==false&&p.buttons&&p.buttons.length){gp=p;break;} }
-  if(!gp){padPrev=[];return;}
+  if(!gp){padPrev=[];padBlock=false;return;}
   if(!padSeen){padSeen=true;showToast('\uD83C\uDFAE Controller connected!');}
   const btn=i=>{const b=gp.buttons[i];return !!(b&&(b.pressed||b.value>0.5));};
   const ax=gp.axes[0]||0, ay=gp.axes[1]||0, dz=0.35;
@@ -90,9 +93,11 @@ function pollGamepad(){
   if(padDir.x&&padDir.y){ if(Math.abs(ax)>Math.abs(ay)*2.2) padDir.y=0; else if(Math.abs(ay)>Math.abs(ax)*2.2) padDir.x=0; }
   if(btn(12))padDir.y=-1; if(btn(13))padDir.y=1; if(btn(14))padDir.x=-1; if(btn(15))padDir.x=1;
   const now=[]; for(let i=0;i<17;i++) now[i]=btn(i);
+  padBlock = now[2]||now[4]||now[5];                                       // X / Square or LB / RB = hold to block
   const edge=i=>now[i]&&!padPrev[i];
   const m=G&&G.mode;
-  if(edge(0)||edge(2)){pv.action=true;initAudio();}                       // A / Cross (X / Square too)
+  if(edge(0)){pv.action=true;initAudio();}                                 // A / Cross
+  if(edge(2) && (m==='title'||m==='dialog'||m==='victory')){pv.action=true;initAudio();} // X / Square also skips text
   if(edge(1)||edge(3)){ if(m==='dialog') pv.action=true; else pv.log=true; } // B / Circle (Y / Triangle)
   if(edge(9)){ if(m==='title'||m==='victory'||m==='dialog') pv.action=true; else pv.log=true; } // Start / Options
   if(edge(8) && m==='log') pv.restart=true;                                // Back / Share in quest log = restart
@@ -124,6 +129,9 @@ if (isTouch) document.body.classList.add('touch');
     b.addEventListener('pointerdown',e=>{pv[name]=true;initAudio();b.style.filter='brightness(1.4)';e.preventDefault();});
     const off=()=>b.style.filter=''; b.addEventListener('pointerup',off); b.addEventListener('pointercancel',off);}
   btn('btnA','action'); btn('btnQ','log');
+  { const b=document.getElementById('btnS'); const on=e=>{touchBlock=true;initAudio();b.style.filter='brightness(1.4)';e.preventDefault();};
+    const off=()=>{touchBlock=false;b.style.filter='';};
+    b.addEventListener('pointerdown',on); b.addEventListener('pointerup',off); b.addEventListener('pointercancel',off); b.addEventListener('pointerleave',off); }
   cv.addEventListener('pointerdown',e=>{initAudio(); if(G.mode==='title'||G.mode==='victory'||G.mode==='dialog'||G.mode==='log') pv.action=true;});
   document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
 })();
@@ -241,6 +249,40 @@ function genLair(){
   m[h-1][9]=T.EXIT; m[h-1][10]=T.EXIT;
   return {t:m,w,h,name:'lair'};
 }
+// bat tunnel between the cave mouth and the dragon chamber (walk in at the bottom, dragon door at the top)
+function genTunnel(){
+  const w=20,h=30,m=makeGrid(w,h,T.CWALL);
+  const open=(x0,y0,x1,y1)=>{for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)m[y][x]=T.CFLOOR;};
+  open(8,22,11,28);   // entrance hall
+  open(3,19,11,22);   // turn west
+  open(3,11,6,22);    // up the west side
+  open(3,9,16,13);    // big crystal room
+  open(13,2,16,13);   // up to the dragon door
+  open(8,15,10,17);   // little side nook (heart)
+  open(7,16,8,16);
+  m[h-1][9]=T.EXIT; m[h-1][10]=T.EXIT; m[29-1][9]=T.CFLOOR; m[28][10]=T.CFLOOR;
+  m[1][14]=T.LAIRDOOR; m[1][15]=T.LAIRDOOR;
+  return {t:m,w,h,name:'tunnel'};
+}
+function drawTunnelDeco(g){
+  // glowing crystals along the walls
+  for(const [x,y,c] of [[7,27,'#7ef0ff'],[12,24,'#ff8ef0'],[2,20,'#a0ff8e'],[7,14,'#7ef0ff'],[2,12,'#ff8ef0'],[9,8,'#a0ff8e'],[17,11,'#7ef0ff'],[12,4,'#ff8ef0'],[17,3,'#a0ff8e']]){
+    const px=x*TS+16, py=y*TS+20; const gr=g.createRadialGradient(px,py,2,px,py,34); gr.addColorStop(0,c+'55'); gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr; g.beginPath(); g.arc(px,py,34,0,Math.PI*2); g.fill();
+    for(const [dx,s2] of [[-6,0.7],[0,1],[6,0.6]]){ g.fillStyle=c; g.beginPath(); g.moveTo(px+dx,py-14*s2); g.lineTo(px+dx+5*s2,py); g.lineTo(px+dx,py+6); g.lineTo(px+dx-5*s2,py); g.fill();
+      g.fillStyle='rgba(255,255,255,.6)'; g.beginPath(); g.moveTo(px+dx,py-14*s2); g.lineTo(px+dx+2,py); g.lineTo(px+dx,py+2); g.fill(); } }
+  // little rocks & bones-free pebbles
+  const r=mulberry32(7); for(let i=0;i<60;i++){ const x=Math.floor(r()*20), y=Math.floor(r()*30); if(TUNNEL_TMP && TUNNEL_TMP.t[y][x]===T.CFLOOR){ ell(g,x*TS+8+r()*16,y*TS+10+r()*16,3+r()*3,2+r()*2,'#4a3c5a'); } }
+  // the dragon door: dark arch with warm glow and scorch marks
+  { const x=14*TS, y=1*TS; g.fillStyle='#2a2036'; g.beginPath(); g.arc(x+32,y+30,36,Math.PI,0); g.fill();
+    const gr=g.createRadialGradient(x+32,y+26,4,x+32,y+26,40); gr.addColorStop(0,'rgba(255,150,60,.9)'); gr.addColorStop(1,'rgba(255,80,30,0)');
+    g.fillStyle='#120a18'; g.beginPath(); g.arc(x+32,y+32,26,Math.PI,0); g.lineTo(x+58,y+32); g.lineTo(x+6,y+32); g.fill();
+    g.fillStyle=gr; g.beginPath(); g.arc(x+32,y+26,40,0,Math.PI*2); g.fill(); }
+  // daylight at the entrance
+  { const gr=g.createLinearGradient(0,29*TS+32,0,26*TS); gr.addColorStop(0,'rgba(255,240,180,.45)'); gr.addColorStop(1,'rgba(255,240,180,0)');
+    g.fillStyle=gr; g.fillRect(8*TS,26*TS,4*TS,4*TS); }
+}
+let TUNNEL_TMP=null;
 
 // ================== TILE ART ==================
 function circ(g,x,y,r,col){g.fillStyle=col;g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fill();}
@@ -286,6 +328,7 @@ function drawTile(g,t,px,py,r){
     for(let i=0;i<3;i++)g.fillRect(px+r()*28,py+r()*28,3,2); break;
   case T.CWALL: g.fillStyle='#3a2e48';g.fillRect(px,py,TS,TS);g.fillStyle='#4a3c5a';
     ell(g,px+10,py+12,8,6,'#4a3c5a');ell(g,px+23,py+22,7,5,'#2f253b'); break;
+  case T.LAIRDOOR: g.fillStyle='#3a2e48';g.fillRect(px,py,TS,TS); break;
   case T.EXIT: g.fillStyle='#e3cf93';g.fillRect(px,py,TS,TS);g.fillStyle='#fff6c8';g.fillRect(px+4,py+10,24,22); break;
   default: grassBase(g,px,py,r);
   }
@@ -451,6 +494,7 @@ function prerender(map){
   if(map.houses) map.houses.forEach(h=>drawHouse(g,h));
   if(map.fountain) drawFountain(g,map.fountain);
   if(map.name==='lair') drawLairDeco(g);
+  if(map.name==='tunnel'){ TUNNEL_TMP=map; drawTunnelDeco(g); }
   if(map.name==='world'){ // cave mouth
     const x=CAVE_POS.x*TS, y=CAVE_POS.y*TS; g.fillStyle='#5a4535';g.beginPath();g.arc(x+32,y+30,38,Math.PI,0);g.fill();
     g.fillStyle='#1a1020';g.beginPath();g.arc(x+32,y+32,28,Math.PI,0);g.lineTo(x+60,y+32);g.lineTo(x+4,y+32);g.fill();
@@ -530,6 +574,11 @@ function drawGeorge(g,x,y,P,t){
   const dir=P.dir;
   const o={shirt:'#ffffff',cross:true,helmet:true,skin:'#f6c9a0',hair:'#8a5a2b',legs:'#5b6b88',cape:'#d62828'};
   const spear=G.hasSpear;
+  if(P.block){ drawPerson(g,x,y,o,dir,P.walk);
+    const sh={down:[x,y-14,1.05],up:[x,y-22,1.0],left:[x-13,y-16,1.05],right:[x+13,y-16,1.05]}[dir];
+    drawShieldIcon(g,sh[0],sh[1],sh[2]);
+    g.strokeStyle='rgba(207,232,255,'+(0.35+Math.sin(t*10)*0.2)+')'; g.lineWidth=2; g.beginPath(); g.arc(sh[0],sh[1],15,0,Math.PI*2); g.stroke();
+    return; }
   if(G.hasShield && dir==='up') drawShieldIcon(g,x-9,y-15,0.75);
   if(P.attackT<=0){
     if(spear && dir!=='right'&&dir!=='down') drawSpear(g,x+(dir==='left'?-12:12),y-16,0.55,0);
@@ -558,12 +607,16 @@ function drawGeorge(g,x,y,P,t){
 }
 function drawFoe(g,s,t){
   g.save(); if(s.flee) g.globalAlpha=clamp(s.fleeT/0.6,0,1);
-  if(s.kind==='bear') drawBear(g,s,t);
+  if(s.kind==='snake') drawSnake(g,s,t);
+  else if(s.kind==='bat') drawBat(g,s,t);
+  else if(s.kind==='bear' && s.white){ g.save(); g.translate(s.x,s.y); g.scale(s.sc,s.sc); g.translate(-s.x,-s.y); drawBear(g,s,t,true); g.restore(); }
+  else if(s.kind==='bear') drawBear(g,s,t);
   else if(s.white){ g.save(); g.translate(s.x,s.y); g.scale(s.sc,s.sc); g.translate(-s.x,-s.y); drawWolf(g,s,t,true); g.restore();
     if(!s.flee){ for(let i=0;i<s.maxHp;i++){ const px=s.x-6+i*12, py=s.y-50; circ(g,px,py,4.5,'rgba(0,0,0,.55)'); circ(g,px,py,3.2,i<s.hp?'#7ef0ff':'#3a3a4a'); } } }
-  else drawWolf(g,s,t);
-  if(s.kind==='bear' && s.hp<s.maxHp && !s.flee){ const w=26; g.fillStyle='rgba(0,0,0,.5)';g.fillRect(s.x-w/2-1,s.y-46,w+2,6);
-    g.fillStyle='#ffb347';g.fillRect(s.x-w/2,s.y-45,w*s.hp/s.maxHp,4); }
+  else { drawWolf(g,s,t); if(!s.flee && s.hp<s.maxHp){ for(let i=0;i<s.maxHp;i++){ const px=s.x-6+i*12, py=s.y-40; circ(g,px,py,4.5,'rgba(0,0,0,.55)'); circ(g,px,py,3.2,i<s.hp?'#ffe14d':'#3a3a4a'); } } }
+  if(s.kind==='bear' && (s.hp<s.maxHp||s.white) && !s.flee){ const w=s.white?40:26, by=s.white?s.y-64:s.y-46; g.fillStyle='rgba(0,0,0,.5)';g.fillRect(s.x-w/2-1,by,w+2,6);
+    g.fillStyle=s.white?'#7ef0ff':'#ffb347';g.fillRect(s.x-w/2,by+1,w*s.hp/s.maxHp,4);
+    if(s.white){ g.fillStyle='rgba(0,0,0,.5)'; for(let i=1;i<s.maxHp;i++) g.fillRect(s.x-w/2+w*i/s.maxHp-0.5,by+1,1,4); } }
   g.restore();
 }
 function drawWolf(g,s,t,white){
@@ -584,10 +637,11 @@ function drawWolf(g,s,t,white){
   else { circ(g,hx+2*f,hy-2,2.2,'#fff'); circ(g,hx+2.6*f,hy-2,1.2,white?'#2a6fd9':'#222'); }
   if(white){ g.fillStyle='#dfe6ee'; g.beginPath(); g.moveTo(x-6*f,y-17); g.lineTo(x-2*f,y-22); g.lineTo(x+2*f,y-17); g.lineTo(x+6*f,y-21); g.lineTo(x+9*f,y-16); g.fill(); }
 }
-function drawBear(g,s,t){
+function drawBear(g,s,t,white){
   const x=s.x,y=s.y,f=s.face||1, run=Math.sin(s.anim||0);
   ell(g,x,y+2,20,6,'rgba(0,0,0,.22)');
-  const hurt=s.hurt>0, c=hurt?'#fff':'#8b5a2b', d=hurt?'#eee':'#6b4220', light=hurt?'#fff':'#d9b48a';
+  const hurt=s.hurt>0 && (!white || Math.floor(t*30)%2===0);
+  const c=hurt?(white?'#ffd84d':'#fff'):(white?'#f2f5f9':'#8b5a2b'), d=hurt?(white?'#ffc020':'#eee'):(white?'#c3ccd8':'#6b4220'), light=hurt?'#fff':(white?'#ffffff':'#d9b48a');
   g.fillStyle=d; const lh=a=>9-Math.max(0,a)*2;
   g.fillRect(x-14,y-9,6,lh(run)); g.fillRect(x-6,y-9,6,lh(-run)); g.fillRect(x+3,y-9,6,lh(-run)); g.fillRect(x+10,y-9,6,lh(run));
   ell(g,x,y-15,19,12,c); ell(g,x+2*f,y-10,11,4,light); circ(g,x-17*f,y-18,3.5,c);
@@ -595,6 +649,41 @@ function drawBear(g,s,t){
   circ(g,hx,hy,10,c); ell(g,hx+5*f,hy+4,6,4.5,light); circ(g,hx+9*f,hy+2.5,2.2,'#222');
   if(s.flee){ g.strokeStyle='#222';g.lineWidth=1.5;g.beginPath();g.moveTo(hx-1*f,hy-3);g.lineTo(hx+2*f,hy-1);g.lineTo(hx-1*f,hy+1);g.stroke(); }
   else { circ(g,hx+1*f,hy-2,2.4,'#fff'); circ(g,hx+1.7*f,hy-2,1.3,'#222'); g.strokeStyle='#222';g.lineWidth=1.5;g.beginPath();g.moveTo(hx-3*f,hy-6);g.lineTo(hx+4*f,hy-5);g.stroke(); }
+}
+function drawSnake(g,s,t){
+  const x=s.x,y=s.y,f=s.face||1, hurt=s.hurt>0, a=s.anim||0;
+  const body=hurt?'#fff':'#5cc84a', dark=hurt?'#eee':'#3a9a32', belly=hurt?'#fff':'#d8f29a';
+  ell(g,x,y+1,15,4,'rgba(0,0,0,.18)');
+  // wiggly body: segments from tail to head
+  const N=8; let pts=[]; for(let i=0;i<N;i++){ const u=i/(N-1); pts.push([x-14*f+u*24*f, y-4+Math.sin(a*2+i*0.9)*3.2*(1-u*0.5)]); }
+  for(let i=0;i<N;i++){ const [px,py]=pts[i], r=2.5+i*0.55; circ(g,px,py,r,i%2?dark:body); }
+  for(let i=2;i<N;i+=2){ const [px,py]=pts[i]; circ(g,px,py-1,1.1,'#ffe14d'); }
+  const [hx,hy0]=pts[N-1], hy=hy0-4; ell(g,hx+3*f,hy,7.5,6,body); ell(g,hx+4*f,hy+2.5,5,2.5,belly);
+  if(s.flee){ g.strokeStyle='#222';g.lineWidth=1.3; for(const e of [-2,3]){ g.beginPath(); g.moveTo(hx+e*f-1.5,hy-4.5); g.lineTo(hx+e*f+1.5,hy-1.5); g.moveTo(hx+e*f+1.5,hy-4.5); g.lineTo(hx+e*f-1.5,hy-1.5); g.stroke(); } }
+  else { for(const e of [-1,4]){ circ(g,hx+e*f,hy-3,2.4,'#fff'); circ(g,hx+(e+0.6)*f,hy-3,1.3,'#222'); } circ(g,hx+7*f,hy+1,1.2,'rgba(255,120,120,.6)'); }
+  if(Math.sin(t*6+s.phase)>0.2 && !s.flee){ g.strokeStyle='#e33';g.lineWidth=1.2;g.beginPath();g.moveTo(hx+10*f,hy+1);g.lineTo(hx+15*f,hy+1);g.lineTo(hx+17*f,hy-1);g.moveTo(hx+15*f,hy+1);g.lineTo(hx+17*f,hy+3);g.stroke(); }
+}
+function drawBat(g,s,t){
+  const x=s.x, hurt=s.hurt>0, body=hurt?'#fff':'#6a4c8c', wing=hurt?'#eee':'#4a3466', light=hurt?'#fff':'#9c7cc4';
+  if(s.state==='sleep'){ // hanging upside down, wings folded, gentle sway
+    const sw=Math.sin(t*1.5+s.phase)*0.12, y=s.y-14;
+    g.save(); g.translate(x,y-10); g.rotate(sw);
+    g.strokeStyle='#2a2036'; g.lineWidth=1.5; g.beginPath(); g.moveTo(-2,-8); g.lineTo(-2,-2); g.moveTo(2,-8); g.lineTo(2,-2); g.stroke();
+    ell(g,0,6,6.5,9,wing); ell(g,0,6,4,7,body); circ(g,0,14,5,body);
+    g.fillStyle=body; g.beginPath(); g.moveTo(-4,17); g.lineTo(-5,22); g.lineTo(-1,18); g.fill(); g.beginPath(); g.moveTo(4,17); g.lineTo(5,22); g.lineTo(1,18); g.fill();
+    g.strokeStyle='#222'; g.lineWidth=1; g.beginPath(); g.arc(-2,13,1.4,Math.PI,0,true); g.stroke(); g.beginPath(); g.arc(2,13,1.4,Math.PI,0,true); g.stroke();
+    g.restore();
+    const zt=(t*0.8+s.phase)%2; if(zt<1.4){ g.globalAlpha*= (1-zt/1.4); g.fillStyle='#cfe8ff'; g.font='bold 10px Verdana'; g.textAlign='center'; g.fillText('z',x+10+zt*6,y-22-zt*12); g.globalAlpha=1; }
+    return; }
+  const flap=Math.sin(s.anim), y=s.y-20-(s.state==='fly'?Math.sin(t*5+s.phase)*3:0);
+  ell(g,x,s.y+1,8,3,'rgba(0,0,0,.25)');
+  for(const d of [-1,1]){ g.fillStyle=wing; g.beginPath(); g.moveTo(x+d*4,y-2); g.lineTo(x+d*18,y-8-flap*9); g.lineTo(x+d*15,y+2-flap*3); g.lineTo(x+d*11,y-1); g.lineTo(x+d*8,y+4); g.closePath(); g.fill(); }
+  ell(g,x,y,6.5,7,body); ell(g,x,y+2,4,4,light);
+  g.fillStyle=body; g.beginPath(); g.moveTo(x-5,y-4); g.lineTo(x-4,y-12); g.lineTo(x-1,y-6); g.fill(); g.beginPath(); g.moveTo(x+5,y-4); g.lineTo(x+4,y-12); g.lineTo(x+1,y-6); g.fill();
+  if(s.flee){ g.strokeStyle='#222';g.lineWidth=1.2; for(const e of [-2.5,2.5]){ g.beginPath(); g.moveTo(x+e-1.3,y-4); g.lineTo(x+e+1.3,y-1.5); g.moveTo(x+e+1.3,y-4); g.lineTo(x+e-1.3,y-1.5); g.stroke(); } }
+  else { circ(g,x-2.5,y-2.5,2,'#fff'); circ(g,x+2.5,y-2.5,2,'#fff'); circ(g,x-2.3,y-2.3,1,'#222'); circ(g,x+2.7,y-2.3,1,'#222');
+    g.fillStyle='#fff'; g.fillRect(x-1.8,y+1.5,1.2,2); g.fillRect(x+0.6,y+1.5,1.2,2); }
+  if(s.state==='wake'){ g.fillStyle='#ffe14d'; g.font='bold 14px Verdana'; g.textAlign='center'; g.fillText('!',x,y-16); }
 }
 function drawChicken(g,c,t){
   const x=c.x,y=c.y,f=c.vx<0?-1:1;ell(g,x,y+1,7,3,'rgba(0,0,0,.2)');
@@ -653,8 +742,8 @@ function drawHeartSmall(g,x,y){heartPath(g,x,y-5,10);g.fillStyle='#ff5c8a';g.fil
 
 // ================== GAME STATE ==================
 const ATTACK_TIME = 0.28, SPEED = 135;
-let WORLD, LAIR, map, G, P, npcs, foes, items, chickens, particles, texts, fireballs, D, cam={x:0,y:0};
-function buildMaps(){ WORLD=genWorld(); LAIR=genLair(); prerender(WORLD); prerender(LAIR); }
+let WORLD, LAIR, TUNNEL, map, G, P, npcs, foes, items, chickens, particles, texts, fireballs, D, cam={x:0,y:0};
+function buildMaps(){ WORLD=genWorld(); LAIR=genLair(); TUNNEL=genTunnel(); prerender(WORLD); prerender(LAIR); prerender(TUNNEL); }
 const START = {x:tc(30), y:tc(37)+6};
 
 function makeNPCs(){
@@ -680,15 +769,17 @@ function npcLines(n){
       L(n.name,"The Spear Head is in the West Forest, and the Spear Shaft is at the top of the Eastern Hills."),
       L(n.name,"Look at the little map in the corner: the yellow stars show where to go!")];
     return [L(n.name,"The Holy Spear is whole again! Now you are ready for the dragon's cave in the south-east.")];
-  case 'baker': return [L(n.name,"Fresh bread, warm from the oven! Mmm!"),L(n.name,"Careful out there! Wolves are quick but give up after one poke."),
-    L(n.name,"The big WHITE wolves are tougher. They need TWO pokes! Watch the little blue dots over their heads."),
+  case 'baker': return [L(n.name,"Fresh bread, warm from the oven! Mmm!"),L(n.name,"Careful out there! Wolves are quick and need TWO pokes to run away."),
+    L(n.name,"The big WHITE wolves are tougher. They need THREE pokes! Watch the little blue dots over their heads."),
     L(n.name,"Bears are slow, but strong. It takes a few pokes to make a bear run home. Don't let it bump you!"),
-    L(n.name,"If you get bumped, look for red hearts on the ground to feel better!")];
+    L(n.name,"And the giant WHITE bear on the hills? That one needs SIX pokes! Watch its blue bar."),
+    L(n.name,"If you get bumped, look for red hearts on the ground to feel better!"),
+    L(n.name,"Oh, and hold up your SHIELD to block! It stops bites and fireballs from the front, but not from behind.")];
   case 'leo': if(!G.pieces.head) return [L(n.name,"Psst, George! I saw something SHINY deep in the West Forest!"),
       L(n.name,"Follow the forest path to the end, then sneak north through the gap in the trees. I heard a big WHITE wolf howling there!")];
     return [L(n.name,"WOW, a piece of the Holy Spear! You're the coolest knight ever!")];
   case 'giles': return [L(n.name,"Howdy! Cross the bridge to go east over the river."),
-    L(n.name,"Up north are the Eastern Hills. A big grumpy bear sits at the very top, guarding something golden!"),
+    L(n.name,"Up north are the Eastern Hills. A huge grumpy WHITE bear sits at the very top, guarding something golden!"),
     L(n.name,"The dragon's cave is down south-east, past the sandy land.")];
   case 'guard': if(!G.talkedKing) return [L(n.name,"Welcome, George! The King is in the throne room, just straight ahead.")];
     return [L(n.name,"Good luck on your quest, Sir George!")];
@@ -697,7 +788,7 @@ function npcLines(n){
       L(n.name,"A grumpy dragon lives in the cave south-east of Silene. It roars all night and scares our sheep!"),
       L(n.name,"Your sword can't hurt a dragon's tough scales. Only the HOLY SPEAR can!"),
       L(n.name,"But long ago the Holy Spear broke into two pieces, and they were hidden in faraway places."),
-      L('Princess Sabra',"The Spear Head is in the West Forest, guarded by a big white wolf. The Spear Shaft is on top of the Eastern Hills, guarded by a bear."),
+      L('Princess Sabra',"The Spear Head is in the West Forest, guarded by a big white wolf. The Spear Shaft is on top of the Eastern Hills, guarded by a big WHITE bear."),
       L(n.name,"Find both pieces and they will join together again. Press Q (or B on a controller) to see your Quest Log. Good luck!")];
     if(!G.hasSpear) return [L(n.name,pc===0?"Find the two pieces of the Holy Spear: one in the West Forest, one in the Eastern Hills.":
       "You found one piece! Now find the other one. "+(G.pieces.head?"The Shaft is on top of the Eastern Hills.":"The Head is deep in the West Forest."))];
@@ -713,16 +804,27 @@ function npcLines(n){
 function onTalkEnd(n){
   if(n.id==='king' && !G.talkedKing){ G.talkedKing=true; SFX.item(); addText(P.x,P.y-50,'Quest updated!','#ffe14d'); }
 }
-// w = wolf (fast, 1 hit), W = white wolf (a bit bigger, 2 hits), b = bear (slow, 4 hits, hits harder)
+// w = wolf (fast, 2 hits), W = white wolf (a bit bigger, 3 hits), b = bear (slow, 4 hits, hits harder), B = big white bear (6 hits, guards the Spear Shaft), s = snake (1 hit)
 const FOE_SPOTS=[['w',16,38],['w',13,30],['w',12,24],['w',11,15],['w',7,9],['w',4,13],['w',20,44],
-  ['b',63,10],['b',53,16],['w',57,24],['w',58,33],['b',62,32],['w',67,35],['w',40,44],
-  ['W',6,12],['W',13,19],['W',57,5],['W',56,13],['W',66,15]];
+  ['B',63,8],['b',53,16],['w',57,24],['w',58,33],['b',62,32],['w',67,35],['w',40,44],
+  ['W',6,12],['w',13,19],['W',57,5],['W',56,13],['W',66,15],
+  ['s',57,31],['s',66,32],['s',69,37],['s',44,30],['s',45,12],['s',40,20],['s',27,21],['s',18,47]];
+// bats rest on the cave walls in the tunnel: [tileX, tileY]
+const BAT_SPOTS=[[8,23],[11,25],[4,19],[6,17],[3,12],[8,9],[16,10],[13,6],[16,3]];
 function makeFoes(){
-  return FOE_SPOTS.map(([k,tx,ty],i)=>{const bear=k==='b', white=k==='W';
+  const list = FOE_SPOTS.map(([k,tx,ty],i)=>{ if(k==='s') return makeSnake(tx,ty,i); const bear=k==='b'||k==='B', white=k==='W'||k==='B', wb=k==='B';
     for(let rr=0;rr<4&&SOLID.has(WORLD.t[ty][tx]);rr++){ let done=false; for(let dy=-rr;dy<=rr&&!done;dy++)for(let dx=-rr;dx<=rr&&!done;dx++){ if(!SOLID.has(WORLD.t[ty+dy][tx+dx])){tx+=dx;ty+=dy;done=true;} } }
-    return {kind:bear?'bear':'wolf',white,sc:white?1.3:1,x:tc(tx),y:tc(ty),hx:tc(tx),hy:tc(ty),hp:bear?4:white?2:1,maxHp:bear?4:white?2:1,dmg:bear?2:1,
-      chase:bear?52:white?84:88,wander:bear?20:34,sight:bear?115:white?150:140,kbMul:bear?0.45:white?0.75:1,hw:bear?14:white?13:10,
+    return {kind:bear?'bear':'wolf',white,sc:wb?1.38:white?1.3:1,x:tc(tx),y:tc(ty),hx:tc(tx),hy:tc(ty),map:'world',hp:wb?6:bear?4:white?3:2,maxHp:wb?6:bear?4:white?3:2,dmg:bear?2:1,
+      chase:wb?50:bear?52:white?84:88,wander:bear?20:34,sight:wb?110:bear?115:white?150:140,kbMul:wb?0.32:bear?0.45:white?0.75:1,hw:wb?19:bear?14:white?13:10,
       vx:0,vy:0,t:Math.random()*2,phase:i,hurt:0,kbx:0,kby:0,face:1,anim:0,flee:false,fleeT:0};});
+  BAT_SPOTS.forEach(([tx,ty],i)=>list.push({kind:'bat',map:'tunnel',sc:1,x:tc(tx),y:tc(ty)+4,hx:tc(tx),hy:tc(ty)+4,hp:1,maxHp:1,dmg:1,
+    chase:105,wander:0,sight:3.6*TS,kbMul:1,hw:7,state:'sleep',wakeT:0,swoopT:0,vx:0,vy:0,t:0,phase:i*1.7,hurt:0,kbx:0,kby:0,face:1,anim:Math.random()*6,flee:false,fleeT:0}));
+  return list;
+}
+function makeSnake(tx,ty,i){
+  for(let rr=0;rr<4&&SOLID.has(WORLD.t[ty][tx]);rr++){ let done=false; for(let dy=-rr;dy<=rr&&!done;dy++)for(let dx=-rr;dx<=rr&&!done;dx++){ if(!SOLID.has(WORLD.t[ty+dy][tx+dx])){tx+=dx;ty+=dy;done=true;} } }
+  return {kind:'snake',map:'world',sc:1,x:tc(tx),y:tc(ty),hx:tc(tx),hy:tc(ty),hp:1,maxHp:1,dmg:1,chase:58,wander:22,sight:110,kbMul:1,hw:9,
+    vx:0,vy:0,t:Math.random()*2,phase:i,hurt:0,kbx:0,kby:0,face:1,anim:0,flee:false,fleeT:0};
 }
 function makeItems(){
   const it=[];
@@ -734,13 +836,14 @@ function makeItems(){
 function makeChickens(){return [[34,30],[29,42],[36,44],[27,36]].map(([tx,ty])=>({x:tc(tx),y:tc(ty),vx:20,vy:0,t:0}));}
 function newGame(){
   G={mode:'play',talkedKing:false,hasSword:true,hasShield:true,pieces:{head:false,shaft:false},hasSpear:false,joinT:0,dragonDefeated:false,hp:10,maxHp:10,t:0,playTime:0,chased:0,
-    seenLairIntro:false,dialog:null,fade:null,faintT:0,vt:0,noSwordT:0,shake:0};
+    seenLairIntro:false,seenTunnelIntro:false,dialog:null,fade:null,faintT:0,vt:0,noSwordT:0,shake:0};
   P={x:START.x,y:START.y,dir:'up',walk:0,attackT:0,inv:0,kbx:0,kby:0,kbT:0,hitSet:null};
   map=WORLD; npcs=makeNPCs(); foes=makeFoes(); items=makeItems(); chickens=makeChickens();
   particles=[];texts=[];fireballs=[];D=null;
   startDialog([{who:'Narrator',text:"Long ago, in the town of Silene, lived a brave young knight named George..."},
     {who:'Narrator',text:"George already has his trusty sword and shield. Walk with the ARROW KEYS, WASD or a controller stick."},
-    {who:'Narrator',text:"Press SPACE (or A on a controller) to talk and to swing your sword. Go talk to Elder Tom!"}]);
+    {who:'Narrator',text:"Press SPACE (or A on a controller) to talk and to swing your sword."},
+    {who:'Narrator',text:"HOLD SHIFT or X (or X / Square or a bumper on a controller, or the shield button) to raise your shield and BLOCK attacks from the front! Go talk to Elder Tom!"}]);
 }
 function toTitle(){ G={mode:'title',t:0}; titleT=0; }
 let titleT=0;
@@ -763,8 +866,14 @@ function addParticles(x,y,n,cols,spd){for(let i=0;i<n;i++){const a=Math.random()
   particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-30,life:0.5+Math.random()*0.5,col:cols[i%cols.length],size:2+Math.random()*3});}}
 function addText(x,y,txt,col){texts.push({x,y,txt,col:col||'#fff',life:1.3});}
 function startDialog(lines,onEnd){G.dialog={lines,i:0,chars:0,onEnd};G.mode='dialog';}
+function facingFront(fx,fy){ const v={right:[1,0],left:[-1,0],up:[0,-1],down:[0,1]}[P.dir]; return (fx-P.x)*v[0]+(fy-(P.y-12))*v[1] >= 0; }
 function hurtPlayer(amount,fromX,fromY){
   if(P.inv>0||G.mode!=='play') return;
+  if(P.block && G.hasShield && facingFront(fromX,fromY)){ // shield block!
+    if(!(P.blockCD>0)){ SFX.clang(); P.blockCD=0.3; addParticles((P.x+fromX)/2,(P.y-14+fromY)/2,8,['#fff','#ffe14d','#cfe8ff'],140); addText(P.x,P.y-50,'Blocked!','#cfe8ff');
+      G.blocks=(G.blocks||0)+1; }
+    const dx=P.x-fromX,dy=P.y-fromY,d=Math.hypot(dx,dy)||1; P.kbx=dx/d*90;P.kby=dy/d*90;P.kbT=0.08;
+    return 'blocked'; }
   G.hp=Math.max(0,G.hp-amount);P.inv=1.1;SFX.hurt();G.shake=0.25;
   const dx=P.x-fromX,dy=P.y-fromY,d=Math.hypot(dx,dy)||1;P.kbx=dx/d*260;P.kby=dy/d*260;P.kbT=0.18;
   addParticles(P.x,P.y-16,6,['#ff3b5c','#ffd1dc']);
@@ -778,13 +887,23 @@ function objective(){
   if(!G.hasSpear){
     if(!G.pieces.head && !G.pieces.shaft) return {text:"Find the 2 pieces of the Holy Spear (forest & hills)",tx:HEAD_POS.x,ty:HEAD_POS.y,tx2:SHAFT_POS.x,ty2:SHAFT_POS.y};
     if(!G.pieces.head) return {text:"Find the Spear Head in the West Forest (white wolf!)",tx:HEAD_POS.x,ty:HEAD_POS.y};
-    if(!G.pieces.shaft) return {text:"Find the Spear Shaft on the Eastern Hills (bear!)",tx:SHAFT_POS.x,ty:SHAFT_POS.y};
+    if(!G.pieces.shaft) return {text:"Find the Spear Shaft on the Eastern Hills (white bear!)",tx:SHAFT_POS.x,ty:SHAFT_POS.y};
     return {text:"The spear pieces are joining...",tx:CAVE_POS.x,ty:CAVE_POS.y};
   }
   return {text:"Face the dragon in its cave (south-east)",tx:CAVE_POS.x,ty:CAVE_POS.y};
 }
 
 // ================== LAIR / DRAGON ==================
+function enterTunnel(){
+  G.fade={t:0,dur:0.8,done:false,mid:()=>{map=TUNNEL;P.x=10*TS;P.y=27*TS+10;P.dir='up';fireballs=[];D=null;},
+    after:()=>{ if(!G.seenTunnelIntro){G.seenTunnelIntro=true; startDialog([{who:'George',text:"It's dark in here... I can hear squeaking. Bats!"},
+      {who:'Tip',text:"Sleeping bats wake up when you get close. One poke and they flutter away! The dragon is through the glowing door at the end."}]);} }};
+  G.mode='fade';
+}
+function exitTunnel(){
+  G.fade={t:0,dur:0.8,done:false,mid:()=>{map=WORLD;P.x=tc(CAVE_POS.x)+16;P.y=tc(CAVE_POS.y-2);P.dir='down';D=null;fireballs=[];}};
+  G.mode='fade';
+}
 function enterLair(){
   G.fade={t:0,dur:0.9,done:false,mid:()=>{map=LAIR;P.x=10*TS;P.y=12*TS+10;P.dir='up';fireballs=[];
     D={x:320,y:150,hp:12,maxHp:12,state:'fly',t:0,shootT:2,shots:0,stateT:0,hurt:0,baseY:150,drops:0};},
@@ -795,7 +914,7 @@ function enterLair(){
   G.mode='fade';
 }
 function exitLair(){
-  G.fade={t:0,dur:0.8,done:false,mid:()=>{map=WORLD;P.x=tc(CAVE_POS.x)+16;P.y=tc(CAVE_POS.y-2);P.dir='down';D=null;fireballs=[];}};
+  G.fade={t:0,dur:0.8,done:false,mid:()=>{map=TUNNEL;P.x=15*TS;P.y=3*TS+8;P.dir='down';D=null;fireballs=[];}};
   G.mode='fade';
 }
 function updateDragon(dt){
@@ -834,7 +953,7 @@ function updateDragon(dt){
   // fireballs
   for(const f of fireballs){f.x+=f.vx*dt;f.y+=f.vy*dt;f.life-=dt;
     if(solidAt(map,f.x,f.y)) f.life=0;
-    if(f.life>0 && Math.hypot(f.x-P.x,f.y-(P.y-12))<16){ f.life=0; hurtPlayer(G.hasShield?1:2,f.x,f.y); if(G.hasShield){SFX.clang();addText(P.x,P.y-46,'Shield!','#cfe8ff');} }
+    if(f.life>0 && Math.hypot(f.x-P.x,f.y-(P.y-12))<16){ f.life=0; if(hurtPlayer(G.hasShield?1:2,f.x,f.y)!=='blocked' && G.hasShield && P.inv>0.9){SFX.clang();addText(P.x,P.y-46,'Shield!','#cfe8ff');} }
   }
   fireballs=fireballs.filter(f=>f.life>0);
 }
@@ -889,7 +1008,7 @@ function updateDialog(dt){
   }
 }
 function respawn(){
-  const wasLair = map===LAIR;
+  const wasLair = map===LAIR || map===TUNNEL;
   map=WORLD; P.x=START.x; P.y=START.y; P.dir='up'; P.inv=1.5; P.kbT=0; G.hp=G.maxHp; D=null; fireballs=[];
   foes=makeFoes(); G.mode='play'; updateCamera(true);
   startDialog([{who:'Elder Tom',text: wasLair?"Phew! You had a little rest, George. Your hearts are full again! Try the dragon once more. Remember: poke it with the spear when it lands!":"Phew! You had a little rest, George. Your hearts are full again!"}]);
@@ -897,13 +1016,15 @@ function respawn(){
 function updatePlay(dt){
   G.playTime+=dt;
   if(pv.log){G.mode='log';return;}
+  P.block = blockHeld() && G.hasShield; if(P.blockCD>0) P.blockCD-=dt;
   const inp=inputDir(); let dx=inp.x, dy=inp.y; const mag=Math.hypot(dx,dy);
-  if(mag>0){dx/=mag;dy/=mag;
+  if(mag>0 && P.block){dx/=mag;dy/=mag;P.walk+=dt*8;}
+  else if(mag>0){dx/=mag;dy/=mag;
     if(Math.abs(inp.x)>0 && Math.abs(inp.y)>0){ if(!((P.dir==='left'&&inp.x<0)||(P.dir==='right'&&inp.x>0)||(P.dir==='up'&&inp.y<0)||(P.dir==='down'&&inp.y>0))) P.dir = inp.x<0?'left':'right'; }
     else P.dir = inp.x<0?'left':inp.x>0?'right':inp.y<0?'up':'down';
     P.walk+=dt*14;
   } else P.walk=0;
-  const sp = P.attackT>0 ? SPEED*0.55 : SPEED;
+  const sp = P.block ? SPEED*0.5 : P.attackT>0 ? SPEED*0.55 : SPEED;
   moveEnt(P,dx*sp*dt,dy*sp*dt,8,6,true);
   if(P.kbT>0){P.kbT-=dt;moveEnt(P,P.kbx*dt,P.kby*dt,8,6,true);}
   if(P.inv>0)P.inv-=dt; if(P.attackT>0)P.attackT-=dt; if(G.noSwordT>0)G.noSwordT-=dt;
@@ -914,31 +1035,34 @@ function updatePlay(dt){
     if(near){
       near.dir = Math.abs(P.x-near.x)>Math.abs(P.y-near.y) ? (P.x<near.x?'left':'right') : (P.y<near.y?'up':'down');
       startDialog(npcLines(near),()=>onTalkEnd(near)); SFX.talk(); return;
-    } else if(G.hasSword){ if(P.attackT<=0){P.attackT=ATTACK_TIME;P.hitSet=new Set();SFX.swing();} }
+    } else if(P.block){ /* can't swing while blocking */ }
+    else if(G.hasSword){ if(P.attackT<=0){P.attackT=ATTACK_TIME;P.hitSet=new Set();SFX.swing();} }
     else if(G.noSwordT<=0){ addText(P.x,P.y-50,'Find a sword first!','#fff'); G.noSwordT=1.2; }
   }
   // attack hits
   if(P.attackT>0){
     const ab=attackBox();
-    for(const s of foes){ if(s.flee||P.hitSet.has(s)) continue;
-      if(Math.hypot(s.x-ab.x,(s.y-10)-ab.y)<ab.r+(s.kind==='bear'?18:s.white?16:12)){ P.hitSet.add(s); s.hp--; s.hurt=0.25;
+    for(const s of foes){ if(s.flee||P.hitSet.has(s)||s.map!==map.name) continue;
+      if(Math.hypot(s.x-ab.x,(s.y-(s.kind==='bat'?16:10))-ab.y)<ab.r+(s.kind==='bear'?(s.white?25:18):s.kind==='bat'?14:s.white?16:12)){ P.hitSet.add(s); s.hp--; s.hurt=0.25;
         const d=Math.hypot(s.x-P.x,s.y-P.y)||1; s.kbx=(s.x-P.x)/d*300*s.kbMul; s.kby=(s.y-P.y)/d*300*s.kbMul; SFX.hit();
         addParticles(s.x,s.y-12,5,['#fff','#ffe14d'],80);
-        if(s.white && s.hp>0){ addText(s.x,s.y-50,'One more hit!','#cfe8ff'); addParticles(s.x,s.y-16,8,['#cfe8ff','#fff'],100); }
+        if(s.hp>0 && (s.white||s.kind==='wolf')){ addText(s.x,s.y-(s.kind==='bear'?74:s.white?50:42),s.hp===1?'One more hit!':s.hp+' more hits!','#cfe8ff'); addParticles(s.x,s.y-16,8,['#cfe8ff','#fff'],100); }
         if(s.hp<=0){ s.flee=true; s.fleeT=0.9; G.chased++; SFX.poof(); s.face=(s.x>=P.x)?1:-1;
           s.vx=(s.x-P.x)/d*230; s.vy=(s.y-P.y)/d*230; s.kbx=0; s.kby=0;
           addParticles(s.x,s.y-10,12,['#e8dcc0','#fff','#ffe14d'],110);
-          addText(s.x,s.y-36,s.kind==='bear'?'The bear runs home!':s.white?'The white wolf runs off!':'Yelp! Ran away!','#ffe14d');
+          if(s.kind==='bat'){ s.vx=(s.x-P.x)/d*120; s.vy=-160; }
+          addText(s.x,s.y-36,s.kind==='bat'?'Squeak! Flew away!':s.kind==='snake'?'Ssss! Slithered away!':s.kind==='bear'?(s.white?'The big white bear lumbers home!':'The bear runs home!'):s.white?'The white wolf runs off!':'Yelp! Ran away!','#ffe14d');
           const chance = G.hp<G.maxHp?0.55:0.15; if(Math.random()<chance) items.push({type:'heart',x:s.x,y:s.y,map:map.name}); } } }
     if(D){ const inX=Math.abs(ab.x-D.x)<ab.r+40, inY=ab.y>D.y-75-ab.r && ab.y<D.y+40+ab.r; if(inX&&inY&&!P.hitSet.has('D')){P.hitSet.add('D');hitDragon();} }
     for(const f of fireballs){ if(Math.hypot(f.x-ab.x,f.y-ab.y)<ab.r+8){ f.life=0; addParticles(f.x,f.y,8,['#ffb347','#ffe14d','#fff']); SFX.clang(); addText(f.x,f.y-14,'Pop!','#ffb347'); } }
   }
   foes=foes.filter(s=>!s.gone);
   // wolves & bears
-  if(map===WORLD) for(const s of foes){
+  for(const s of foes){ if(s.map!==map.name) continue;
     if(s.hurt>0)s.hurt-=dt;
     if(s.flee){ s.fleeT-=dt; s.anim+=dt*22; s.x+=s.vx*dt; s.y+=s.vy*dt;
       if(s.fleeT<=0){ s.gone=true; addParticles(s.x,s.y-10,10,['#e8dcc0','#fff'],70); } continue; }
+    if(s.kind==='bat'){ updateBat(s,dt); continue; }
     s.t-=dt;
     const dP=Math.hypot(P.x-s.x,P.y-s.y), dH=Math.hypot(s.hx-s.x,s.hy-s.y);
     if(s.t<=0){ s.t=s.kind==='wolf'?0.5+Math.random()*0.8:1+Math.random()*1.2;
@@ -947,10 +1071,10 @@ function updatePlay(dt){
       else if(Math.random()<0.6){const a=Math.random()*Math.PI*2;s.vx=Math.cos(a)*s.wander;s.vy=Math.sin(a)*s.wander;} else {s.vx=0;s.vy=0;} }
     moveEnt(s,s.vx*dt+s.kbx*dt,s.vy*dt+s.kby*dt,s.hw,6,false);
     if(Math.abs(s.vx)>3) s.face=s.vx>0?1:-1;
-    s.anim += (Math.abs(s.vx)+Math.abs(s.vy)>2 ? dt*(s.kind==='wolf'?16:9) : 0);
+    s.anim += (Math.abs(s.vx)+Math.abs(s.vy)>2 ? dt*(s.kind==='wolf'?16:s.kind==='snake'?7:9) : (s.kind==='snake'?dt*2:0));
     s.kbx*=Math.pow(0.02,dt); s.kby*=Math.pow(0.02,dt);
-    const reach = s.kind==='bear'?26:s.white?24:20;
-    if(dP<reach && P.inv<=0){ hurtPlayer(s.dmg,s.x,s.y); const d=dP||1; s.kbx=(s.x-P.x)/d*220; s.kby=(s.y-P.y)/d*220; s.t=s.kind==='bear'?1.4:1.0; s.vx=0; s.vy=0;
+    const reach = s.kind==='bear'?(s.white?34:26):s.kind==='snake'?16:s.white?24:20;
+    if(dP<reach && P.inv<=0){ const bl=hurtPlayer(s.dmg,s.x,s.y)==='blocked'; const d=dP||1, kb=bl?(s.kind==='bear'?200:300):220; s.kbx=(s.x-P.x)/d*kb; s.kby=(s.y-P.y)/d*kb; s.t=s.kind==='bear'?1.4:1.0; s.vx=0; s.vy=0;
       if(s.kind==='bear') beep(110,0.25,'sawtooth',0.05,70); }
   }
   // chickens
@@ -967,19 +1091,38 @@ function updatePlay(dt){
         const both=G.pieces.head&&G.pieces.shaft;
         startDialog([{who:'George',text: head?"You found the SPEAR HEAD! The shiny tip of the Holy Spear!":"You found the SPEAR SHAFT! The golden handle of the Holy Spear!"},
           both?{who:'George',text:"Both pieces are glowing... something magical is happening!"}
-              :{who:'Tip',text: head?"Now find the Spear Shaft on top of the Eastern Hills. A bear guards it!":"Now find the Spear Head deep in the West Forest. A big WHITE WOLF guards it!"}],
+              :{who:'Tip',text: head?"Now find the Spear Shaft on top of the Eastern Hills. A big WHITE BEAR guards it!":"Now find the Spear Head deep in the West Forest. A big WHITE WOLF guards it!"}],
           both?()=>{G.mode='join';G.joinT=0;SFX.item();}:null); }
     } }
   items=items.filter(i=>!i.got);
   // tile triggers
   const here=tileAt(map,P.x,P.y-4);
   if(here===T.CAVE){
-    if(bothItems()){ enterLair(); }
+    if(bothItems()){ enterTunnel(); }
     else { P.y=tc(CAVE_POS.y-1)+4; P.dir='up'; startDialog([{who:'George',text: !G.talkedKing?"A dark, scary cave... I should talk to the King first.":"Sir Pip says I need the complete Holy Spear to face the dragon!"}]); }
   }
-  if(here===T.EXIT && D && D.state!=='tamed') exitLair();
+  if(here===T.EXIT && map===LAIR && D && D.state!=='tamed') exitLair();
+  if(here===T.EXIT && map===TUNNEL) exitTunnel();
+  if(here===T.LAIRDOOR && map===TUNNEL) enterLair();
   if(map===LAIR) updateDragon(dt);
   updateCamera(false);
+}
+function updateBat(s,dt){
+  const dP=Math.hypot(P.x-s.x,P.y-s.y);
+  s.anim+=dt*(s.state==='sleep'?2:22);
+  if(s.state==='sleep'){ if(dP<s.sight){ s.state='wake'; s.wakeT=0.45; beep(1800,0.06,'square',0.03,2600); setTimeout(()=>beep(2200,0.05,'square',0.025,1500),70);
+      addText(s.x,s.y-34,'Squeak!','#e0c8ff'); } return; }
+  if(s.state==='wake'){ s.wakeT-=dt; s.y-=dt*10; if(s.wakeT<=0){ s.state='fly'; s.t=0; } return; }
+  // fly: swoop toward George with a wobbly flight, back off after a bump
+  s.t-=dt; if(s.swoopT>0) s.swoopT-=dt;
+  const a=Math.atan2(P.y-s.y,P.x-s.x), wob=Math.sin(s.anim*0.25+s.phase)*1.1;
+  const sp = s.swoopT>0 ? -70 : s.chase;
+  const tvx=Math.cos(a+wob)*sp, tvy=Math.sin(a+wob)*sp;
+  s.vx+= (tvx-s.vx)*Math.min(1,dt*4); s.vy+=(tvy-s.vy)*Math.min(1,dt*4);
+  moveEnt(s,s.vx*dt+s.kbx*dt,s.vy*dt+s.kby*dt,s.hw,5,false);
+  if(Math.abs(s.vx)>3) s.face=s.vx>0?1:-1;
+  s.kbx*=Math.pow(0.02,dt); s.kby*=Math.pow(0.02,dt);
+  if(dP<18 && P.inv<=0 && s.swoopT<=0){ if(hurtPlayer(s.dmg,s.x,s.y)==='blocked'){ const d=dP||1; s.kbx=(s.x-P.x)/d*260; s.kby=(s.y-P.y)/d*260; } s.swoopT=0.9; }
 }
 function updateCamera(snap){
   const tx=clamp(P.x-W/2,0,map.w*TS-W), ty=clamp(P.y-20-H/2,0,map.h*TS-H);
@@ -1017,9 +1160,9 @@ function render(){
     for(const n of npcs) ents.push({y:n.y,draw:()=>{drawPerson(ctx,n.x,n.y+Math.sin(t*2+n.tx)*0.6,n.o,n.dir,0);
       if(Math.hypot(n.x-P.x,n.y-P.y)<46 && G.mode==='play'){ rrect(ctx,n.x-9,n.y-62,18,16,4,'#fff'); ctx.fillStyle='#222';ctx.font='bold 12px Verdana';ctx.textAlign='center';ctx.fillText('!',n.x,n.y-50);}
       else if(n.id==='king'&&!G.talkedKing){ const b=Math.sin(t*5)*2; rrect(ctx,n.x-9,n.y-64+b,18,16,4,'#ffe14d');ctx.fillStyle='#222';ctx.font='bold 12px Verdana';ctx.textAlign='center';ctx.fillText('!',n.x,n.y-52+b);} }});
-    for(const s of foes) ents.push({y:s.y,draw:()=>drawFoe(ctx,s,t)});
     for(const c of chickens) ents.push({y:c.y,draw:()=>drawChicken(ctx,c,t)});
   }
+  for(const s of foes) if(s.map===map.name) ents.push({y:s.y,draw:()=>drawFoe(ctx,s,t)});
   if(D && G.mode!=='victory') ents.push({y:D.y+40,draw:()=>drawDragon(ctx,D,t)});
   ents.push({y:P.y,draw:()=>drawGeorge(ctx,P.x,P.y,P,t)});
   ents.sort((a,b)=>a.y-b.y).forEach(e=>e.draw());
@@ -1099,6 +1242,8 @@ function renderHUD(){
     if(ob.tx2!==undefined) drawStar(ctx,mx+(ob.tx2+0.5)*s,my+(ob.ty2+0.5)*s,blink?6:5,'#ffe14d');
     circ(ctx,mx+P.x/TS*s,my+P.y/TS*s,3,'#fff');circ(ctx,mx+P.x/TS*s,my+P.y/TS*s,2,'#d62828');
   }
+  if(map===TUNNEL && G.mode!=='victory'){ const txt='Bat Cave: find the glowing door to the dragon!'; ctx.font='bold 13px Verdana'; const w=ctx.measureText(txt).width+40;
+    rrect(ctx,(W-w)/2,H-30,w,24,8,'rgba(0,0,0,.5)'); drawStar(ctx,(W-w)/2+16,H-18,7,'#ffe14d'); ctx.textAlign='left'; outlined(ctx,txt,(W-w)/2+28,H-13,'#fff','#000',3); }
   if(map===LAIR && D){
     const bw=300,bx=(W-bw)/2,by=14; rrect(ctx,bx-6,by-6,bw+12,36,8,'rgba(0,0,0,.6)');
     ctx.font='bold 11px Verdana';ctx.textAlign='center';outlined(ctx,'GRUMBLEFIRE THE DRAGON',W/2,by+6,'#ffe14d','#000',3);
@@ -1125,7 +1270,7 @@ function renderLog(){
   ctx.textAlign='center';ctx.fillStyle='#5a3a1a';ctx.font='bold 26px Georgia, serif';ctx.fillText('Quest Log',W/2,by+46);
   const qs=[["Talk to the King in the castle",G.talkedKing,"North of the village, up the road"],
     ["Find the Spear Head",G.pieces.head,"Deep in the West Forest (wolves live there!)"],
-    ["Find the Spear Shaft",G.pieces.shaft,"Top of the Eastern Hills (a bear guards it!)"],
+    ["Find the Spear Shaft",G.pieces.shaft,"Top of the Eastern Hills (a big white bear guards it!)"],
     ["Join them into the Holy Spear",G.hasSpear,"Happens by magic when you have both pieces"],
     ["Make the dragon leave Silene alone",G.dragonDefeated,"In the cave to the south-east"]];
   ctx.textAlign='left';
@@ -1134,7 +1279,7 @@ function renderLog(){
     ctx.fillStyle=q[1]?'#6a8a5a':'#3a2a1a';ctx.font='bold 18px Verdana';ctx.fillText(q[0],bx+72,y);
     ctx.fillStyle='#8a6a4a';ctx.font='13px Verdana';ctx.fillText(q[2],bx+72,y+20);});
   ctx.textAlign='center';ctx.fillStyle='#5a3a1a';ctx.font='13px Verdana';
-  ctx.fillText(padSeen?'B / Start / A: close   \u2022   Back (Share): restart game':(isTouch?'Tap to close':'Q / SPACE: close')+'   \u2022   R: restart game   \u2022   M: sound on/off',W/2,by+bh-22);
+  ctx.fillText(padSeen?'B / Start / A: close   \u2022   Hold X or LB/RB: block   \u2022   Back (Share): restart':(isTouch?'Tap to close   \u2022   Hold the shield button to block':'Q / SPACE: close   \u2022   Hold SHIFT/X: block   \u2022   R: restart   \u2022   M: sound'),W/2,by+bh-22);
 }
 function renderTitle(){
   const t=titleT;
@@ -1161,7 +1306,7 @@ function renderTitle(){
   ctx.font='bold 30px Georgia, serif';outlined(ctx,'& the Dragon',W/2,116,'#fff','#5a1a1a',7);
   ctx.font='bold 15px Verdana';outlined(ctx,'A quest to save the town of Silene',W/2,142,'#fff','#1a3a5a',4);
   if(Math.sin(t*4)>-0.3){ctx.font='bold 22px Verdana';outlined(ctx,padSeen?'Press A or START!':isTouch?'Tap to start!':'Press SPACE to start!',W/2,H-58,'#fff','#d62828',6);}
-  ctx.font='12px Verdana';outlined(ctx,'Move: Arrows / WASD / Stick    Talk & Attack: SPACE, E or (A)    Quests: Q or (B)',W/2,H-24,'#fff','#000',3);
+  ctx.font='12px Verdana';outlined(ctx,'Move: Arrows/WASD/Stick   Talk & Attack: SPACE/E/(A)   Block: hold SHIFT/X/(X)/(LB RB)   Quests: Q/(B)',W/2,H-24,'#fff','#000',3);
 }
 function renderVictory(){
   const a=clamp(G.vt/1,0,1);ctx.fillStyle='rgba(20,30,80,'+(0.75*a)+')';ctx.fillRect(0,0,W,H);
@@ -1175,7 +1320,7 @@ function renderVictory(){
   drawSpear(ctx,13,-22-Math.abs(Math.sin(G.vt*4))*4,0.6,0.15);drawShieldIcon(ctx,-11,-14,0.72);ctx.restore();
   ctx.font='16px Verdana';outlined(ctx,'The dragon promised to be friendly, and the sheep can sleep again!',W/2,385,'#fff','#000',4);
   const m=Math.floor(G.playTime/60), s=Math.floor(G.playTime%60);
-  ctx.font='bold 15px Verdana';outlined(ctx,'Time: '+m+':'+(s<10?'0':'')+s+'      Wolves & bears chased away: '+G.chased,W/2,414,'#7cfc8a','#000',4);
+  ctx.font='bold 15px Verdana';outlined(ctx,'Time: '+m+':'+(s<10?'0':'')+s+'      Creatures chased away: '+G.chased,W/2,414,'#7cfc8a','#000',4);
   if(G.vt>1.5 && Math.sin(G.vt*4)>-0.3){ctx.font='bold 20px Verdana';outlined(ctx,padSeen?'Press A or START to play again':isTouch?'Tap to play again':'Press SPACE or R to play again',W/2,454,'#fff','#d62828',6);}
 }
 
@@ -1192,7 +1337,7 @@ function loop(now){
 requestAnimationFrame(loop);
 // expose for testing/debug
 window.__sg = {get G(){return G;},get P(){return P;},get D(){return D;},get frames(){return frames;},get map(){return map;},get foes(){return foes;},get items(){return items;},
-  WORLD:()=>WORLD, LAIR:()=>LAIR, enterLair, hitDragon, update, render};
+  WORLD:()=>WORLD, LAIR:()=>LAIR, TUNNEL:()=>TUNNEL, enterLair, enterTunnel, hitDragon, update, render};
 </script>
 </body>
 </html>

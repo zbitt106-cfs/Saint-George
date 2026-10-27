@@ -8,5 +8,6 @@ A kid-friendly browser adventure: play as Saint George, explore the kingdom, and
 
 - **Arrows / WASD** — move
 - **Space / E** — talk and attack
+- Hold Shift / X (controller X/Square or LB/RB): block with shield
 - **Q** — quest log
 - Xbox and PlayStation controllers are supported
