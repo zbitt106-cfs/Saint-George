@@ -330,6 +330,7 @@ function musicWant(){
   if(G.mode==='menu') return G.menu&&G.menu.kind==='alms'?'hymn':'overworld';
   if(map===LAIR) return G.dragonDefeated?'castle':'dragon';
   if(map===TUNNEL) return 'cave';
+  if(map===TOWERIN) return 'castle';   // towerin v17
   if(map===WORLD&&P&&inCastle()) return 'castle';
   return 'overworld';
 }
@@ -677,6 +678,56 @@ function genTunnel(){
   m[1][14]=T.LAIRDOOR; m[1][15]=T.LAIRDOOR;
   return {t:m,w,h,name:'tunnel'};
 }
+// towerin v17: inside the Old Watchtower. One screen (20x15): stone floor, a spiral stair, torches,
+// a lookout window at the top, a sign and a one-time coin chest. Walk out the door at the bottom to go back.
+const TIN={chest:[4,5], sign:[7,11], win:[6,7], torches:[[3,1],[16,1],[0,8],[19,8]], stair:[15,2,17,5]};
+function genTowerIn(){
+  const w=20,h=15,m=makeGrid(w,h,T.FLOOR);
+  for(let x=0;x<w;x++){m[0][x]=T.WALL;m[1][x]=T.WALL;m[h-1][x]=T.WALL;}
+  for(let y=0;y<h;y++){m[y][0]=T.WALL;m[y][w-1]=T.WALL;}
+  for(const [x,y] of [[1,2],[18,2],[1,13],[18,13]]) m[y][x]=T.WALL;   // rounder corners
+  for(let y=TIN.stair[1];y<=TIN.stair[3];y++) for(let x=TIN.stair[0];x<=TIN.stair[2];x++) m[y][x]=T.WALL;   // the spiral stair is solid
+  m[h-1][9]=T.EXIT; m[h-1][10]=T.EXIT;
+  return {t:m,w,h,name:'towerin'};
+}
+function drawTowerInDeco(g,map){
+  const r=mulberry32(17);
+  // stone flag floor
+  for(let y=0;y<map.h;y++)for(let x=0;x<map.w;x++){ if(map.t[y][x]!==T.FLOOR) continue; const px=x*TS,py=y*TS, v=Math.floor(r()*3);
+    g.fillStyle=['#8f8a80','#99948a','#86817a'][v]; g.fillRect(px,py,TS,TS); g.fillStyle='#6e6a62'; g.fillRect(px,py,TS,1.5); g.fillRect(px,py,1.5,TS);
+    if(r()<0.25){ g.fillStyle='#a5a096'; g.fillRect(px+6+r()*14,py+6+r()*14,5,3); } }
+  // tall wall face along the top (rows 0-1)
+  g.fillStyle='#6f747c'; g.fillRect(0,0,map.w*TS,2*TS); g.fillStyle='#5b6068'; for(let row=0;row<8;row++){ g.fillRect(0,row*8,map.w*TS,1.5); const off=row%2?0:12; for(let k=off;k<map.w*TS;k+=24) g.fillRect(k,row*8,1.5,8); }
+  g.fillStyle='rgba(0,0,0,.25)'; g.fillRect(TS,2*TS,(map.w-2)*TS,6);
+  // the lookout window (sky, hills and the castle far away)
+  { const x0=TIN.win[0]*TS-6, x1=(TIN.win[1]+1)*TS+6, wx=x0, ww=x1-x0, top=4, bot=2*TS-4;
+    g.fillStyle='#4a4e56'; g.fillRect(wx-6,top-2,ww+12,bot-top+8);
+    const sky=g.createLinearGradient(0,top,0,bot); sky.addColorStop(0,'#8fd3ff'); sky.addColorStop(1,'#dff4ff'); g.fillStyle=sky; g.fillRect(wx,top+4,ww,bot-top-4);
+    g.fillStyle='#6cbf4a'; g.beginPath(); g.moveTo(wx,bot); g.quadraticCurveTo(wx+ww*0.3,bot-22,wx+ww*0.55,bot-8); g.quadraticCurveTo(wx+ww*0.8,bot-26,wx+ww,bot-10); g.lineTo(wx+ww,bot); g.fill();
+    g.fillStyle='#d8d2c4'; g.fillRect(wx+ww*0.62,bot-26,14,14); g.fillStyle='#c0392b'; g.beginPath(); g.moveTo(wx+ww*0.62-2,bot-26); g.lineTo(wx+ww*0.62+7,bot-34); g.lineTo(wx+ww*0.62+16,bot-26); g.fill();
+    circ(g,wx+14,top+14,6,'#fff3a0'); ell(g,wx+ww*0.4,top+16,10,4,'#fff');
+    g.fillStyle='#4a4e56'; g.fillRect(wx+ww/2-2,top,4,bot-top); g.fillRect(wx,top+(bot-top)/2,ww,3);   // window bars (a cross shape)
+    g.fillStyle='#7a5230'; g.fillRect(wx-8,bot+2,ww+16,7); g.fillStyle='#5a3a1a'; g.fillRect(wx-8,bot+8,ww+16,2); }   // sill
+  // red carpet from the door to the window
+  g.fillStyle='#9a2a2a'; g.fillRect(9*TS+4,3*TS,2*TS-8,11*TS); g.fillStyle='#d9b060'; g.fillRect(9*TS+4,3*TS,3,11*TS); g.fillRect(11*TS-7,3*TS,3,11*TS);
+  // lookout step under the window
+  g.fillStyle='#9a2a2a'; g.fillRect(TIN.win[0]*TS+8,3*TS,(9-TIN.win[0])*TS,2*TS-8); g.fillStyle='#d9b060'; g.fillRect(TIN.win[0]*TS+8,3*TS,(9-TIN.win[0])*TS,3); g.fillRect(TIN.win[0]*TS+8,5*TS-11,(9-TIN.win[0])*TS-4,3);   // the carpet turns to the window
+  rrect(g,TIN.win[0]*TS-4,2*TS+2,2*TS+8,16,3,'#8a5a30'); g.fillStyle='#6a4020'; g.fillRect(TIN.win[0]*TS-4,2*TS+14,2*TS+8,3);
+  // spiral stair in the north-east corner, winding up to the top
+  { const cx=16.5*TS, cy=4*TS, R=50; ell(g,cx,cy+44,52,10,'rgba(0,0,0,.25)');
+    for(let i=0;i<10;i++){ const a0=Math.PI*0.5+i*0.62, a1=a0+0.62, lift=i*5; g.fillStyle=i%2?'#a8a297':'#bdb7ab';
+      g.beginPath(); g.moveTo(cx,cy+10-lift); g.arc(cx,cy+10-lift,R-6,a0,a1); g.closePath(); g.fill(); g.strokeStyle='#6e6a62'; g.lineWidth=1.5; g.stroke(); }
+    circ(g,cx,cy-14,9,'#7c7870'); g.fillStyle='#7c7870'; g.fillRect(cx-9,cy-14,18,34); circ(g,cx,cy-14,5,'#9a968c');
+    g.strokeStyle='#5a3a1a'; g.lineWidth=3; g.beginPath(); g.arc(cx,cy-10,R-4,Math.PI*0.6,Math.PI*2.1); g.stroke(); }
+  // torch brackets (the flames are drawn live)
+  for(const [tx,ty] of TIN.torches){ const px=tx*TS+16+(tx===0?8:tx===19?-8:0), py=ty*TS+(ty===1?20:6); g.fillStyle='#3a2a1a'; g.fillRect(px-3,py,6,16); g.fillStyle='#5a3a1a'; g.fillRect(px-6,py-2,12,5); }
+  // barrels, crates and a straw bed (cosy!)
+  for(const [x,y] of [[2*TS+6,12*TS],[3*TS+8,12*TS+6]]){ rrect(g,x,y,20,24,6,'#8a5a2a'); g.fillStyle='#5a3a1a'; g.fillRect(x,y+6,20,2); g.fillRect(x,y+16,20,2); }
+  rrect(g,15*TS,11*TS+4,26,22,2,'#a8743a'); g.strokeStyle='#6a4020'; g.lineWidth=2; g.strokeRect(15*TS+2,11*TS+6,22,18); g.beginPath(); g.moveTo(15*TS+2,11*TS+6); g.lineTo(15*TS+24,11*TS+24); g.stroke();
+  rrect(g,15*TS+30,12*TS-2,40,22,6,'#e8d27a'); g.fillStyle='#d4b85a'; for(let i=0;i<6;i++) g.fillRect(15*TS+34+i*6,12*TS+2,2,14);
+  // daylight at the door
+  { const gr=g.createLinearGradient(0,15*TS,0,12*TS); gr.addColorStop(0,'rgba(255,240,180,.5)'); gr.addColorStop(1,'rgba(255,240,180,0)'); g.fillStyle=gr; g.fillRect(9*TS-8,12*TS,2*TS+16,3*TS); }
+}
 function drawTunnelDeco(g){
   // mobile v11: dusty cobwebs in the tunnel corners
   for(const [tx,ty,dx,dy,r] of [[3,9,1,1,40],[13,2,1,1,44],[17,2,-1,1,44],[12,19,-1,1,36],[3,23,1,-1,36],[8,22,1,1,30],[12,29,-1,-1,30],[17,14,-1,-1,36]]) drawCobweb(g,tx*TS,ty*TS,dx,dy,r);
@@ -984,6 +1035,11 @@ function drawFrontierDeco(g){
     g.fillStyle='#8e939a'; for(const [cx,ch] of [[10,14],[28,8],[46,16],[70,4]]) g.fillRect(px+cx,py-40-ch,14,ch);
     g.fillStyle='#4f8a3a'; ell(g,px+22,py-36,10,4,'#4f8a3a'); ell(g,px+70,py+10,7,12,'#3f7a2e'); ell(g,px+16,py+60,6,14,'#3f7a2e');   // ivy
     g.fillStyle='#2a2430'; g.beginPath(); g.arc(px+48,py+70,13,Math.PI,0); g.lineTo(px+61,py+94); g.lineTo(px+35,py+94); g.fill();
+    // towerin v17: a real doorway on the south side: stone arch, warm torch light inside and an open wooden door
+    g.strokeStyle='#5a5f66'; g.lineWidth=5; g.beginPath(); g.arc(px+48,py+70,15.5,Math.PI,0); g.lineTo(px+63.5,py+94); g.moveTo(px+32.5,py+70); g.lineTo(px+32.5,py+94); g.stroke();
+    { const gr=g.createRadialGradient(px+48,py+84,2,px+48,py+84,18); gr.addColorStop(0,'rgba(255,190,90,.75)'); gr.addColorStop(1,'rgba(255,150,60,0)'); g.fillStyle=gr; g.fillRect(px+35,py+57,26,37); }
+    g.fillStyle='#7a4a22'; g.beginPath(); g.moveTo(px+35,py+70); g.lineTo(px+28,py+66); g.lineTo(px+28,py+96); g.lineTo(px+35,py+94); g.fill(); g.fillStyle='#5a3414'; g.fillRect(px+30,py+74,4,2); g.fillRect(px+30,py+86,4,2);
+    g.fillStyle='#9a9fa6'; g.fillRect(px+30,py+93,36,4);
     g.fillStyle='#2a2430'; g.fillRect(px+28,py-8,8,14); g.fillRect(px+58,py+20,8,14); }
   // Saint Peter's Shrine: a stone niche with Saint Peter holding the golden key, and a cross (stpeter v16)
   { const px=SHRINE.x*TS, py=SHRINE.y*TS;
@@ -1033,6 +1089,7 @@ function prerender(map){
   if(map.fountain) drawFountain(g,map.fountain);
   if(map.name==='lair') drawLairDeco(g);
   if(map.name==='tunnel'){ TUNNEL_TMP=map; drawTunnelDeco(g); }
+  if(map.name==='towerin') drawTowerInDeco(g,map);   // towerin v17
   if(map.name==='world'){ drawChurch(g); drawPen(g); drawNest(g); drawGrove(g); drawFrontierDeco(g); }
   if(map.name==='world'){ // cave mouth
     const x=CAVE_POS.x*TS, y=CAVE_POS.y*TS; g.fillStyle='#5a4535';g.beginPath();g.arc(x+32,y+30,38,Math.PI,0);g.fill();
@@ -1464,8 +1521,8 @@ function drawHeartSmall(g,x,y){heartPath(g,x,y-5,10);g.fillStyle='#ff5c8a';g.fil
 const ATTACK_TIME = 0.28, SPEED = 135, HORSE_MUL = 1.8;   // horse v11: George's white horse runs 1.8x
 const SPEAR_TIME = 0.34, SPEAR_CD = 0.22;                   // spear v10: a little slower than the sword
 const DASH_TIME = 0.2, DASH_SPEED = 3*32/0.2, DASH_CD = 0.55; // dash v10: ~3 tiles in 0.2s, ~0.75s between dashes
-let WORLD, LAIR, TUNNEL, map, G, P, npcs, foes, items, chickens, particles, texts, fireballs, D, cam={x:0,y:0}, plants=[];
-function buildMaps(){ WORLD=genWorld(); LAIR=genLair(); TUNNEL=genTunnel(); prerender(WORLD); prerender(LAIR); prerender(TUNNEL); }
+let WORLD, LAIR, TUNNEL, TOWERIN, map, G, P, npcs, foes, items, chickens, particles, texts, fireballs, D, cam={x:0,y:0}, plants=[];
+function buildMaps(){ WORLD=genWorld(); LAIR=genLair(); TUNNEL=genTunnel(); TOWERIN=genTowerIn(); prerender(WORLD); prerender(LAIR); prerender(TUNNEL); prerender(TOWERIN); }   // towerin v17
 const START = {x:tc(30), y:tc(37)+6};
 
 function makeNPCs(){
@@ -1524,7 +1581,7 @@ function dropHen(inside){ const c=P.carry; if(!c) return; P.carry=null; c.carrie
     if(boxHits(WORLD,c.x,c.y,6,4)){c.x=P.x;c.y=P.y;}
     beep(1400,0.05,'square',0.03,1800); addParticles(c.x,c.y-10,6,['#fff','#c97a35'],80); addText(c.x,c.y-28,'Bawk!','#fff'); } }
 function placeMiaNear(){ const m=npcById('mia'); if(!m) return; m.x=P.x+(P.dir==='left'?24:-24); m.y=P.y+(P.dir==='up'?14:-2);
-  if(boxHits(WORLD,m.x,m.y,5,4)){m.x=P.x;m.y=P.y+2;} m.trail=[]; m.stuck=0; }
+  if(boxHits(map,m.x,m.y,5,4)){m.x=P.x;m.y=P.y+2;} m.trail=[]; m.stuck=0; }   // towerin v17: works inside the tower too
 function npcLines(n){
   const L=(who,text)=>({who,text});
   const pc=(G.pieces.head?1:0)+(G.pieces.shaft?1:0);
@@ -1731,6 +1788,7 @@ function drawCoin(g,x,y,r){ circ(g,x,y,r,'#b07a10'); circ(g,x,y,r-1.2,'#ffd23f')
 function makeChests(){ const out=[];
   for(const [tx,ty,n] of COIN_CHESTS){ const [x,y]=openNear(WORLD,tx,ty); out.push({type:'chest',loot:'coins',coins:n,id:'c'+tx+'_'+ty,x:tc(x),y:tc(y),map:'world',open:!!(G.opened&&G.opened['c'+tx+'_'+ty])}); }
   for(const S of SECRETS){ const [tx,ty,n]=S.chest, id='s'+S.id; out.push({type:'chest',loot:'coins',coins:n,id,secret:S.id,x:tc(tx),y:tc(ty),map:'world',open:!!(G.opened&&G.opened[id])}); }   // toolshop v16: secret chests
+  out.push({type:'chest',loot:'coins',coins:8,id:'towerchest',x:tc(TIN.chest[0]),y:tc(TIN.chest[1]),map:'towerin',open:!!(G.opened&&G.opened.towerchest)});   // towerin v17: one-time chest in the tower
   for(const k of GEAR){ const [x,y]=openNear(WORLD,GEAR_CHESTS[k][0],GEAR_CHESTS[k][1]); out.push({type:'chest',loot:'gear',piece:k,guard:k,x:tc(x),y:tc(y),map:'world',open:!!G.gear[k]}); }
   return out; }
 function guardsLeft(k){ return foes.filter(f=>f.guard===k&&!f.flee&&!f.gone).length; }
@@ -2202,6 +2260,66 @@ function exitTunnel(){
   G.fade={t:0,dur:0.8,done:false,mid:()=>{map=WORLD;P.x=tc(CAVE_POS.x)+16;P.y=tc(CAVE_POS.y-2);P.dir='down';D=null;fireballs=[];if(G.side.child.st==='follow')placeMiaNear();}};
   G.mode='fade';
 }
+// ================== towerin v17: the Old Watchtower door ==================
+const TOWER_DOOR={x:tc(TOWER.x+1), y:(TOWER.y+3)*TS};   // the doorway is the middle tile of the south wall
+function atTowerDoor(slack){ return map===WORLD && Math.abs(P.x-TOWER_DOOR.x)<14 && P.y>=TOWER_DOOR.y && P.y<TOWER_DOOR.y+slack; }
+function enterTower(){
+  if(G.fade) return; const m=npcById('mia'), mia=m&&m.follow;
+  G.fade={t:0,dur:0.8,done:false,mid:()=>{ if(P.carry) dropHen(false);
+      G.towerHorse=!!P.horse; P.horse=false; P.dashT=0; if(m) m.riding=false;   // the horse waits outside by the door
+      map=TOWERIN; P.x=10*TS; P.y=12*TS+10; P.dir='up'; fireballs=[]; arrows=[]; D=null; G.look=null; P.fish=null;
+      if(mia) placeMiaNear(); updateCamera(true); },
+    after:()=>{ if(G.towerHorse) showToast('George ties his horse by the door');
+      if(!G.seenTowerIntro){ G.seenTowerIntro=true; startDialog([{who:'George',text:"Wow! Inside the old watchtower!"},
+        {who:'Tip',text:"Look around! Climb to the window at the top. Walk out the door to go back."}]); } }};
+  G.mode='fade';
+}
+function exitTower(){
+  if(G.fade) return;
+  G.fade={t:0,dur:0.8,done:false,mid:()=>{ map=WORLD; P.x=TOWER_DOOR.x; P.y=TOWER_DOOR.y+14; P.dir='down'; D=null; fireballs=[]; arrows=[]; G.look=null; P.inv=Math.max(P.inv||0,1);
+      if(G.towerHorse){ P.horse=true; G.towerHorse=false; }   // George unties his horse and rides on
+      if(G.side.child.st==='follow') placeMiaNear(); updateCamera(true); },
+    after:()=>{ if(P.horse) addText(P.x,P.y-66,'Back on the horse!','#ffe14d'); }};
+  G.mode='fade';
+}
+function towerSignNear(){ return map===TOWERIN && Math.hypot(tc(TIN.sign[0])-P.x,tc(TIN.sign[1])+6-P.y)<44; }
+function towerWindowNear(){ return map===TOWERIN && P.y<3*TS+12 && Math.abs(P.x-(TIN.win[0]+1)*TS)<44; }
+function towerAction(){
+  if(G.mode!=='play'||G.fade) return false;
+  if(map===WORLD && P.dir==='up' && atTowerDoor(30)){ enterTower(); return true; }
+  if(map!==TOWERIN) return false;
+  if(towerSignNear()){ SFX.talk(); startDialog([{who:'Sign',text:"The Old Watchtower. Long ago, guards watched over the kingdom from here."},
+      {who:'Sign',text:"Go up to the window. Look out!"}]); return true; }
+  if(towerWindowNear()){ lookOut(); return true; }
+  return false;
+}
+function lookOut(){ if(G.look) return; G.look={t:0}; G.lookouts=(G.lookouts||0)+1; SFX.chime(); speak("You can see the whole kingdom!",'Narrator');
+  addParticles(P.x,P.y-30,10,['#fff','#8fd3ff','#ffe14d'],90); }
+function updateLookout(dt){
+  if(!G.look && towerWindowNear() && P.dir==='up' && inputDir().y<0) lookOut();   // walking up to the window works too
+  if(G.look){ G.look.t+=dt; if(G.look.t>6 || !towerWindowNear()) G.look=null; }
+}
+function drawTowerLive(g,t){   // torch flames and the sign (live, so they flicker)
+  for(const [tx,ty] of TIN.torches){ const px=tx*TS+16+(tx===0?8:tx===19?-8:0), py=ty*TS+(ty===1?20:6), f=Math.sin(t*12+tx)*1.5;
+    const gr=g.createRadialGradient(px,py-6,2,px,py-6,40); gr.addColorStop(0,'rgba(255,200,110,.45)'); gr.addColorStop(1,'rgba(255,160,60,0)'); g.fillStyle=gr; g.beginPath(); g.arc(px,py-6,40,0,Math.PI*2); g.fill();
+    g.fillStyle='#ff8a2a'; g.beginPath(); g.moveTo(px-6,py); g.quadraticCurveTo(px-6,py-10,px+f,py-18); g.quadraticCurveTo(px+6,py-10,px+6,py); g.fill();
+    g.fillStyle='#ffe14d'; g.beginPath(); g.moveTo(px-3,py); g.quadraticCurveTo(px-3,py-6,px+f*0.6,py-11); g.quadraticCurveTo(px+3,py-6,px+3,py); g.fill(); }
+  const sx=tc(TIN.sign[0]), sy=tc(TIN.sign[1]);
+  g.fillStyle='#5a3a1a'; g.fillRect(sx-2,sy-6,4,18); rrect(g,sx-24,sy-26,48,22,4,'#c8955a'); g.strokeStyle='#6a4020'; g.lineWidth=2; g.strokeRect(sx-23,sy-25,46,20);
+  g.fillStyle='#3a2410'; g.font='bold 9px Verdana'; g.textAlign='center'; g.fillText('WATCH',sx,sy-16); g.fillText('TOWER',sx,sy-7);
+  if(G.mode==='play'){ const hint=towerSignNear()?'Read':(towerWindowNear()&&!G.look)?'Look out':''; if(hint){ const l=(padSeen?'A':isTouch?'Tap A':'A / Space')+': '+hint;
+      g.font='bold 11px Verdana'; const bw=g.measureText(l).width+14; rrect(g,P.x-bw/2,P.y-82,bw,18,6,'rgba(255,255,255,.92)'); g.fillStyle='#222'; g.textAlign='center'; g.fillText(l,P.x,P.y-69); } }
+}
+function drawTowerDoorHint(g){   // outside: a little 'Go in' hint at the door
+  if(map!==WORLD||G.mode!=='play'||!(Math.abs(P.x-TOWER_DOOR.x)<40&&P.y>=TOWER_DOOR.y&&P.y<TOWER_DOOR.y+48)) return;
+  const l=(padSeen?'A':isTouch?'Tap A':'A / Space')+': go in'; g.font='bold 11px Verdana'; const bw=g.measureText(l).width+14;
+  rrect(g,TOWER_DOOR.x-bw/2,TOWER_DOOR.y-58,bw,18,6,'rgba(255,255,255,.92)'); g.fillStyle='#222'; g.textAlign='center'; g.fillText(l,TOWER_DOOR.x,TOWER_DOOR.y-45); }
+function drawLookout(g){   // HUD: the view from the lookout window
+  if(!G.look||map!==TOWERIN) return; const a=Math.min(1,G.look.t*3), pw=440, ph=270, px=(W-pw)/2, py=58;
+  g.save(); g.globalAlpha=a; rrect(g,px-10,py-10,pw+20,ph+56,14,'#4a4e56'); g.fillStyle='#2e3238'; g.fillRect(px-2,py-2,pw+4,ph+4);
+  g.imageSmoothingEnabled=true; const sw=WORLD.w*TS, sh=WORLD.h*TS, sc=Math.max(pw/sw,ph/sh); g.drawImage(WORLD.canvas,(sw-pw/sc)/2,(sh-ph/sc)/2,pw/sc,ph/sc,px,py,pw,ph);
+  const bx=px+(TOWER.x*TS-(sw-pw/sc)/2)*sc, by=py+(TOWER.y*TS-(sh-ph/sc)/2)*sc; drawStar(g,bx+3,by,6,'#ffe14d');
+  g.font='bold 18px Verdana'; g.textAlign='center'; outlined(g,'You can see the whole kingdom!',W/2,py+ph+30,'#fff','#000',4); g.restore(); }
 function enterLair(){
   G.fade={t:0,dur:0.9,done:false,mid:()=>{map=LAIR;P.x=10*TS;P.y=12*TS+10;P.dir='up';fireballs=[];
     D={x:320,y:150,hp:12,maxHp:12,state:'fly',t:0,shootT:2,shots:0,stateT:0,hurt:0,baseY:150,drops:0};},
@@ -2325,7 +2443,7 @@ function updateDialog(dt){
   }
 }
 function respawn(){
-  const wasLair = map===LAIR || map===TUNNEL;
+  const wasLair = map===LAIR || map===TUNNEL; G.look=null; G.towerHorse=false;   // towerin v17
   if(P.carry) dropHen(false);
   map=WORLD; P.x=START.x; P.y=START.y; P.dir='up'; P.inv=1.5; P.kbT=0; G.hp=G.maxHp; D=null; fireballs=[];
   foes=makeFoes(); G.mode='play'; updateCamera(true); if(G.side.child.st==='follow') placeMiaNear();
@@ -2568,6 +2686,7 @@ function updatePlay(dt){
       P.atk='spear'; P.atkDur=SPEAR_TIME; P.attackT=SPEAR_TIME; P.spearCD=SPEAR_TIME+SPEAR_CD; P.hitSet=new Set(); SFX.spear(); G.spearThrusts=(G.spearThrusts||0)+1;
       const v={right:[1,0],left:[-1,0],up:[0,-1],down:[0,1]}[P.dir]; addParticles(P.x+v[0]*40,P.y-14+v[1]*40,8,['#fff7c0','#ffe14d','#ffffff'],90); } }
   // action
+  if(pv.action && towerAction()) pv.action=false;   // towerin v17
   if(pv.action){
     let near=null,best=46,ch=null,pl=null;
     if(map===WORLD) for(const n of npcs){ if(n.follow) continue; const d=Math.hypot(n.x-P.x,n.y-P.y);if(d<best){best=d;near=n;}}
@@ -2582,7 +2701,7 @@ function updatePlay(dt){
       if(near.id==='martha' && G.marthaSeen){ SFX.talk(); speak("Hungry, dearie?",'Old Martha'); openMenu(shopMenu()); return; }   // toolshop v16: fixed (was inside a comment)
       if(near.id==='smith' && G.smithSeen){ SFX.talk(); speak("Need a tool, George?",'Smith Sam'); openMenu(toolMenu()); return; }
       startDialog(npcLines(near),()=>onTalkEnd(near)); SFX.talk(); return;
-    } else if(map===WORLD && (ch=nearChest()) && !(chestLocked(ch) && foeNear(150))){ openChest(ch); }
+    } else if((map===WORLD||map===TOWERIN) && (ch=nearChest()) && !(chestLocked(ch) && foeNear(150))){ openChest(ch); }
     else if((pl=nearPlant()) && ((pl.ready&&G.hp<G.maxHp) || !foeNear(120))){ pickPlant(pl); }
     else if(P.block){ /* can't swing while blocking */ }
     else if(G.hasSword){ if(P.attackT<=0){P.atk='sword';P.atkDur=ATTACK_TIME*(G.gear&&G.gear.gloves?0.88:1);P.attackT=P.atkDur;P.hitSet=new Set();SFX.swing();} }
@@ -2629,6 +2748,7 @@ function updatePlay(dt){
     const dP=Math.hypot(P.x-c.x,P.y-c.y); if(dP<40){const a=Math.atan2(c.y-P.y,c.x-P.x);c.vx=Math.cos(a)*70;c.vy=Math.sin(a)*70;c.t=0.4; if(Math.random()<0.02)beep(1400,0.05,'square',0.02,1800);}
     moveEnt(c,c.vx*dt,c.vy*dt,6,4,false);
     c.x=clamp(c.x,VILLAGE.x0*TS,VILLAGE.x1*TS); c.y=clamp(c.y,VILLAGE.y0*TS,VILLAGE.y1*TS); }
+  if(map===TOWERIN) updateMia(dt);   // towerin v17: Mia follows George inside
   if(map===WORLD){ updateMia(dt);
     if(P.carry && inPen(P.x,P.y)) dropHen(true); }
   if(G.rewardT>0) G.rewardT-=dt; G.crossT+=dt;
@@ -2658,6 +2778,9 @@ function updatePlay(dt){
   }
   if(here===T.EXIT && map===LAIR && D && D.state!=='tamed') exitLair();
   if(here===T.EXIT && map===TUNNEL) exitTunnel();
+  if(here===T.EXIT && map===TOWERIN && !G.fade) exitTower();   // towerin v17
+  if(map===WORLD && !G.fade && inputDir().y<0 && atTowerDoor(12)) enterTower();
+  if(map===TOWERIN) updateLookout(dt);
   if(here===T.LAIRDOOR && map===TUNNEL) enterLair();
   if(map===LAIR) updateDragon(dt);
   if(G.mode!=='storm') updateCamera(false);
@@ -2861,11 +2984,12 @@ function render(){
   for(const s of foes) if(s.map===map.name) ents.push({y:s.y,draw:()=>drawFoe(ctx,s,t)});
   if(map===WORLD){ for(const o of OBST) ents.push({y:o.ty*TS+TS-2,draw:()=>drawObst(ctx,o,t)}); for(const S of SECRETS) if(S.crystal) ents.push({y:S.box[1]*TS+TS,draw:()=>drawSecretDeco(ctx,S,t)}); }   // toolshop v16
   if(map===WORLD) ents.push({y:SHRINE_SIGN[1]*TS+30,draw:()=>drawShrineSign(ctx)});   // stpeter v16
+  if(map===TOWERIN){ ents.push({y:tc(TIN.sign[1])+8,draw:()=>drawTowerLive(ctx,t)}); const mm=npcById('mia'); if(mm&&mm.follow) ents.push({y:mm.y,draw:()=>{ ctx.save(); ctx.translate(mm.x,mm.y); ctx.scale(0.72,0.72); drawPerson(ctx,0,0,mm.o,mm.dir,mm.walk||0); ctx.restore(); }}); }   // towerin v17
   for(const a of arrows) if(a.map===map.name) ents.push({y:a.y+14,draw:()=>drawArrow(ctx,a)});
   if(D && G.mode!=='victory') ents.push({y:D.y+40,draw:()=>drawDragon(ctx,D,t)});
   ents.push({y:P.y,draw:()=>{ if(P.sleep){ drawSleeper(ctx,P.x,P.y,()=>drawGeorgeBody(ctx,0,0,{dir:'down',inv:0,walk:0,block:false,attackT:0,dashT:0},t),t,1); return; } drawGeorge(ctx,P.x,P.y,P,t); drawToolUse(ctx,t);
     if(P.carry){ const c=P.carry; const bob=Math.abs(Math.sin(P.walk*0.5))*2; c.x=P.x; c.y=P.y-34-bob; drawHen(ctx,c,t); } }});
-  ents.sort((a,b)=>a.y-b.y).forEach(e=>e.draw()); drawGearBlessing(ctx); drawJesusFeastDeco(ctx,t); drawObstHint(ctx);   // feast / toolshop v16   // blessgear v15: light from above
+  ents.sort((a,b)=>a.y-b.y).forEach(e=>e.draw()); drawGearBlessing(ctx); drawJesusFeastDeco(ctx,t); drawObstHint(ctx); drawTowerDoorHint(ctx);   // feast / toolshop v16   // blessgear v15: light from above
   for(const f of fireballs){const gr=ctx.createRadialGradient(f.x,f.y,1,f.x,f.y,11);gr.addColorStop(0,'#fff8c0');gr.addColorStop(0.5,'#ffb347');gr.addColorStop(1,'rgba(255,80,40,0)');
     ctx.fillStyle=gr;ctx.beginPath();ctx.arc(f.x,f.y,11+Math.sin(t*20)*1.5,0,Math.PI*2);ctx.fill();}
   for(const p of particles){ctx.globalAlpha=clamp(p.life*2,0,1);ctx.fillStyle=p.col;ctx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size);} ctx.globalAlpha=1;
@@ -3395,6 +3519,8 @@ function renderHUD(){
     for(const [qx,qy] of sideMarkers()){ ctx.fillStyle=blink?'#ff4fa8':'#ff9fd0'; ctx.beginPath(); const px=mx+qx*s, py=my+qy*s; ctx.moveTo(px,py-4);ctx.lineTo(px+4,py);ctx.lineTo(px,py+4);ctx.lineTo(px-4,py);ctx.fill(); }
     circ(ctx,mx+P.x/TS*s,my+P.y/TS*s,3,'#fff');circ(ctx,mx+P.x/TS*s,my+P.y/TS*s,2,'#d62828');
   }
+  if(map===TOWERIN && G.mode!=='victory'){ drawLookout(ctx); if(!G.look){ const txt='Old Watchtower: walk out the door to go back'; ctx.font='bold 13px Verdana'; const w=ctx.measureText(txt).width+40;   // towerin v17
+    rrect(ctx,(W-w)/2,H-30,w,24,8,'rgba(0,0,0,.5)'); drawStar(ctx,(W-w)/2+16,H-18,7,'#ffe14d'); ctx.textAlign='left'; outlined(ctx,txt,(W-w)/2+28,H-13,'#fff','#000',3); } }
   if(map===TUNNEL && G.mode!=='victory'){ const txt='Bat Cave: find the glowing door to the dragon!'; ctx.font='bold 13px Verdana'; const w=ctx.measureText(txt).width+40;
     rrect(ctx,(W-w)/2,H-30,w,24,8,'rgba(0,0,0,.5)'); drawStar(ctx,(W-w)/2+16,H-18,7,'#ffe14d'); ctx.textAlign='left'; outlined(ctx,txt,(W-w)/2+28,H-13,'#fff','#000',3); }
   if(map===LAIR && D){

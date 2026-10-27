@@ -31,6 +31,16 @@ A small, kid-friendly adventure game in a single HTML file (`index.html`). Open 
 - While it is on, a small green **▶▶** badge shows on the dialogue and prayer boxes.
 - On iPhone/iPad, where the "voice finished" signal sometimes never arrives, the page still turns after the time the line should have taken to read aloud.
 
+## What's new in v17
+
+- **You can go inside the Old Watchtower** (towerin v17). The tower now has a real doorway on its south side, with a stone arch, an open wooden door and warm light. Walk up into the door, or press **A / Space** (or tap **A** on a phone) in front of it, and the screen fades to the inside.
+- **Inside the tower:** a stone floor, a spiral stair, flickering torches, a red carpet, barrels and a straw bed. There is also a **WATCH TOWER** sign you can read; it is read aloud.
+- **A treasure chest with 8 coins.** You can open it only once, like the other chests.
+- **The lookout window at the top.** Walk up to it (or press A) to see the whole kingdom, with a little star on the tower. The caption "You can see the whole kingdom!" is read aloud.
+- **Going back out:** walk out the door at the bottom and George comes back outside the tower. Mia follows him in and out. If George rides up on his horse, he ties it by the door and gets back on when he comes out, so the horse never gets stuck inside.
+- **Nothing else changes:** night never starts inside the tower, and the helmet guards and their chest stay as they were.
+- Screenshots: `screens/tower_door.png`, `screens/tower_inside.png`, `screens/tower_lookout.png`.
+
 ## What's new in v16
 
 - **Smith Sam's Tool Shop (toolshop v16).** A new stall with a blue awning and a **TOOLS** sign, next to Old Martha's food stall in the village square. Talk to Smith Sam and a menu opens (it never picks for you; choose with ↑↓ + Space, the D-pad + A, or a tap). Each tool is bought **once** and then shows **Owned ✔**.
