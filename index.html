@@ -925,7 +925,7 @@ function makeNPCs(){
 }
 function bothItems(){return !!G.hasSpear;}
 // ---- side quests v6: Chicken Roundup, Lost Child, Snake King, Lost Cross
-function newSide(){ return {hens:{st:'none'},child:{st:'none'},cobra:{st:'none',beaten:false},cross:{st:'none'},done:0}; }
+function newSide(){ return {hens:{st:'none'},child:{st:'none'},cobra:{st:'none',beaten:false},cross:{st:'none',storm:false,stormPending:false},done:0}; }
 function hensPenned(){ return chickens.filter(c=>c.hen&&c.penned).length; }
 function inPen(x,y){ return x>PEN.x0+4&&x<PEN.x1-4&&y>PEN.y0+6&&y<PEN.y1-4; }
 function npcById(id){ return npcs.find(n=>n.id===id); }
@@ -934,12 +934,12 @@ function sideMark(n){ const S=G.side; if(!S) return null;
   if(n.id==='giles') return S.hens.st==='none'?'!':S.hens.st==='ready'?'?':null;
   if(n.id==='rose') return S.child.st==='none'?'!':S.child.st==='follow'?'?':null;
   if(n.id==='ben') return S.cobra.st==='none'?'!':S.cobra.st==='ready'?'?':null;
-  if(n.id==='ambrose') return S.cross.st==='none'?'!':S.cross.st==='ready'?'?':null;
+  if(n.id==='ambrose') return S.cross.st==='none'?(S.cross.storm?'!':null):S.cross.st==='ready'?'?':null;
   // markers v8: a lost child is not a quest giver. Only a yellow '!' after Mama Rose asks for help; never a green '?'
   if(n.id==='mia') return S.child.st==='active'&&!n.follow?'!':null;
   return null; }
 function sideReward(name){
-  const S=G.side; S.done++; G.maxHp=Math.min(20,G.maxHp+2); G.hp=G.maxHp;
+  const S=G.side; S.done++; if(name!=='The Lost Cross') queueStorm(); G.maxHp=Math.min(20,G.maxHp+2); G.hp=G.maxHp;
   setTimeout(()=>SFX.win(),50); addParticles(P.x,P.y-20,40,['#ffe14d','#fff','#ff7eb6','#7cfc8a','#8fd3ff'],170);
   addText(P.x,P.y-56,'+1 HEART CONTAINER!','#ff7b95'); addText(P.x,P.y-74,'Full hearts!','#7cfc8a');
   showToast('\u2605 Side quest done: '+name+'! ('+S.done+'/4)'); G.rewardT=2.2;
@@ -1019,10 +1019,13 @@ function npcLines(n){
     return [L(n.name,"Baa! My sheep say thank you, George!")]; }
   case 'ambrose': {
     const X=G.side.cross;
-    if(X.st==='none') return [L(n.name,"Welcome to the little church of Silene, George."),
-      L(n.name,"Oh dear... our GOLDEN CROSS is missing from the top of the bell tower! A naughty magpie flew off with it."),
-      L(n.name,"I saw the magpie fly NORTH, past the castle, toward the river. Could you look for it? It will sparkle!")];
-    if(X.st==='active') return [L(n.name,"The magpie flew north, past the castle, near the river. Look for something sparkly in the flowers!")];
+    if(X.st==='none' && !X.storm) return [L(n.name,"Welcome to the little church of Silene, George!"),
+      L(n.name,"Look up at our bell tower. Isn't our GOLDEN CROSS beautiful? It shines all day long."),
+      L(n.name,"Be brave out there, and come visit me any time!")];
+    if(X.st==='none') return [L(n.name,"Oh, George! Did you see that big STORM? Whoosh! The wind was SO strong..."),
+      L(n.name,"It blew our GOLDEN CROSS right off the top of the bell tower!"),
+      L(n.name,"I saw it fly away to the NORTH-EAST, toward the northern woods by the river. Could you find it? It will sparkle!")];
+    if(X.st==='active') return [L(n.name,"The storm blew the cross north-east, to the little flower glade in the northern woods by the river. Look for a sparkle!")];
     if(X.st==='ready') return [L('George',"Father Ambrose! I found the golden cross!"),
       L(n.name,"Wonderful! Let's put it back on top of the bell tower... there! Look how it shines!"),
       L(n.name,"Bless you, George! May it shine over Silene forever. And may your heart grow strong: one more HEART for you!")];
@@ -1059,7 +1062,7 @@ function onTalkEnd(n){
     addText(n.x,n.y-40,'Yay!','#ff9fd0'); SFX.pickup(); }
   if(n.id==='ben'){ if(S.cobra.st==='none' && !S.cobra.beaten){ S.cobra.st='active'; sideStart('The Snake King'); }
     else if(S.cobra.st==='ready'){ S.cobra.st='done'; sideReward('The Snake King'); } }
-  if(n.id==='ambrose'){ if(S.cross.st==='none'){ S.cross.st='active'; sideStart('The Lost Cross'); if(!items.some(i=>i.type==='goldCross')) items.push({type:'goldCross',x:tc(CROSS_POS.x),y:tc(CROSS_POS.y),map:'world'}); }
+  if(n.id==='ambrose'){ if(S.cross.st==='none' && S.cross.storm){ S.cross.st='active'; sideStart('The Lost Cross'); if(!items.some(i=>i.type==='goldCross')) items.push({type:'goldCross',x:tc(CROSS_POS.x),y:tc(CROSS_POS.y),map:'world'}); }
     else if(S.cross.st==='ready'){ S.cross.st='done'; G.crossT=0; addParticles(CHURCH.x*TS+80,CHURCH.y*TS-70,30,['#ffe14d','#fff'],150); sideReward('The Lost Cross'); } }
 }
 // w = wolf (fast, 2 hits), W = white wolf (a bit bigger, 3 hits), b = bear (slow, 4 hits, hits harder), B = big white bear (6 hits, guards the Spear Shaft), s = snake (1 hit)
@@ -1100,7 +1103,7 @@ function makeChickens(){return [[34,30],[29,42],[36,44],[27,36]].map(([tx,ty])=>
   .concat(HEN_SPOTS.map(([tx,ty])=>({hen:true,x:tc(tx),y:tc(ty),hx:tc(tx),hy:tc(ty),vx:0,vy:0,t:0,flap:0,penned:false})));}
 function newGame(){
   G={mode:'play',talkedKing:false,hasSword:true,hasShield:true,pieces:{head:false,shaft:false},hasSpear:false,joinT:0,dragonDefeated:false,hp:10,maxHp:10,t:0,playTime:0,chased:0,
-    seenLairIntro:false,seenTunnelIntro:false,side:newSide(),rewardT:0,crossT:0,dialog:null,fade:null,faintT:0,vt:0,noSwordT:0,shake:0};
+    seenLairIntro:false,seenTunnelIntro:false,side:newSide(),storm:null,rewardT:0,crossT:0,dialog:null,fade:null,faintT:0,vt:0,noSwordT:0,shake:0};
   P={x:START.x,y:START.y,dir:'up',walk:0,attackT:0,inv:0,kbx:0,kby:0,kbT:0,hitSet:null};
   map=WORLD; npcs=makeNPCs(); foes=makeFoes(); items=makeItems(); chickens=makeChickens(); P.carry=null;
   particles=[];texts=[];fireballs=[];D=null;
@@ -1244,6 +1247,7 @@ function update(dt){
   case 'dialog': updateDialog(dt); break;
   case 'log': if(pv.log||pv.action) G.mode='play'; if(pv.restart) toTitle(); break;
   case 'play': updatePlay(dt); break;
+  case 'storm': updateStorm(dt); break;
   case 'join': G.joinT+=dt; if(G.joinT>1.6 && !G.joinSfx){G.joinSfx=true;SFX.win();G.shake=0.3;}
     if(G.joinT>=3.0){ G.hasSpear=true; G.mode='play';
       startDialog([{who:'George',text:"The two pieces joined together! I have the HOLY SPEAR!"},
@@ -1280,6 +1284,7 @@ function respawn(){
 }
 function updatePlay(dt){
   G.playTime+=dt;
+  if(maybeStartStorm()) return;
   if(pv.log){G.mode='log';return;}
   P.block = blockHeld() && G.hasShield && !P.carry; if(P.blockCD>0) P.blockCD-=dt;
   const inp=inputDir(); let dx=inp.x, dy=inp.y; const mag=Math.hypot(dx,dy);
@@ -1367,11 +1372,11 @@ function updatePlay(dt){
       if(it.type==='snakeCrown'){ it.got=true; SFX.item(); addParticles(it.x,it.y-10,24,['#ffd23f','#fff','#ff3b5c'],140);
         if(G.side.cobra.st!=='done') G.side.cobra.st='ready';
         startDialog([{who:'George',text:"You got the SNAKE KING'S CROWN! It sparkles like the sun!"},{who:'Tip',text:"Bring the crown to Shepherd Ben, just east of the bridge."}]); continue; }
-      if(it.type==='goldCross'){ it.got=true; SFX.item(); addParticles(it.x,it.y-10,24,['#ffe14d','#fff'],140); G.side.cross.st='ready';
-        startDialog([{who:'George',text:"You found the GOLDEN CROSS! The magpie hid it in the flowers!"},{who:'Tip',text:"Bring it back to Father Ambrose at the little church, west of the castle road."}]); continue; }
+      if(it.type==='goldCross'){ it.got=true; SFX.item(); addParticles(it.x,it.y-10,24,['#ffe14d','#fff'],140); if(G.side.cross.st==='none') sideStart('The Lost Cross'); G.side.cross.st='ready';
+        startDialog([{who:'George',text:"You found the GOLDEN CROSS! The storm blew it all the way here, into the flowers!"},{who:'Tip',text:"Bring it back to Father Ambrose at the little church, west of the castle road."}]); continue; }
       if(it.type==='heart'){ if(G.hp>=G.maxHp) continue; it.got=true; G.hp=Math.min(G.maxHp,G.hp+2); SFX.pickup(); addText(it.x,it.y-20,'+1 heart','#ff7b95'); addParticles(it.x,it.y-8,8,['#ff3b5c','#fff']); }
       else if(it.type==='spearHead'||it.type==='spearShaft'){ it.got=true; const head=it.type==='spearHead';
-        G.pieces[head?'head':'shaft']=true; SFX.item(); addParticles(it.x,it.y-10,24,['#fff','#ffe14d','#7ef0ff'],140);
+        G.pieces[head?'head':'shaft']=true; queueStorm(); SFX.item(); addParticles(it.x,it.y-10,24,['#fff','#ffe14d','#7ef0ff'],140);
         const both=G.pieces.head&&G.pieces.shaft;
         startDialog([{who:'George',text: head?"You found the SPEAR HEAD! The shiny tip of the Holy Spear!":"You found the SPEAR SHAFT! The golden handle of the Holy Spear!"},
           both?{who:'George',text:"Both pieces are glowing... something magical is happening!"}
@@ -1389,7 +1394,7 @@ function updatePlay(dt){
   if(here===T.EXIT && map===TUNNEL) exitTunnel();
   if(here===T.LAIRDOOR && map===TUNNEL) enterLair();
   if(map===LAIR) updateDragon(dt);
-  updateCamera(false);
+  if(G.mode!=='storm') updateCamera(false);
 }
 function updateHen(c,dt){
   if(c.flap>0) c.flap-=dt;
@@ -1513,6 +1518,9 @@ function render(){
       else if(n.id==='king'&&!G.talkedKing){ const b=Math.sin(t*5)*2; rrect(ctx,n.x-9,n.y-64+b,18,16,4,'#ffe14d');ctx.fillStyle='#222';ctx.font='bold 12px Verdana';ctx.textAlign='center';ctx.fillText('!',n.x,n.y-52+b);} }});
     for(const c of chickens) if(!c.carried) ents.push({y:c.y,draw:()=>c.hen?drawHen(ctx,c,t):drawChicken(ctx,c,t)});
     // golden cross back on the church bell tower
+    if(!G.side.cross.storm && !(G.mode==='storm'&&G.storm&&G.storm.t>=STORM.blow)){ const bx=CHURCH.x*TS+80, by=CHURCH.y*TS-74; ents.push({y:CHURCH.y*TS+90,draw:()=>{
+      const w=G.mode==='storm'&&G.storm?stormWobble(G.storm.t):0; ctx.save(); ctx.translate(bx,by+14); ctx.rotate(w); drawGoldCross(ctx,0,-14,0.85,true); ctx.restore(); }}); }
+    if(G.mode==='storm'&&G.storm&&G.storm.t>=STORM.blow&&G.storm.t<STORM.flyEnd){ ents.push({y:1e9,draw:()=>{ const c=stormCrossPos(G.storm.t); ctx.save(); ctx.translate(c.x,c.y); ctx.rotate(c.rot); drawGoldCross(ctx,0,0,0.85*c.sc,true); ctx.restore(); }}); }
     if(G.side.cross.st==='done'){ const bx=CHURCH.x*TS+80, by=CHURCH.y*TS-74; ents.push({y:CHURCH.y*TS+90,draw:()=>{ drawGoldCross(ctx,bx,by,0.85,true);
       if(Math.sin(t*3)>0.2) drawStar(ctx,bx+12,by-10,3,'#fff'); if(G.crossT<3) for(let i=0;i<6;i++){const a=t*3+i;drawStar(ctx,bx+Math.cos(a)*24,by+Math.sin(a)*18,3,'#ffe14d');} }}); }
   }
@@ -1528,6 +1536,7 @@ function render(){
   for(const tx of texts){ctx.globalAlpha=clamp(tx.life*2,0,1);outlined(ctx,tx.txt,tx.x,tx.y,tx.col,'#000',4);} ctx.globalAlpha=1;
   ctx.restore();
   renderHUD();
+  if(G.mode==='storm') renderStorm();
   if(G.mode==='dialog') renderDialog();
   if(G.mode==='log') renderLog();
   if(G.mode==='faint'){ctx.fillStyle='rgba(20,10,40,'+clamp((2.6-G.faintT)/1.2,0,0.85)+')';ctx.fillRect(0,0,W,H);
@@ -1538,6 +1547,59 @@ function render(){
   if(G.mode==='victory') renderVictory();
   renderToast();
 }
+
+// ---- storm v9: a storm blows the golden cross off the church (plays once, after George's first spear piece or first side quest)
+const STORM={darkIn:0.6, panOut:1.5, panIn:2.2, wobble:2.2, blow:3.0, flyEnd:4.4, panBack:4.6, back:5.3, end:6.0, flashes:[0.55,1.25,3.0]};
+const SFX_STORM={
+  thunder:()=>{ beep(120,0.9,'triangle',0.09,45); setTimeout(()=>beep(80,1.1,'triangle',0.07,40),120); setTimeout(()=>beep(60,0.8,'sine',0.05,35),380); },
+  wind:()=>{ beep(260,1.4,'sine',0.035,520); setTimeout(()=>beep(420,1.1,'sine',0.025,220),300); },
+};
+function queueStorm(){ const X=G.side.cross; if(!X.storm) X.stormPending=true; }
+function inCastle(){ return P.x>CASTLE.x0*TS&&P.x<(CASTLE.x1+1)*TS&&P.y>CASTLE.y0*TS&&P.y<(CASTLE.y1+1)*TS; }
+function maybeStartStorm(){ const X=G.side.cross;
+  if(X.storm||!X.stormPending||map!==WORLD||inCastle()||G.dialog||G.fade) return false;
+  if(P.carry) dropHen(false);
+  P.attackT=0; P.kbT=0; P.block=false; P.walk=0;
+  G.storm={t:0,cam0:{x:cam.x,y:cam.y},flash:-9,fired:{}}; G.mode='storm'; SFX_STORM.wind(); return true; }
+function stormCamChurch(){ return {x:clamp(CHURCH.x*TS+80-W/2,0,WORLD.w*TS-W), y:clamp(CHURCH.y*TS-320,0,WORLD.h*TS-H)}; }
+const ease=u=>{u=clamp(u,0,1);return u*u*(3-2*u);};
+function stormWobble(t){ if(t<STORM.wobble) return Math.sin(t*9)*0.04; const k=(t-STORM.wobble)/(STORM.blow-STORM.wobble); return Math.sin(t*26)*(0.08+0.35*k); }
+function stormCrossPos(t){ const u=clamp((t-STORM.blow)/(STORM.flyEnd-STORM.blow),0,1);
+  const sx=CHURCH.x*TS+80, sy=CHURCH.y*TS-74, tx=CROSS_POS.x*TS+16, ty=CROSS_POS.y*TS+16;
+  const dx=tx-sx, dy=ty-sy, d=Math.hypot(dx,dy), fly=Math.min(d,440)*u;
+  return {x:sx+dx/d*fly, y:sy+dy/d*fly-Math.sin(u*Math.PI)*40, rot:u*14, sc:1.25-0.4*u}; }
+function updateStorm(dt){ const S=G.storm; S.t+=dt; const t=S.t;
+  for(const f of STORM.flashes) if(t>=f&&!S.fired[f]){ S.fired[f]=true; S.flash=t; SFX_STORM.thunder(); G.shake=0.25; }
+  if(t>=STORM.wobble&&!S.fired.w){ S.fired.w=true; SFX_STORM.wind(); }
+  if(t>=STORM.blow&&!S.fired.b){ S.fired.b=true; SFX_STORM.wind(); beep(900,0.5,'triangle',0.04,1500); }
+  if(t>=STORM.blow&&t<STORM.flyEnd&&Math.random()<0.8){ const c=stormCrossPos(t); particles.push({x:c.x,y:c.y,vx:(Math.random()-0.5)*40,vy:-10,life:0.7,col:Math.random()<0.5?'#ffe14d':'#fff',size:3}); }
+  // camera: storm starts where George is, pans to the church, then back to George
+  const cc=stormCamChurch(), gx=clamp(P.x-W/2,0,WORLD.w*TS-W), gy=clamp(P.y-20-H/2,0,WORLD.h*TS-H);
+  let u=0; if(t<STORM.panOut) u=0; else if(t<STORM.panIn) u=ease((t-STORM.panOut)/(STORM.panIn-STORM.panOut)); else if(t<STORM.panBack) u=1; else u=1-ease((t-STORM.panBack)/(STORM.back-STORM.panBack));
+  cam.x=S.cam0.x+(cc.x-S.cam0.x)*u; cam.y=S.cam0.y+(cc.y-S.cam0.y)*u; if(t>=STORM.panBack){ cam.x=gx+(cc.x-gx)*u; cam.y=gy+(cc.y-gy)*u; }
+  if(t>=STORM.end) finishStorm(); }
+function finishStorm(){ const X=G.side.cross; X.storm=true; X.stormPending=false; G.storm=null; G.mode='play'; updateCamera(true);
+  if(!items.some(i=>i.type==='goldCross')) items.push({type:'goldCross',x:tc(CROSS_POS.x),y:tc(CROSS_POS.y),map:'world'});
+  startDialog([{who:'George',text:"Whoa! What a big storm! The wind blew the GOLDEN CROSS right off the church tower!"},
+    {who:'George',text:"It flew away to the north-east. Father Ambrose must be so worried!"},
+    {who:'Tip',text:"Visit Father Ambrose at the little church (west of the castle road). Look for the yellow '!'."}]); }
+function renderStorm(){ const S=G.storm; if(!S) return; const t=S.t;
+  const dark=t<STORM.darkIn?t/STORM.darkIn:t<STORM.back?1:1-clamp((t-STORM.back)/(STORM.end-STORM.back),0,1);
+  ctx.fillStyle='rgba(18,22,48,'+(0.55*dark)+')'; ctx.fillRect(0,0,W,H);
+  // rain streaks, blown by the wind
+  ctx.strokeStyle='rgba(190,210,255,'+(0.65*dark)+')'; ctx.lineWidth=1.5; ctx.beginPath();
+  for(let i=0;i<140;i++){ const sp=520+(i*37%200); const x=((i*97.3+t*180)%(W+80))-40, y=((i*53.7+t*sp)%(H+40))-20; ctx.moveTo(x,y); ctx.lineTo(x-7,y+16); } ctx.stroke();
+  // wind gusts: swirling leaves and streaks
+  for(let i=0;i<14;i++){ const x=((i*131+t*(260+i*12))%(W+60))-30, y=(i*67%H)+Math.sin(t*4+i)*18;
+    ctx.globalAlpha=0.8*dark; ctx.fillStyle=i%2?'#7fbf3f':'#c9a03a'; ctx.save(); ctx.translate(x,y); ctx.rotate(t*6+i); ctx.fillRect(-4,-2,8,4); ctx.restore();
+    ctx.strokeStyle='rgba(255,255,255,'+(0.25*dark)+')'; ctx.beginPath(); ctx.moveTo(x-60,y+10); ctx.quadraticCurveTo(x-30,y,x-5,y+8); ctx.stroke(); } ctx.globalAlpha=1;
+  // lightning flash + bolt
+  const fa=t-S.flash; if(fa>=0&&fa<0.35){ ctx.fillStyle='rgba(255,255,240,'+(0.7*(1-fa/0.35))+')'; ctx.fillRect(0,0,W,H);
+    if(fa<0.18){ const bx=120+((S.flash*997)%400); ctx.strokeStyle='#fffbd0'; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(bx,0); let y=0,x=bx; while(y<170){ y+=28; x+=(Math.sin(y*1.7+S.flash*9))*22; ctx.lineTo(x,y);} ctx.stroke(); } }
+  // kid-friendly caption
+  ctx.font='bold 18px Verdana'; ctx.textAlign='center';
+  const cap=t<STORM.panOut?'Whoosh! A big STORM is coming!':t<STORM.blow?'Look at the little church!':t<STORM.panBack?'Oh no! The wind blew the golden cross away!':'The storm is over...';
+  outlined(ctx,cap,W/2,H-46,'#fff','#000',4); }
 function renderToast(){
   if(toast.t<=0 || G.mode==='log') return;
   ctx.save(); ctx.globalAlpha=clamp(toast.t/0.4,0,1);
@@ -1632,7 +1694,7 @@ function sideTracker(){ const S=G.side, out=[]; if(!S) return out;
   const cb=foes.find(f=>f.kind==='cobra'&&!f.flee);
   if(S.cobra.st==='active'&&cb) out.push('Snake King hits '+(cb.maxHp-cb.hp)+'/7');
   if(S.cobra.st==='ready'||(S.cobra.st==='active'&&!cb)) out.push(S.cobra.st==='ready'?'Bring the crown to Shepherd Ben':'Pick up the Snake King\'s crown!');
-  if(S.cross.st==='active') out.push('Find the golden cross (north)');
+  if(S.cross.st==='active') out.push('Find the golden cross (north-east woods)');
   if(S.cross.st==='ready') out.push('Bring the cross to Father Ambrose');
   return out; }
 function sideMarkers(){ const S=G.side, out=[]; if(!S) return out;
@@ -1685,12 +1747,12 @@ function renderLog(){
       S.child.st==='none'?'':S.child.st==='active'?'Find Mia':S.child.st==='follow'?'Mia is following':'Home!'],
     ["The Snake King",st(S.cobra),{none:S.cobra.beaten?"Bring the crown to Shepherd Ben":"Talk to Shepherd Ben (east of the bridge)",active:"Chase King Hissalot from his sandy nest (east)",ready:"Bring his crown to Shepherd Ben",done:"The sheep are safe again"}[S.cobra.st],
       S.cobra.st==='none'&&!S.cobra.beaten?'':'Hits '+(S.cobra.beaten?7:hits)+'/7'],
-    ["The Lost Cross",st(S.cross),{none:"Talk to Father Ambrose (church, west of the castle road)",active:"Find the golden cross up north, by the river",ready:"Bring it to Father Ambrose",done:"The cross shines on the church"}[S.cross.st],
+    ["The Lost Cross",st(S.cross),{none:S.cross.storm?"A storm blew the cross away! Talk to Father Ambrose":"The golden cross shines on the little church... for now",active:"Find the cross in the northern woods (north-east, by the river)",ready:"Bring it to Father Ambrose",done:"The cross shines on the church"}[S.cross.st],
       S.cross.st==='none'?'':S.cross.st==='active'?'Cross 0/1':'Cross 1/1'],
   ];
   sq.forEach((q,i)=>{const y=sy+28+i*35, done=q[1]==='done', fresh=q[1]==='none';
     box(bx+30,y,done,'#e26aa8'); ctx.textAlign='left';
-    ctx.fillStyle=done?'#8a6a8a':fresh?'#9a8a7a':'#3a2a1a';ctx.font='bold 15px Verdana';ctx.fillText(q[0]+(fresh?'  (!)':''),bx+62,y);
+    ctx.fillStyle=done?'#8a6a8a':fresh?'#9a8a7a':'#3a2a1a';ctx.font='bold 15px Verdana';ctx.fillText(q[0]+(fresh&&!(i===3&&!S.cross.storm)?'  (!)':''),bx+62,y);
     ctx.fillStyle='#8a6a4a';ctx.font='11px Verdana';ctx.fillText(q[2],bx+62,y+14);
     if(q[3]){ctx.textAlign='right';ctx.fillStyle=done?'#4caf50':'#8a2a6a';ctx.font='bold 13px Verdana';ctx.fillText(q[3],bx+bw-28,y);} });
   ctx.textAlign='center';ctx.fillStyle='#5a3a1a';ctx.font='11px Verdana';
