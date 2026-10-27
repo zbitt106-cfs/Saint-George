@@ -15,6 +15,7 @@ A small, kid-friendly adventure game in a single HTML file (`index.html`). Open 
 
 - The music is original and made live with Web Audio. There are themes for the village, castle, cave, dragon lair and victory, plus the **Silene Hymn**, a gentle 3/4 organ-and-guitar hymn that plays during the prayers. The music is quiet during the storm, softly crossfades between places and gets quieter during speech and pause.
 - The characters speak their lines with the browser's built-in speech voices (speechSynthesis), and each character has its own voice, pitch and speed. The prayers (the Hail Mary prayed by Princess Sabra and the Our Father in the little church) are read slowly, and each page turns only after it has been fully read. If the browser has no voices, the text still shows and the pages turn when A is pressed or after a few seconds.
+- **Reading pace:** the voices read about **15% slower** than before, which makes it easier for young readers to follow along. Each character still has their own pitch, and no voice goes below speed 0.75 (iPhone/iPad Safari uses the same values). Prayers and Grace are read at a calm 0.78. While a voice is speaking, the dialogue text types out at about reading pace instead of racing ahead. A / Space / tap still shows the whole line at once and then moves on.
 - Sound, music and voices start after the first key, tap or click. On phones and tablets the **Tap to start** tap also unlocks speech and Web Audio (mobile browsers only allow sound that starts inside a real tap). The touch buttons speak right away inside the tap, and the game gently nudges the speech engine so long lines don't stall. If you can't hear any voices, open the pause menu and choose **Test voice 🔊**. George should say "Hello! I am George…".
 - **iPhone / iPad: no sound?** The **Ring/Silent switch** on the side of the iPhone mutes Web Speech *and* web audio in Safari. Flip it to Ring (no orange showing) and turn the volume up, then tap Test voice. They can be turned off with N, V or M, or from the pause menu.
 
@@ -32,8 +33,61 @@ All of them do **half a heart** of damage, and the shield blocks them. Every one
 - **Wolves, bears and snakes** are the same as before.
 - **Bats** (bat cave) now take **2 hits**. The first hit flashes them and knocks them back ("One more hit!").
 - **Spiders** (bat cave, 6 of them) take **1 hit**. Some dangle from the ceiling on a silk thread and drop down when George walks underneath. Others scuttle in quick zig-zags. There are cobwebs in the corners of the tunnel.
-- **Scorpions** (the desert, 7 of them) take **2 hits**. They wander about, raise their tail with a "!" as a warning, and then jab. They never walk onto the village roads.
+- **Scorpions** (the desert, 7 of them, plus a few more in the new Badlands) take **2 hits**. They wander about, raise their tail with a "!" as a warning, and then jab. They never walk onto the village roads.
 - **Rats** (north, around the magpie grove where the golden cross lies, 7 of them) take **1 hit**. They nibble, dart about in little bursts, and rush George when he comes close. A hit sends them off with a squeak. They never block the cross.
+
+- **Crocodiles** (3 at Silver Lake, 3 along the river, plus the big White Croc) rest half under water with only their eyes and snout showing. When George comes near the shore, a croc **opens its jaws wide first** (a flashing ring around them is the warning), then **snaps forward** onto the bank and slides back into the water. A snap does **half a heart** and the shield blocks it. They take **3 hits**, and when beaten they splash and swim away. Crocs never sit by a bridge, the fishing dock or the village. They count in the end tally too.
+
+## The bigger world
+
+The land is now almost **twice as big** (100 × 72 tiles). Everything from before is still in the same place, and the new lands join up with roads and signposts:
+
+- **Silver Lake** (north-east): a big blue lake with a **fishing dock**, a rowboat and **Fisher Finn**. Crocodiles live here.
+- **The Meadows** (south): wildflowers, the river running south and a turning **windmill** with **Miller Molly**.
+- **The Ruined Tower** (south-east, up in the **mountain pass**): an old ivy-covered watchtower. **Hermit Hugh** lives on the pass.
+- **The Wayside Shrine** (south, by the river): a little stone shrine of Our Lady with candles.
+- **The Badlands** (east): sand, rocks and scorpions.
+- **Southwood** (far south-west): a dark wood with a snake den.
+- **Old Martha's food stall** stands just south of the village.
+
+More wolves, bears, snakes and scorpions roam the new lands, and there are coin chests to find.
+
+## The Green Dragon set
+
+Four pieces of magic **Green Dragon** gear are hidden in guarded chests in the new lands. A guarded chest only opens once its guardians have been driven off. The guardians stay near their chest and give up the chase if George runs far away.
+
+| Piece | Where | Guardians |
+|---|---|---|
+| **Armor** | on Silver Lake's shore | the **White Croc** (5 hits) |
+| **Helmet** | below the ruined watchtower | 3 **white wolves** (3 hits each) and a big **white bear** (6 hits) |
+| **Gloves** | the Badlands scorpion nest | 4 scorpions and the big **White Scorpion** (4 hits) |
+| **Boots** | the Southwood snake den | little snakes (1 hit) and the **White Cobra** (4 hits, a smaller lunge than King Hissalot's) |
+
+- **Dragon fire** normally burns **1 heart**. Each piece takes away **¼ heart**: 1 piece = ¾, 2 = ½, 3 = ¼, and with **all four** pieces dragon fire **can't hurt George at all** ("The full Green Dragon set! Dragon fire can't hurt you now!"). The hearts at the top show the quarter and half hearts. The shield still blocks fire from the front.
+- **Boots:** George walks about 10% faster on foot. **Gloves:** his sword swings a little faster.
+- George's sprite shows every piece he has: green scale armor, a green helmet with a gold crest, green gloves and green boots. The pause screen shows **Dragon Set n/4** with a check box for each piece.
+- Pieces and opened chests are kept if George faints. Guardians only come back for pieces that are still missing.
+
+## Coins, Old Martha's stall and the alms box
+
+- **Coins** come from chests (46 in the coin chests) and a few from critters that run away (a wolf gives 1, the big guardians 3, King Hissalot 5). The coin count is on the HUD and the pause screen. Coins never go below zero.
+- **Old Martha's food stall** (just south of the village). Talk to Martha and choose with the D-pad/stick or arrows + A / Space, or tap a choice. B / Esc closes.
+
+  | Food | Cost | Does |
+  |---|---|---|
+  | Fresh Bread | 2 | +1 heart |
+  | Roast Chicken | 4 | +2 hearts |
+  | Apple Pie | 6 | all hearts full |
+  | Hearty Feast | 15 | +1 **max** heart (only twice) |
+
+  Martha won't sell you food when your hearts are already full, so no coins are wasted. **Every bought meal starts with Grace**: George bows his head and the Grace is shown and read aloud slowly, *"In the name of the Father, and of the Son, and of the Holy Spirit. Amen. Bless us, O Lord, and these Thy gifts, which we are about to receive from Thy bounty, through Christ our Lord. Amen."* Then he eats and the hearts fill up. A / Space / a tap turns the pages quickly, but Grace is always shown.
+- **The church alms box** (beside Father Ambrose's church): give **1 or 5 coins** for the poor and the church, and Father Ambrose thanks you out loud. At **10 coins** given he blesses George and all hearts are filled. At **25 coins** the church gets a **golden bell, a stained-glass rose window and candles** by the door, and George gets another blessing.
+
+## Fruit instead of hearts
+
+There are no floating heart pickups any more. **Fruit plants** grow all over the land instead: apple trees, pear trees, berry bushes, carrot patches and pumpkins. Walk up and press A (Space / tap) to pick. Fruit gives **+1 heart**, and a pumpkin gives **+2**. A picked plant grows back after about **60–90 seconds**. When your hearts are full, George says "You're already full!" and the fruit stays on the plant. Critters that run away sometimes drop an **apple**. (Grace is said for meals bought at Martha's stall, not for fruit picked along the way.)
+
+The plants are spread out (at least 8 tiles apart) over every part of the map. There is always some fruit **just before every boss and guardian fight** (the dragon's tunnel, the White Wolf, the White Bear, King Hissalot and the four Green Dragon guardians), far enough away that the boss doesn't notice you while you eat.
 
 ## Little Mia
 
@@ -50,3 +104,7 @@ After the dragon is tamed, everyone gathers in the castle hall for a **Victory F
 > In the name of the Father, and of the Son, and of the Holy Spirit. Amen.
 
 Then everyone eats. The food disappears and people chat over soft festive music. After that comes the victory screen. Every step continues with A / Space / a tap, and also moves on by itself, so the feast can never get stuck.
+
+## Screenshots
+
+New v12 screenshots are in the `screens/` folder: `bigworld_overview.png` (the whole map with the fruit, chests, guardians and crocs marked), `bigworld_*.png` (lake, windmill, tower, shrine, pass, badlands, southwood), `armor.png`, `helmet.png`, `gloves.png`, `boots.png`, `fullset.png`, `fullset_world.png`, `shop.png`, `food_grace.png`, `food_eat.png`, `donate.png`, `donate_blessing.png`, `church_upgrade.png`, `fruit.png`, `fruit_pumpkin.png`, `crocs.png` and `crocs_white.png`.
