@@ -7,6 +7,7 @@ A small, kid-friendly adventure game in a single HTML file (`index.html`). Open 
 **Move:** Arrows / WASD / left stick / D-pad · **Talk & Sword:** Space / E / Enter / Z (gamepad A, touch A) · **Holy Spear:** F (gamepad B, touch SPEAR, shown once the spear is joined) · **Dash:** C / Ctrl (gamepad Y, touch DASH) · **Block:** hold Shift / X (gamepad X, LB / RB, touch shield) · **Pause, Quest Log & Side Quests:** P / Esc / Q / Tab (gamepad START, touch ☰) · **Restart:** from the pause menu (R while paused, press twice to confirm) · **Music on/off:** N (touch ♪) · **Voices on/off:** V · **Mute everything:** M · **Horse on/off:** H (gamepad L3 = press the left stick, or a quick tap of D-pad Up; touch 🐴) · **Auto-continue text on/off:** T (or **Auto-continue** in the pause menu, which also works on touch screens and gamepads)
 
 - The **sword** works on wolves, bears, snakes, bats, spiders, scorpions and rats, but it can't hurt the dragon ("Clink!").
+- When George finds both pieces, the Holy Spear is **made whole again by a miracle from God**: a soft beam of light from heaven, gentle chimes and "A miracle! By God's grace, the Holy Spear is made whole again!"
 - The **Holy Spear** has longer reach, a holy glow and a slightly slower cooldown. It is the only weapon that can hurt the dragon.
 - The **dash** moves George about 3 tiles very quickly. He can't be hurt during a dash, but he still can't go through walls or trees. You can't dash while blocking or carrying a hen.
 - The **pause screen** freezes the game and shows the Quest Log, the Side Quests and the controls. It has Resume, Music, Voices, **Auto-continue**, **Test voice 🔊** and Restart. Use D-pad/stick + A to choose; START, B or Esc goes back to the game.
@@ -14,7 +15,7 @@ A small, kid-friendly adventure game in a single HTML file (`index.html`). Open 
 ## Music and voices
 
 - The music is original and made live with Web Audio. There are themes for the village, castle, cave, dragon lair and victory, plus the **Silene Hymn**, a gentle 3/4 organ-and-guitar hymn that plays during the prayers. The music is quiet during the storm, softly crossfades between places and gets quieter during speech and pause.
-- The characters speak their lines with the browser's built-in speech voices (speechSynthesis), and each character has its own voice, pitch and speed. The prayers (the Hail Mary prayed by Princess Sabra and the Our Father in the little church) are read slowly, and each page turns only after it has been fully read. If the browser has no voices, the text still shows and the pages turn when A is pressed or after a few seconds.
+- The characters speak their lines with the browser's built-in speech voices (speechSynthesis), and each character has its own voice, pitch and speed. The prayers (the Hail Mary prayed by Princess Sabra and the Our Father in the little church, each starting and ending with the Sign of the Cross) are read slowly, and each page turns only after it has been fully read. If the browser has no voices, the text still shows and the pages turn when A is pressed or after a few seconds.
 - **Reading pace:** the voices read about **15% slower** than before, which makes it easier for young readers to follow along. Each character still has their own pitch, and no voice goes below speed 0.75 (iPhone/iPad Safari uses the same values). Prayers and Grace are read at a calm 0.78. While a voice is speaking, the dialogue text types out at about reading pace instead of racing ahead. A / Space / tap still shows the whole line at once and then moves on.
 - Sound, music and voices start after the first key, tap or click. On phones and tablets the **Tap to start** tap also unlocks speech and Web Audio (mobile browsers only allow sound that starts inside a real tap). The touch buttons speak right away inside the tap, and the game gently nudges the speech engine so long lines don't stall. If you can't hear any voices, open the pause menu and choose **Test voice 🔊**. George should say "Hello! I am George…".
 - **iPhone / iPad: no sound?** The **Ring/Silent switch** on the side of the iPhone mutes Web Speech *and* web audio in Safari. Flip it to Ring (no orange showing) and turn the volume up, then tap Test voice. They can be turned off with N, V or M, or from the pause menu.
@@ -28,6 +29,14 @@ A small, kid-friendly adventure game in a single HTML file (`index.html`). Open 
 - A / Space / tap still turns the page straight away.
 - While it is on, a small green **▶▶** badge shows on the dialogue and prayer boxes.
 - On iPhone/iPad, where the "voice finished" signal sometimes never arrives, the page still turns after the time the line should have taken to read aloud.
+
+## What's new in v14
+
+- **No more stuck zoom on iPhone (nozoom v14).** Fast taps on the touch buttons used to zoom Safari in, and it stayed zoomed. The page is now locked at 100%: no double-tap zoom, no pinch zoom, no scrolling, no text-selection pop-ups. If Safari ever does end up zoomed, the game snaps back to normal by itself. Holding the joystick while pressing A (two fingers) still works.
+- **A slower storm.** Every storm caption stays on screen for at least 4 seconds (2 s + ½ s per word) and never moves on before the narrator has finished reading it. Then press **A / Space / tap** for the next caption, or let it move on by itself with Auto-continue ON. The rain, wind and thunder keep going while you read.
+- **The Holy Spear is made whole by a miracle.** When George has both pieces, light shines down from heaven, soft bells chime and the narrator says "A miracle! By God's grace, the Holy Spear is made whole again!"
+- **God's blessing, not magic.** Grandma's egg and Shepherd Ben's woolly scarf are now gifts "blessed by God", and the Green Dragon gear is blessed by God too.
+- **Sign of the Cross.** The Our Father (with Father Ambrose) and the Hail Mary (with Princess Sabra) now start and end with "In the name of the Father, and of the Son, and of the Holy Spirit. Amen.", just like Grace Before Meals.
 
 ## The horse
 
@@ -64,7 +73,7 @@ More wolves, bears, snakes and scorpions roam the new lands, and there are coin 
 
 ## The Green Dragon set
 
-Four pieces of magic **Green Dragon** gear are hidden in guarded chests in the new lands. A guarded chest only opens once its guardians have been driven off. The guardians stay near their chest and give up the chase if George runs far away.
+Four pieces of **Green Dragon** gear, blessed by God, are hidden in guarded chests in the new lands. A guarded chest only opens once its guardians have been driven off. The guardians stay near their chest and give up the chase if George runs far away.
 
 | Piece | Where | Guardians |
 |---|---|---|

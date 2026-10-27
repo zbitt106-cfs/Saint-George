@@ -2,12 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Saint George &amp; the Dragon</title>
 <style>
-  html,body{margin:0;padding:0;height:100%;background:#1b1530;overflow:hidden;touch-action:none;
-    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;font-family:Verdana,Arial,sans-serif}
+  html,body{margin:0;padding:0;height:100%;background:#1b1530;overflow:hidden;touch-action:none;overscroll-behavior:none;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;text-size-adjust:100%;font-family:Verdana,Arial,sans-serif}
+  /* nozoom v14: iPhone Safari zoomed in on fast taps of the touch buttons and stayed stuck; lock the page so it can never scale or scroll */
+  body{position:fixed;inset:0;width:100%}
+  canvas,#touch,#dpad,#knob,.tbtn{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
   #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
   body.touch #wrap{align-items:flex-start;padding-top:env(safe-area-inset-top)}
   canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;background:#000;
@@ -167,8 +170,34 @@ if (isTouch) document.body.classList.add('touch');
   cv.addEventListener('click',e=>testTap(e.clientX,e.clientY));
   cv.addEventListener('pointerdown',e=>{initAudio(); if(G.mode==='pause'){ const i=cvHit(e.clientX,e.clientY); if(i>=0&&PAUSE_ITEMS[i]==='test'){ G.pause.sel=i; G.pause.confirm=false; } else if(i>=0) pv.pauseTap=i+1; }
     else if(G.mode==='menu'){ const r=cv.getBoundingClientRect(), i=menuHit((e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height); if(i>=0) pv.menuTap=i+1; }
-    else if(G.mode==='title'||G.mode==='victory'||G.mode==='dialog'||G.mode==='prayer') pv.action=true;});
-  document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+    else if(G.mode==='title'||G.mode==='victory'||G.mode==='dialog'||G.mode==='prayer'||G.mode==='storm') pv.action=true;});
+})();
+// nozoom v14: stop iOS Safari double-tap zoom / pinch zoom on the buttons and canvas, and snap back to scale 1 if it ever happens
+(function(){
+  const stop=e=>{ if(e.cancelable) e.preventDefault(); };
+  const onGame=t=>!!(t && t.closest && t.closest('canvas,#touch,.tbtn,#dpad'));
+  // touchstart/touchend on the game surfaces: no zoom, no text callout, no ghost click. Pointer events (pointerdown/up) still
+  // fire for every finger, so holding the joystick + pressing A (multi-touch) keeps working. The gesture listeners that unlock
+  // audio / speech (touchend, capture) still run, because preventDefault does not stop other handlers.
+  document.addEventListener('touchstart',e=>{ if(onGame(e.target) || e.touches.length>1) stop(e); },{passive:false});
+  document.addEventListener('touchmove',e=>{ stop(e); },{passive:false});            // no scrolling and no pinch (touches>1) anywhere
+  let lastEnd=0;
+  document.addEventListener('touchend',e=>{ const now=Date.now(); if(onGame(e.target) || now-lastEnd<300) stop(e); lastEnd=now; },{passive:false}); // double-tap zoom
+  ['gesturestart','gesturechange','gestureend'].forEach(t=>document.addEventListener(t,stop,{passive:false}));      // Safari pinch gestures
+  document.addEventListener('dblclick',stop,{passive:false});
+  // recovery: if Safari still ends up zoomed in, rewrite the viewport meta (toggle it) so the page snaps back to 1, then re-layout
+  const meta=document.querySelector('meta[name=viewport]'), base=meta?meta.getAttribute('content'):'';
+  let fixing=false;
+  function unzoom(){ const vv=window.visualViewport, sc=vv?vv.scale:1;
+    if(sc>1.01 && meta && !fixing){ fixing=true; window.__unzooms=(window.__unzooms||0)+1;
+      meta.setAttribute('content','width=device-width, initial-scale=1.01, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover');
+      setTimeout(()=>{ meta.setAttribute('content',base); window.scrollTo(0,0); resize(); fixing=false; },60); }
+    if(document.scrollingElement && (document.scrollingElement.scrollTop||document.scrollingElement.scrollLeft)) window.scrollTo(0,0); }
+  window.unzoom=unzoom;
+  if(window.visualViewport){ visualViewport.addEventListener('resize',()=>{ unzoom(); resize(); }); visualViewport.addEventListener('scroll',unzoom); }
+  addEventListener('orientationchange',()=>setTimeout(()=>{ unzoom(); resize(); },250));
+  addEventListener('resize',unzoom);
+  document.addEventListener('touchend',()=>setTimeout(unzoom,350),{passive:true});
 })();
 function resize(){
   const availH = isTouch && innerHeight>innerWidth ? innerHeight*0.62 : innerHeight;
@@ -395,6 +424,7 @@ const SFX = {
   hurt:()=>beep(220,0.25,'sawtooth',0.05,90),
   pickup:()=>{beep(660,0.08,'square',0.05);setTimeout(()=>beep(990,0.12,'square',0.05),80);},
   item:()=>{[523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.18,'square',0.05),i*110));},
+  chime:()=>{[784,1047,1319,1568,1319,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.9,'sine',0.028),i*260));},   // miracle v14: soft church-bell chimes
   talk:()=>beep(700+Math.random()*200,0.03,'square',0.025),
   roar:()=>beep(160,0.6,'sawtooth',0.07,60),
   hit:()=>beep(180,0.12,'square',0.07,120),
@@ -1475,7 +1505,7 @@ function npcLines(n){
     if(!G.hasSpear) return [L(n.name,"Long ago the Holy Spear broke into two pieces, and they were hidden far apart."),
       L(n.name,"The Spear Head is in the West Forest, and the Spear Shaft is at the top of the Eastern Hills."),
       L(n.name,"Look at the little map in the corner: the yellow stars show where to go!")];
-    return [L(n.name,"The Holy Spear is whole again! Now you are ready for the dragon's cave in the south-east.")];
+    return [L(n.name,"Praise God! By His grace the Holy Spear is whole again! Now you are ready for the dragon's cave in the south-east.")];
   case 'baker': return [L(n.name,"Fresh bread, warm from the oven! Mmm!"),L(n.name,"Careful out there! Wolves are quick and need TWO pokes to run away."),
     L(n.name,"The big WHITE wolves are tougher. They need THREE pokes! Watch the little blue dots over their heads."),
     L(n.name,"Bears are slow, but strong. It takes a few pokes to make a bear run home. Don't let it bump you!"),
@@ -1494,7 +1524,7 @@ function npcLines(n){
     if(H.st==='active') return [L(n.name,pn===0?"My brown hens are still out there! Pick one up and carry it into the pen by the river.":"You've got "+pn+" of my 5 hens back! Keep going, the others are scattered around the village."),
       L(n.name,"Psst: up north is a huge grumpy WHITE bear, and the dragon's cave is south-east, past the sandy land.")];
     if(H.st==='ready') return [L(n.name,"Bawk bawk! All FIVE hens are safe in the pen! You're a champion chicken catcher!"),
-      L(n.name,"Here, take this. Grandma's magic egg! It gives you one more HEART!")];
+      L(n.name,"Here, take this. Grandma's special egg, blessed by God! It gives you one more HEART!")];
     return [L(n.name,"My hens are laying the biggest eggs ever, thanks to you!"),L(n.name,"Howdy! Cross the bridge to go east over the river."),
       L(n.name,"Up north are the Eastern Hills. A huge grumpy WHITE bear sits at the very top, guarding something golden!")]; }
   case 'rose': {
@@ -1526,7 +1556,7 @@ function npcLines(n){
       L(n.name,"After a lunge he gets dizzy. That's your chance! It takes SEVEN pokes to send him slithering away.")];
     if(K.st==='active') return [L(n.name,"The Snake King's nest is on the sand, east of me and south of the hills. Shield up when he rears!")];
     if(K.st==='ready') return [L(n.name,"You chased King Hissalot away! And you got his shiny crown! Hooray!"),
-      L(n.name,"My sheep can graze in peace again. Take this lucky woolly charm: one more HEART for you!")];
+      L(n.name,"My sheep can graze in peace again. Take this warm woolly scarf, with God's blessing: one more HEART for you!")];
     return [L(n.name,"Baa! My sheep say thank you, George!")]; }
   case 'martha': return [L(n.name,"Hello, dearie! I'm Old Martha. I bake the best food in all of Silene!"),
     L(n.name,"Bring me coins from treasure chests, and from the wild creatures you chase away, and I'll fill your tummy."),
@@ -1566,15 +1596,15 @@ function npcLines(n){
       L(n.name,"Your sword can't hurt a dragon's tough scales. Only the HOLY SPEAR can!"),
       L(n.name,"But long ago the Holy Spear broke into two pieces, and they were hidden in faraway places."),
       L('Princess Sabra',"The Spear Head is in the West Forest, guarded by a big white wolf. The Spear Shaft is on top of the Eastern Hills, guarded by a big WHITE bear."),
-      L(n.name,"Find both pieces and they will join together again. Press "+pauseKey()+" to pause and see your Quest Log. Good luck!")];
+      L(n.name,"Find both pieces, and by God's grace they will be made whole again. Press "+pauseKey()+" to pause and see your Quest Log. Good luck!")];
     if(!G.hasSpear) return [L(n.name,pc===0?"Find the two pieces of the Holy Spear: one in the West Forest, one in the Eastern Hills.":
       "You found one piece! Now find the other one. "+(G.pieces.head?"The Shaft is on top of the Eastern Hills.":"The Head is deep in the West Forest."))];
-    return [L(n.name,"The Holy Spear shines again! Now go to the dragon's cave in the south-east. Silene believes in you!")];
+    return [L(n.name,"Thanks be to God, the Holy Spear shines again! Now go to the dragon's cave in the south-east. Silene believes in you!")];
   case 'princess': if(!G.hasSpear) return [L(n.name,"Be brave, George! The dragon is big, but your heart is bigger!")];
     return [L(n.name,"A secret tip: poke the dragon with the Holy Spear when it gets tired and lands to rest."),L(n.name,"And you can pop its fireballs too!")];
   case 'knight': if(!G.hasSpear) return [L(n.name,"Halt! Swords can't hurt a dragon. Only a hero with the complete HOLY SPEAR may enter!"),
       L(n.name,pc===1?"You have one piece... find the other one and come back!":"Find both pieces of the spear and come back!")];
-    return [L(n.name,"The Holy Spear! The cave is right next to me. Good luck, hero!")];
+    return [L(n.name,"The Holy Spear, made whole by God! The cave is right next to me. Good luck, hero!")];
   }
   return [L(n.name,"Hello!")];
 }
@@ -2045,7 +2075,7 @@ function objective(){
     if(!G.pieces.head && !G.pieces.shaft) return {text:"Find the 2 pieces of the Holy Spear (forest & hills)",tx:HEAD_POS.x,ty:HEAD_POS.y,tx2:SHAFT_POS.x,ty2:SHAFT_POS.y};
     if(!G.pieces.head) return {text:"Find the Spear Head in the West Forest (white wolf!)",tx:HEAD_POS.x,ty:HEAD_POS.y};
     if(!G.pieces.shaft) return {text:"Find the Spear Shaft on the Eastern Hills (white bear!)",tx:SHAFT_POS.x,ty:SHAFT_POS.y};
-    return {text:"The spear pieces are joining...",tx:CAVE_POS.x,ty:CAVE_POS.y};
+    return {text:"A miracle is happening to the spear...",tx:CAVE_POS.x,ty:CAVE_POS.y};
   }
   return {text:"Face the dragon in its cave (south-east)",tx:CAVE_POS.x,ty:CAVE_POS.y};
 }
@@ -2143,9 +2173,11 @@ function update(dt){
   case 'play': updatePlay(dt); break;
   case 'storm': updateStorm(dt); break;
   case 'prayer': updatePrayer(dt); break;
-  case 'join': G.joinT+=dt; if(G.joinT>1.6 && !G.joinSfx){G.joinSfx=true;SFX.win();G.shake=0.3;speak('The Holy Spear!','Narrator');}
-    if(G.joinT>=3.0){ G.hasSpear=true; G.mode='play';
-      startDialog([{who:'George',text:"The two pieces joined together! I have the HOLY SPEAR!"},
+  case 'join': G.joinT+=dt;   // miracle v14: the Holy Spear is made whole by God (light from above, soft chimes), not by magic
+    if(G.joinT>0.2 && !G.joinChime){ G.joinChime=true; SFX.chime(); }
+    if(G.joinT>1.6 && !G.joinSfx){G.joinSfx=true;SFX.win();G.shake=0.15; G.joinVoiced=speak("A miracle! By God's grace, the Holy Spear is made whole again!",'Narrator',{onend:()=>{G.joinVoiceDone=true;}});}
+    if(G.joinT>=4.6 && (!G.joinVoiced || G.joinVoiceDone || !VO.speaking || G.joinT>=9)){ G.hasSpear=true; G.mode='play'; G.joinChime=G.joinVoiced=G.joinVoiceDone=false;
+      startDialog([{who:'George',text:"Thank you, God! The two pieces are one again. I have the HOLY SPEAR!"},
         {who:'Tip',text:"The Holy Spear has its own button: press "+spearKey()+" to thrust it! It reaches farther than the sword, and it is the ONLY thing that can tame the dragon. Your sword still swings with "+swordKey()+"."},
         {who:'Tip',text:"Now go to the dragon's cave in the south-east."}]); } break;
   case 'faint': G.faintT-=dt; if(G.faintT<=0) respawn(); break;
@@ -2323,7 +2355,7 @@ function updatePlay(dt){
         G.pieces[head?'head':'shaft']=true; queueStorm(); SFX.item(); addParticles(it.x,it.y-10,24,['#fff','#ffe14d','#7ef0ff'],140);
         const both=G.pieces.head&&G.pieces.shaft;
         startDialog([{who:'George',text: head?"You found the SPEAR HEAD! The shiny tip of the Holy Spear!":"You found the SPEAR SHAFT! The golden handle of the Holy Spear!"},
-          both?{who:'George',text:"Both pieces are glowing... something magical is happening!"}
+          both?{who:'George',text:"Both pieces are shining with a soft light from heaven... Dear God, what is happening?"}
               :{who:'Tip',text: head?"Now find the Spear Shaft on top of the Eastern Hills. A big WHITE BEAR guards it!":"Now find the Spear Head deep in the West Forest. A big WHITE WOLF guards it!"}],
           both?()=>{G.mode='join';G.joinT=0;SFX.item();}:null); }
     } }
@@ -2518,7 +2550,7 @@ function render(){
     for(const c of chickens) if(!c.carried) ents.push({y:c.y,draw:()=>c.hen?drawHen(ctx,c,t):drawChicken(ctx,c,t)});
     // golden cross back on the church bell tower
     if(!G.side.cross.storm && !(G.mode==='storm'&&G.storm&&G.storm.t>=STORM.blow)){ const bx=CHURCH.x*TS+80, by=CHURCH.y*TS-74; ents.push({y:CHURCH.y*TS+90,draw:()=>{
-      const w=G.mode==='storm'&&G.storm?stormWobble(G.storm.t):0; ctx.save(); ctx.translate(bx,by+14); ctx.rotate(w); drawGoldCross(ctx,0,-14,0.85,true); ctx.restore(); }}); }
+      const w=G.mode==='storm'&&G.storm?stormWobble(G.storm.t,G.storm.at):0; ctx.save(); ctx.translate(bx,by+14); ctx.rotate(w); drawGoldCross(ctx,0,-14,0.85,true); ctx.restore(); }}); }
     if(G.mode==='storm'&&G.storm&&G.storm.t>=STORM.blow&&G.storm.t<STORM.flyEnd){ ents.push({y:1e9,draw:()=>{ const c=stormCrossPos(G.storm.t); ctx.save(); ctx.translate(c.x,c.y); ctx.rotate(c.rot); drawGoldCross(ctx,0,0,0.85*c.sc,true); ctx.restore(); }}); }
     if(G.side.cross.st==='done'){ const bx=CHURCH.x*TS+80, by=CHURCH.y*TS-74; ents.push({y:CHURCH.y*TS+90,draw:()=>{ drawGoldCross(ctx,bx,by,0.85,true);
       if(Math.sin(t*3)>0.2) drawStar(ctx,bx+12,by-10,3,'#fff'); if(G.crossT<3) for(let i=0;i<6;i++){const a=t*3+i;drawStar(ctx,bx+Math.cos(a)*24,by+Math.sin(a)*18,3,'#ffe14d');} }}); }
@@ -2564,15 +2596,29 @@ function maybeStartStorm(){ const X=G.side.cross;
   G.storm={t:0,cam0:{x:cam.x,y:cam.y},flash:-9,fired:{}}; G.mode='storm'; SFX_STORM.wind(); return true; }
 function stormCamChurch(){ return {x:clamp(CHURCH.x*TS+80-W/2,0,WORLD.w*TS-W), y:clamp(CHURCH.y*TS-320,0,WORLD.h*TS-H)}; }
 const ease=u=>{u=clamp(u,0,1);return u*u*(3-2*u);};
-function stormWobble(t){ if(t<STORM.wobble) return Math.sin(t*9)*0.04; const k=(t-STORM.wobble)/(STORM.blow-STORM.wobble); return Math.sin(t*26)*(0.08+0.35*k); }
+function stormWobble(t,a){ if(a==null) a=t; if(t<STORM.wobble) return Math.sin(a*9)*0.04; const k=clamp((t-STORM.wobble)/(STORM.blow-STORM.wobble),0,1); return Math.sin(a*26)*(0.08+0.35*k); }
 function stormCrossPos(t){ const u=clamp((t-STORM.blow)/(STORM.flyEnd-STORM.blow),0,1);
   const sx=CHURCH.x*TS+80, sy=CHURCH.y*TS-74, tx=CROSS_POS.x*TS+16, ty=CROSS_POS.y*TS+16;
   const dx=tx-sx, dy=ty-sy, d=Math.hypot(dx,dy), fly=Math.min(d,440)*u;
   return {x:sx+dx/d*fly, y:sy+dy/d*fly-Math.sin(u*Math.PI)*40, rot:u*14, sc:1.25-0.4*u}; }
-function stormCaption(t){ return t<STORM.panOut?'Whoosh! A big STORM is coming!':t<STORM.blow?'Look at the little church!':t<STORM.panBack?'Oh no! The wind blew the golden cross away!':'The storm is over...'; }
-function updateStorm(dt){ const S=G.storm; S.t+=dt; const t=S.t;
-  { const cap=stormCaption(t); if(S.said!==cap){ S.said=cap; speak(cap,'Narrator'); } }
-  for(const f of STORM.flashes) if(t>=f&&!S.fired[f]){ S.fired[f]=true; S.flash=t; SFX_STORM.thunder(); G.shake=0.25; }
+// slowstorm v14: the storm waits on each caption so young readers can read every word. The animation keeps going (rain,
+// wind, wobbling cross, thunder) while a caption is held. A caption stays at least max(4 s, 2 s + 0.5 s per word), never moves on
+// before its voice line has finished, and then waits for A / tap (or moves on by itself when Auto-continue is ON).
+const STORM_CAPS=['Whoosh! A big STORM is coming!','Look at the little church!','Oh no! The wind blew the golden cross away!','The storm is over...'];
+const STORM_SEG=[STORM.panOut,STORM.blow-0.02,STORM.panBack,STORM.end];   // hold 'Look at the little church!' just before the cross blows off
+function stormMinTime(cap){ return Math.max(4,2+0.5*String(cap).trim().split(/\s+/).length); }
+function stormCaption(t){ const S=G.storm; if(S&&S.seg!=null) return STORM_CAPS[S.seg]; return STORM_CAPS[t<STORM.panOut?0:t<STORM.blow?1:t<STORM.panBack?2:3]; }
+function updateStorm(dt){ const S=G.storm; if(S.seg==null){ S.seg=0; S.at=0; S.ct=0; }
+  S.at+=dt; const segEnd=STORM_SEG[S.seg]; S.t=Math.min(S.t+dt,segEnd); const t=S.t;   // slowstorm v14: timeline holds at the end of each caption
+  const cap=STORM_CAPS[S.seg];
+  if(S.said!==S.seg){ const sg=S.seg; S.said=sg; S.ct=0; S.vDone=false; S.voiced=speak(cap,'Narrator',{onend:()=>{ if(G.storm===S&&S.seg===sg) S.vDone=true; }}); }
+  S.ct+=dt;
+  const voiceBusy=!!S.voiced && voiceReady() && !S.vDone && (VO.started||S.ct<3) && S.ct<autoSpeechMax(cap,VO.rate)+1;   // iOS: onend may never come
+  const held=S.t>=segEnd, readable=held && !voiceBusy && S.ct>=stormMinTime(cap);
+  S.ready=readable; S.voiceBusy=voiceBusy;
+  if(held && S.seg<2 && S.at-(S.flash||-9)>3.4 && S.ct>1){ S.flash=S.at; SFX_STORM.thunder(); G.shake=0.15; }   // keep the storm alive while we wait
+  if(readable && (autoText || (pv.action && S.ct>1))){ if(S.seg>=STORM_CAPS.length-1){ finishStorm(); return; } S.seg++; }
+  for(const f of STORM.flashes) if(t>=f&&!S.fired[f]){ S.fired[f]=true; S.flash=S.at; SFX_STORM.thunder(); G.shake=0.25; }
   if(t>=STORM.wobble&&!S.fired.w){ S.fired.w=true; SFX_STORM.wind(); }
   if(t>=STORM.blow&&!S.fired.b){ S.fired.b=true; SFX_STORM.wind(); beep(900,0.5,'triangle',0.04,1500); }
   if(t>=STORM.blow&&t<STORM.flyEnd&&Math.random()<0.8){ const c=stormCrossPos(t); particles.push({x:c.x,y:c.y,vx:(Math.random()-0.5)*40,vy:-10,life:0.7,col:Math.random()<0.5?'#ffe14d':'#fff',size:3}); }
@@ -2580,29 +2626,33 @@ function updateStorm(dt){ const S=G.storm; S.t+=dt; const t=S.t;
   const cc=stormCamChurch(), gx=clamp(P.x-W/2,0,WORLD.w*TS-W), gy=clamp(P.y-20-H/2,0,WORLD.h*TS-H);
   let u=0; if(t<STORM.panOut) u=0; else if(t<STORM.panIn) u=ease((t-STORM.panOut)/(STORM.panIn-STORM.panOut)); else if(t<STORM.panBack) u=1; else u=1-ease((t-STORM.panBack)/(STORM.back-STORM.panBack));
   cam.x=S.cam0.x+(cc.x-S.cam0.x)*u; cam.y=S.cam0.y+(cc.y-S.cam0.y)*u; if(t>=STORM.panBack){ cam.x=gx+(cc.x-gx)*u; cam.y=gy+(cc.y-gy)*u; }
-  if(t>=STORM.end) finishStorm(); }
+}
 function finishStorm(){ const X=G.side.cross; X.storm=true; X.stormPending=false; G.storm=null; G.mode='play'; updateCamera(true);
   if(!items.some(i=>i.type==='goldCross')) items.push({type:'goldCross',x:tc(CROSS_POS.x),y:tc(CROSS_POS.y),map:'world'});
   startDialog([{who:'George',text:"Whoa! What a big storm! The wind blew the GOLDEN CROSS right off the church tower!"},
     {who:'George',text:"It flew away to the north-east. Father Ambrose must be so worried!"},
     {who:'Tip',text:"Visit Father Ambrose at the little church (west of the castle road). Look for the yellow '!'."}]); }
-function renderStorm(){ const S=G.storm; if(!S) return; const t=S.t;
+function renderStorm(){ const S=G.storm; if(!S) return; const t=S.t, at=S.at||t;
   const dark=t<STORM.darkIn?t/STORM.darkIn:t<STORM.back?1:1-clamp((t-STORM.back)/(STORM.end-STORM.back),0,1);
   ctx.fillStyle='rgba(18,22,48,'+(0.55*dark)+')'; ctx.fillRect(0,0,W,H);
   // rain streaks, blown by the wind
   ctx.strokeStyle='rgba(190,210,255,'+(0.65*dark)+')'; ctx.lineWidth=1.5; ctx.beginPath();
-  for(let i=0;i<140;i++){ const sp=520+(i*37%200); const x=((i*97.3+t*180)%(W+80))-40, y=((i*53.7+t*sp)%(H+40))-20; ctx.moveTo(x,y); ctx.lineTo(x-7,y+16); } ctx.stroke();
+  for(let i=0;i<140;i++){ const sp=520+(i*37%200); const x=((i*97.3+at*180)%(W+80))-40, y=((i*53.7+at*sp)%(H+40))-20; ctx.moveTo(x,y); ctx.lineTo(x-7,y+16); } ctx.stroke();
   // wind gusts: swirling leaves and streaks
-  for(let i=0;i<14;i++){ const x=((i*131+t*(260+i*12))%(W+60))-30, y=(i*67%H)+Math.sin(t*4+i)*18;
-    ctx.globalAlpha=0.8*dark; ctx.fillStyle=i%2?'#7fbf3f':'#c9a03a'; ctx.save(); ctx.translate(x,y); ctx.rotate(t*6+i); ctx.fillRect(-4,-2,8,4); ctx.restore();
+  for(let i=0;i<14;i++){ const x=((i*131+at*(260+i*12))%(W+60))-30, y=(i*67%H)+Math.sin(at*4+i)*18;
+    ctx.globalAlpha=0.8*dark; ctx.fillStyle=i%2?'#7fbf3f':'#c9a03a'; ctx.save(); ctx.translate(x,y); ctx.rotate(at*6+i); ctx.fillRect(-4,-2,8,4); ctx.restore();
     ctx.strokeStyle='rgba(255,255,255,'+(0.25*dark)+')'; ctx.beginPath(); ctx.moveTo(x-60,y+10); ctx.quadraticCurveTo(x-30,y,x-5,y+8); ctx.stroke(); } ctx.globalAlpha=1;
   // lightning flash + bolt
-  const fa=t-S.flash; if(fa>=0&&fa<0.35){ ctx.fillStyle='rgba(255,255,240,'+(0.7*(1-fa/0.35))+')'; ctx.fillRect(0,0,W,H);
+  const fa=at-S.flash; if(fa>=0&&fa<0.35){ ctx.fillStyle='rgba(255,255,240,'+(0.7*(1-fa/0.35))+')'; ctx.fillRect(0,0,W,H);
     if(fa<0.18){ const bx=120+((S.flash*997)%400); ctx.strokeStyle='#fffbd0'; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(bx,0); let y=0,x=bx; while(y<170){ y+=28; x+=(Math.sin(y*1.7+S.flash*9))*22; ctx.lineTo(x,y);} ctx.stroke(); } }
   // kid-friendly caption
-  ctx.font='bold 18px Verdana'; ctx.textAlign='center';
-  const cap=stormCaption(t);
-  outlined(ctx,cap,W/2,H-46,'#fff','#000',4); }
+  ctx.font='bold 20px Verdana'; ctx.textAlign='center';
+  const cap=stormCaption(t), cw=Math.min(W-24,ctx.measureText(cap).width+48);   // slowstorm v14: caption on a dark box, fits the 640 px canvas
+  rrect(ctx,(W-cw)/2,H-82,cw,54,12,'rgba(10,12,30,.78)');
+  outlined(ctx,cap,W/2,H-49,'#fff','#000',4);
+  if(S.ready && !autoText && Math.sin(G.t*5)>0){ ctx.font='bold 12px Verdana'; ctx.textAlign='right'; ctx.fillStyle='#ffe14d'; ctx.fillText((padSeen?'A':isTouch?'Tap':'SPACE')+' \u25B6',(W+cw)/2-10,H-33); }
+  if(autoText) drawAutoBadge((W+cw)/2-44,H-92,true);
+  for(let i=0;i<STORM_CAPS.length;i++){ ctx.fillStyle=i<=(S.seg||0)?'#ffe14d':'rgba(255,255,255,.3)'; ctx.beginPath(); ctx.arc(W/2-21+i*14,H-36,3,0,7); ctx.fill(); } }
 
 // ---- prayer v10: after the golden cross is back on the tower, Father Ambrose and George pray the Our Father inside the church (plays once)
 const OUR_FATHER=[
@@ -2622,7 +2672,8 @@ const HAIL_MARY=[
 // feast v11: Catholic Grace Before Meals, opened and closed with the Sign of the Cross
 const SIGN_CROSS=["In the name of the Father,","and of the Son, and of the Holy Spirit. Amen."];
 const GRACE=[SIGN_CROSS,["Bless us, O Lord, and these Thy gifts,","which we are about to receive"],["from Thy bounty,","through Christ our Lord. Amen."],SIGN_CROSS];
-const PRAYERS={our:{title:'The Our Father',pages:OUR_FATHER,who:'Father Ambrose'},hail:{title:'The Hail Mary',pages:HAIL_MARY,who:'Princess Sabra'},
+// signcross v14: the Our Father and the Hail Mary now also begin and end with the Sign of the Cross (each its own page), like Grace
+const PRAYERS={our:{title:'The Our Father',pages:[SIGN_CROSS,...OUR_FATHER,SIGN_CROSS],who:'Father Ambrose'},hail:{title:'The Hail Mary',pages:[SIGN_CROSS,...HAIL_MARY,SIGN_CROSS],who:'Princess Sabra'},
   grace:{title:'Grace Before Meals',pages:GRACE,who:'Father Ambrose'},
   meal:{title:'Grace Before Meals',pages:[SIGN_CROSS,GRACE[1],GRACE[2]],who:'George'}};   // coins v12: said before every meal George buys
 function startFeast(){ if(P.carry) dropHen(false); P.horse=false; P.attackT=0; P.kbT=0; P.block=false; P.walk=0; P.dashT=0; fireballs=[];
@@ -2828,6 +2879,10 @@ function renderJoin(){
   const t=G.joinT, p=Math.min(1,t/1.6);
   ctx.fillStyle='rgba(10,8,30,'+Math.min(0.8,t*1.5)+')';ctx.fillRect(0,0,W,H);
   const cx=W/2, cy=H/2+10, e=1-Math.pow(1-p,3);
+  // miracle v14: a soft beam of light from heaven onto the spear
+  { const a=Math.min(1,t/0.8)*0.55, g=ctx.createLinearGradient(0,0,0,cy+60); g.addColorStop(0,'rgba(255,250,215,'+a+')'); g.addColorStop(1,'rgba(255,240,170,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(cx-40,0); ctx.lineTo(cx+40,0); ctx.lineTo(cx+95,cy+60); ctx.lineTo(cx-95,cy+60); ctx.closePath(); ctx.fill();
+    for(let i=0;i<8;i++){ const yy=((t*60+i*47)%(cy+40)); drawStar(ctx,cx+Math.sin(i*2.3+t)*50*(yy/cy),yy,2,'#fff6c8'); } }
   if(t<1.6){
     for(let i=0;i<10;i++){const a=t*3+i*0.63;drawStar(ctx,cx+Math.cos(a)*90,cy+Math.sin(a)*90,3,'#ffe14d');}
     drawSpear(ctx,cx-140*(1-e),cy-110*(1-e),3,(1-e)*-0.8,'head');
@@ -2837,7 +2892,9 @@ function renderJoin(){
     for(let i=0;i<12;i++){ctx.rotate(Math.PI/6);ctx.fillStyle='rgba(255,230,120,.25)';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-18,-260);ctx.lineTo(18,-260);ctx.fill();}
     ctx.restore();
     drawSpear(ctx,cx,cy,3,0,'full');
-    ctx.textAlign='center';ctx.font='bold 40px Georgia, serif';outlined(ctx,'The HOLY SPEAR!',W/2,80,'#ffe14d','#5a1a1a',8);
+    ctx.textAlign='center';ctx.font='bold 40px Georgia, serif';outlined(ctx,'A MIRACLE!',W/2,70,'#ffe14d','#5a1a1a',8);
+    ctx.font='bold 20px Georgia, serif';outlined(ctx,"By God's grace, the Holy Spear",W/2,104,'#fff','#3a1a5a',5);
+    outlined(ctx,'is made whole again!',W/2,130,'#fff','#3a1a5a',5);
   }
   if(t>1.6&&t<2.2){ctx.fillStyle='rgba(255,255,255,'+(1-(t-1.6)/0.6)+')';ctx.fillRect(0,0,W,H);}
 }
@@ -2882,7 +2939,7 @@ function renderHUD(){
     if(cb.state==='recover'){ctx.font='bold 16px Verdana';outlined(ctx,cb.kind==='wcobra'?'It is dizzy! Poke it now!':'He is dizzy! Poke him now!',W/2,H-86,'#ffe14d','#000',4);}
   }
   // objective
-  if(map===WORLD && G.mode!=='victory'){
+  if(map===WORLD && G.mode!=='victory' && G.mode!=='storm' && G.mode!=='join'){   // slowstorm v14: no goal bar under the storm caption or the miracle
     const ob=objective(); ctx.font='bold 13px Verdana'; const w=ctx.measureText(ob.text).width+40;
     if(G.mode!=='prayer'){
     rrect(ctx,(W-w)/2,H-30,w,24,8,'rgba(0,0,0,.5)'); drawStar(ctx,(W-w)/2+16,H-18,7,'#ffe14d');
@@ -2967,7 +3024,7 @@ function renderQuestPanel(bx,by,bw,bh){
   const qs=[["Talk to the King in the castle",G.talkedKing,"North of the village, up the road"],
     ["Find the Spear Head",G.pieces.head,"Deep in the West Forest (wolves live there!)"],
     ["Find the Spear Shaft",G.pieces.shaft,"Top of the Eastern Hills (a big white bear guards it!)"],
-    ["Join them into the Holy Spear",G.hasSpear,"Happens by magic when you have both pieces"],
+    ["See the Holy Spear made whole",G.hasSpear,"By God's grace, when you have both pieces"],
     ["Make the dragon leave Silene alone",G.dragonDefeated,"In the cave to the south-east"]];
   const box=(x,y,done,col)=>{ rrect(ctx,x,y-15,20,20,4,done?col:'#fff'); ctx.strokeStyle='#5a3a1a';ctx.lineWidth=2;ctx.strokeRect(x,y-15,20,20);
     if(done){ctx.strokeStyle='#fff';ctx.lineWidth=3.5;ctx.beginPath();ctx.moveTo(x+4,y-5);ctx.lineTo(x+9,y+1);ctx.lineTo(x+17,y-11);ctx.stroke();} };
