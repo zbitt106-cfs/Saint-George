@@ -422,8 +422,8 @@ function drawWallShield(g,x,y,c){ g.save();g.translate(x,y);g.scale(0.8,0.8); g.
 function drawCastleInterior(g){
   CASTLE_TORCHES.length=0;
   // big rugs
-  drawRug(g,36*TS+4,5*TS+20,2*TS-8,TS+4,'#2a4fa0','#f2c94c');
-  drawRug(g,27*TS+6,5*TS+20,2*TS-8,TS+4,'#2a7a42','#f2c94c');
+  // rugs v5: a matching pair of royal blue rugs, mirrored around the red carpet and snapped to tiles 27-28 / 37-38
+  for(const rx of [27,37]) drawRug(g,rx*TS+6,5*TS+8,2*TS-12,2*TS-16,'#2a4fa0','#f2c94c');
   // throne dais & royal rug
   g.fillStyle='#b8a888';g.fillRect(31*TS+4,4*TS+2,3*TS-8,2*TS-6); g.fillStyle='#a89878';g.fillRect(31*TS+4,6*TS-6,3*TS-8,4);
   rrect(g,32*TS-2,4*TS+6,2*TS+4,2*TS-4,4,'#7a1a5a'); g.fillStyle='#f2c94c';g.fillRect(32*TS-2,6*TS-2,2*TS+4,2);
@@ -460,8 +460,6 @@ function drawCastleInterior(g){
   for(const [x,y] of CASTLE_PILLARS) drawPillar(g,x*TS,y*TS);
   for(const [x,y] of CASTLE_ARMOR) drawArmor(g,x*TS+16,y*TS+26);
   for(const [x,y] of [[27,4],[38,4],[30,14],[35,14]]) drawPlant(g,x*TS+16,y*TS+26);
-  // little rug at the entrance
-  drawRug(g,31*TS+8,14*TS+4,3*TS-16,TS-8,'#c8323c','#f2c94c');
 }
 function drawCastleLive(g,t){ // flickering flames for torches, candles & fireplace
   for(const [x,y,s] of CASTLE_TORCHES){ const f=Math.sin(t*12+x*0.7)*0.5+Math.sin(t*19+y)*0.5;
