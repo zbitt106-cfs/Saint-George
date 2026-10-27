@@ -25,10 +25,20 @@ A small, kid-friendly adventure game in a single HTML file (`index.html`). Open 
 - Off by default. Turn it on with **T** or **Auto-continue: ON/OFF** in the pause menu. The game remembers the setting in this browser (localStorage).
 - When it is on, each dialogue page turns by itself once the text has finished typing **and** the voice has finished reading it (with a short half-second pause after). With voices off or unavailable, the page waits a reading time of **1.2 s + 0.055 s per letter**, tuned for children who are learning to read. The last page closes the conversation by itself.
 - It also works for the prayers, the Grace at Old Martha's and the feast.
-- **Choices and menus never auto-pick.** The baker's shop, the donation box and any question always wait for the player.
+- **Choices and menus never auto-pick.** The baker's shop and any question always wait for the player. (The donation boxes have no menu any more: one press gives one coin, and nothing is given unless you press.)
 - A / Space / tap still turns the page straight away.
 - While it is on, a small green **▶▶** badge shows on the dialogue and prayer boxes.
 - On iPhone/iPad, where the "voice finished" signal sometimes never arrives, the page still turns after the time the line should have taken to read aloud.
+
+## What's new in v15
+
+- **Give a coin with every A press (donate v15).** Stand at the **church alms box** or the new **offering box at the Old Shrine** (just right of the shrine path) and press **A** (Space / E / Enter / Z, the controller A button, or the touch **A** button). Each press gives exactly **one coin**, with a coin clink and a little **+1 ✝** and "Thank you!". There is no menu, so you can tap as fast as you like. A small sign over the box shows **"Given: N"**. It works **at any time**, from the very start of the game until the dragon is beaten. (After the dragon the Victory screen goes back to the title, so there is no more play to give in.) Pressing A at a box never swings the sword.
+  - With no coins: *"You have no coins. God loves a cheerful giver!"* (said gently, only once in a while).
+  - Voices don't pile up: thanks are spoken at most every few seconds while you tap. Milestones are always spoken.
+  - **Church rewards:** at **10 coins** God blesses George's **sword and shield** (blessgear v15). It happens once, with soft chimes, a beam of light from above, and *"God has blessed your sword and shield!"* From then on both have a soft golden-white glow: in the world, while swinging and blocking, on and off the horse, and in the HUD. The glow is just for looks; it adds no extra strength. It does not repeat every 10 coins. At **25** the church gets its golden bell, new candles and stained-glass window (and all hearts are filled).
+  - **Shrine rewards:** every **10 coins** given there = Our Lady's blessing ("Holy Mary, pray for us!"), all hearts full. At **50** the little shrine becomes a **stone chapel** (see below). The church and shrine totals are kept separately, and the Victory screen shows both.
+- **The Shrine Chapel.** At 50 coins the Old Shrine is replaced by a much bigger stone chapel. It has a red roof, a bell tower with a swinging bell and a golden cross, an arched door facing the path, two stained-glass windows, a little window of Our Lady over the door, and candles and flowers. Its walls are solid. It sits on open grass around the old shrine (no trees, fruit plants, chests or critters there). The path still leads to its door, there are ways around both sides, and the offering box stays outside by the path. Anyone standing where the chapel appears (George, Mia, critters) is moved safely onto the path in front of it.
+- **Mia rides with you (miahorse v15).** While Little Mia is following George and he gets on the horse, Mia hops up and sits behind him on the horse, facing the same way, instead of running after it. When George gets off (H, the horse button, L3/D-pad up, or going indoors), she hops down next to him, never inside a wall or tree, and follows on foot again.
 
 ## What's new in v14
 
@@ -100,7 +110,7 @@ Four pieces of **Green Dragon** gear, blessed by God, are hidden in guarded ches
   | Hearty Feast | 15 | +1 **max** heart (only twice) |
 
   Martha won't sell you food when your hearts are already full, so no coins are wasted. **Every bought meal starts with Grace**: George bows his head and the Grace is shown and read aloud slowly, *"In the name of the Father, and of the Son, and of the Holy Spirit. Amen. Bless us, O Lord, and these Thy gifts, which we are about to receive from Thy bounty, through Christ our Lord. Amen."* Then he eats and the hearts fill up. A / Space / a tap turns the pages quickly, but Grace is always shown.
-- **The church alms box** (beside Father Ambrose's church): give **1 or 5 coins** for the poor and the church, and Father Ambrose thanks you out loud. At **10 coins** given he blesses George and all hearts are filled. At **25 coins** the church gets a **golden bell, a stained-glass rose window and candles** by the door, and George gets another blessing.
+- **The church alms box** (beside Father Ambrose's church) and **the shrine offering box**: press **A** once per coin (v15). Father Ambrose thanks you out loud. At **10 coins** at the church, God blesses George's sword and shield and they glow softly. At **25** the church gets a **golden bell, a stained-glass rose window and candles** by the door. Every **10 coins** at the shrine = Our Lady's blessing. At **50** the shrine becomes a stone chapel.
 
 ## Fruit instead of hearts
 
@@ -110,7 +120,7 @@ The plants are spread out (at least 8 tiles apart) over every part of the map. T
 
 ## Little Mia
 
-Mama Rose's daughter **Mia** has wandered **deep into the West Forest**, to a hidden flower clearing on its far west side. Mama Rose says so when you talk to her. Mia follows George home (she keeps up with the horse too) and Mama Rose thanks you.
+Mama Rose's daughter **Mia** has wandered **deep into the West Forest**, to a hidden flower clearing on its far west side. Mama Rose says so when you talk to her. Mia follows George home and Mama Rose thanks you. When George rides the horse, Mia sits behind him on it, and she hops off when he gets down (v15).
 
 ## The Victory Feast
 
@@ -125,5 +135,8 @@ After the dragon is tamed, everyone gathers in the castle hall for a **Victory F
 Then everyone eats. The food disappears and people chat over soft festive music. After that comes the victory screen. Every step continues with A / Space / a tap, and also moves on by itself, so the feast can never get stuck.
 
 ## Screenshots
+
+v15: `screens/donate_church_v15.png` (A at the church box, 'Given: N'), `screens/donate_shrine_v15.png` (the shrine offering box), `screens/shrine_upgrade.png` (the 50-coin stone chapel) and `screens/mia_horse.png` (Mia riding behind George) and `screens/blessed_gear.png` (the sword and shield blessing at 10 coins).
+
 
 New v12 screenshots are in the `screens/` folder: `bigworld_overview.png` (the whole map with the fruit, chests, guardians and crocs marked), `bigworld_*.png` (lake, windmill, tower, shrine, pass, badlands, southwood), `armor.png`, `helmet.png`, `gloves.png`, `boots.png`, `fullset.png`, `fullset_world.png`, `shop.png`, `food_grace.png`, `food_eat.png`, `donate.png`, `donate_blessing.png`, `church_upgrade.png`, `fruit.png`, `fruit_pumpkin.png`, `crocs.png` and `crocs_white.png`.

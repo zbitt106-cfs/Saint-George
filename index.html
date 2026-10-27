@@ -1068,18 +1068,23 @@ function drawPerson(g,x,y,o,dir,walk){
     g.lineTo(x+4,cy+1);g.lineTo(x+8,cy-3);g.lineTo(x+8,cy+5);g.fill();circ(g,x,cy,1.5,'#e33');}
   if(o.hat){g.fillStyle=o.hat;g.fillRect(x-11,y-35,22,3);g.fillRect(x-7,y-41,14,7);}
 }
+// blessgear v15: after 10 coins at the church George's sword and shield are blessed: a soft golden-white glow (cosmetic only)
+let GEAR_GLOW=false;
+function gearGlow(g){ if(!(GEAR_GLOW&&typeof G!=='undefined'&&G&&G.gearBlessed)) return false; g.shadowColor='rgba(255,236,160,0.9)'; g.shadowBlur=5+Math.sin((G.t||0)*3)*1.5; return true; }
 function drawSwordIcon(g,x,y,s,ang){
-  g.save();g.translate(x,y);g.rotate(ang||0);g.scale(s,s);
+  g.save();g.translate(x,y);g.rotate(ang||0);g.scale(s,s); const gl=gearGlow(g);
   g.fillStyle='#e8eef5';g.fillRect(-2,-22,4,20);g.beginPath();g.moveTo(-2,-22);g.lineTo(0,-26);g.lineTo(2,-22);g.fill();
   g.fillStyle='#fff';g.fillRect(-1,-21,1,18);
   g.fillStyle='#f2c94c';g.fillRect(-7,-3,14,3);g.fillStyle='#7a4a21';g.fillRect(-1.5,0,3,7);circ(g,0,8,2.5,'#f2c94c');
+  if(gl){ g.shadowBlur=0; g.fillStyle='rgba(255,248,210,.35)'; g.fillRect(-3,-23,6,21); if(Math.sin((G.t||0)*2.3)>0.93) drawStar(g,0,-24,2.2,'#fffbe0'); }
   g.restore();
 }
 function drawShieldIcon(g,x,y,s){
-  g.save();g.translate(x,y);g.scale(s,s);
+  g.save();g.translate(x,y);g.scale(s,s); const gl=gearGlow(g);
   g.fillStyle='#bfc6ce';g.beginPath();g.moveTo(-10,-11);g.lineTo(10,-11);g.lineTo(10,0);g.quadraticCurveTo(10,9,0,13);g.quadraticCurveTo(-10,9,-10,0);g.closePath();g.fill();
   g.fillStyle='#fff';g.beginPath();g.moveTo(-8,-9);g.lineTo(8,-9);g.lineTo(8,0);g.quadraticCurveTo(8,7,0,11);g.quadraticCurveTo(-8,7,-8,0);g.closePath();g.fill();
   g.fillStyle='#d62828';g.fillRect(-1.8,-9,3.6,19);g.fillRect(-8,-3,16,3.6);
+  if(gl){ g.shadowBlur=0; g.strokeStyle='rgba(255,236,150,'+(0.45+Math.sin((G.t||0)*3)*0.15)+')'; g.lineWidth=1.5; g.beginPath();g.moveTo(-10,-11);g.lineTo(10,-11);g.lineTo(10,0);g.quadraticCurveTo(10,9,0,13);g.quadraticCurveTo(-10,9,-10,0);g.closePath();g.stroke(); }
   g.restore();
 }
 function drawSpear(g,x,y,s,ang,part){
@@ -1131,9 +1136,15 @@ function drawGeorge(g,x,y,P,t){
   if(P.inv>0 && Math.floor(t*20)%2===0) return;
   const dir=P.dir, side=dir==='left'||dir==='right', bob=P.walk?Math.abs(Math.sin(P.walk*0.9))*2.2:0;
   drawHorse(g,x,y,dir,P.walk,'back');
+  const m=npcById('mia'), mia=m&&m.follow&&m.riding&&map===WORLD;   // miahorse v15: Little Mia rides behind George
+  const drawMia=(mx,my)=>{ g.save(); g.translate(mx,my); g.scale(0.72,0.72); drawPerson(g,0,0,m.o,dir,0); g.restore(); };
+  if(mia && side) drawMia(x+(dir==='left'?17:-17),y-15-bob);
+  if(mia && dir==='down') drawMia(x,y-21-bob);
   drawGeorgeBody(g,x,y-(side?14:12)-bob,Object.assign({},P,{inv:0,walk:0,dashT:0}),t);
+  if(mia && dir==='up') drawMia(x,y-4-bob);
   drawHorse(g,x,y,dir,P.walk,'front'); }
-function drawGeorgeBody(g,x,y,P,t){
+function drawGeorgeBody(g,x,y,P,t){ GEAR_GLOW=true; try{ drawGeorgeBody0(g,x,y,P,t); } finally{ GEAR_GLOW=false; } }   // blessgear v15
+function drawGeorgeBody0(g,x,y,P,t){
   if(P.inv>0 && Math.floor(t*20)%2===0) return;
   const dir=P.dir;
   const o=georgeLook();   // dragonset v12: shows each Green Dragon piece
@@ -1457,7 +1468,8 @@ function makeNPCs(){
     {id:'ambrose',name:'Father Ambrose',tx:26,ty:24,o:{shirt:'#3a3a4a',hair:'#bbb',beard:'#ddd',legs:'#2a2a3a',dress:true,trim:'#ffd23f'}},
     {id:'mia',name:'Little Mia',tx:4,ty:29,o:{shirt:'#ff7eb6',hair:'#f0c040',longHair:true,dress:true},small:true},
     {id:'martha',name:'Old Martha',tx:34,ty:47,o:{shirt:'#c46a9a',hair:'#e8e8e8',longHair:true,dress:true,apron:true}},           // coins v12: the food stall
-    {id:'alms',name:'Alms Box',tx:24,ty:23,box:true,o:{}},                                                                          // coins v12: donations
+    {id:'alms',name:'Alms Box',tx:24,ty:23,box:true,o:{}},
+    {id:'shrinebox',name:'Shrine Box',tx:58,ty:60,box:true,shrine:true,o:{}},   // donate v15: the Old Shrine's offering box, beside the shrine path                                                                          // coins v12: donations
     {id:'finn',name:'Fisher Finn',tx:90,ty:22,o:{shirt:'#3a7bd5',hair:'#6b3e1e',beard:'#6b3e1e',hat:'#e0c070',legs:'#4a4a3a'}},      // bigworld v12
     {id:'molly',name:'Miller Molly',tx:22,ty:58,o:{shirt:'#f0e0b0',hair:'#c0602a',longHair:true,dress:true,apron:true}},
     {id:'hugh',name:'Hermit Hugh',tx:80,ty:62,o:{shirt:'#7a6a50',hair:'#ccc',beard:'#eee',legs:'#5a4a3a',dress:true,trim:'#a89060'}},
@@ -1609,13 +1621,12 @@ function npcLines(n){
   return [L(n.name,"Hello!")];
 }
 function onTalkEnd(n){
-  if(n.id==='alms'){ G.almsSeen=true; openMenu(almsMenu()); return; }
   if(n.id==='martha'){ G.marthaSeen=true; openMenu(shopMenu()); return; }
   if(n.id==='king' && !G.talkedKing){ G.talkedKing=true; SFX.item(); addText(P.x,P.y-50,'Quest updated!','#ffe14d'); startHail(); return; } // hailmary v10
   const S=G.side;
   if(n.id==='giles'){ if(S.hens.st==='none'){ S.hens.st='active'; sideStart('Chicken Roundup'); } else if(S.hens.st==='ready'){ S.hens.st='done'; sideReward('Chicken Roundup'); } }
   if(n.id==='rose'){ if(S.child.st==='none'){ S.child.st='active'; sideStart('Lost Child'); }
-    else if(S.child.st==='follow'){ S.child.st='done'; const m=npcById('mia'); m.follow=false; m.x=n.x+24; m.y=n.y; m.dir='left'; n.dir='right';
+    else if(S.child.st==='follow'){ S.child.st='done'; const m=npcById('mia'); m.follow=false; m.riding=false; m.x=n.x+24; m.y=n.y; m.dir='left'; n.dir='right';
       for(let i=0;i<6;i++) setTimeout(()=>addParticles(n.x+12,n.y-30,4,['#ff7eb6','#ff3b5c','#fff'],60),i*120);
       addText(n.x+12,n.y-60,'\u2665 Hug! \u2665','#ff7eb6'); sideReward('Lost Child'); } }
   if(n.id==='mia' && S.child.st!=='done' && !n.follow){ if(S.child.st==='none') sideStart('Lost Child'); S.child.st='follow'; n.follow=true; n.trail=[]; n.stuck=0;
@@ -1848,9 +1859,7 @@ function shopMenu(){ const opts=FOODS.map(f=>{ let why='';
     return {label:f.name,note:f.id==='feast'?f.note+' ('+((G.hearty||0))+'/'+FEAST_MAX+')':f.note,cost:f.cost,why,food:f.food,go:()=>buyFood(f)}; });
   opts.push({label:'Bye!',note:'',go:closeMenu});
   return {title:"Old Martha's Food Stall",sub:'Fresh from the oven! Every meal starts with Grace.',opts,kind:'shop'}; }
-function almsMenu(){ const o=n=>({label:'Give '+n+(n===1?' coin':' coins'),note:'for the poor & the church',cost:n,why:(G.coins||0)<n?'Not enough coins!':'',go:()=>donate(n)});
-  const next=(G.donated||0)<10?'At 10: a blessing':(G.donated||0)<25?'At 25: a gift for the church':'The church is shining!';
-  return {title:'Church Alms Box',sub:'Given so far: '+(G.donated||0)+' coins.  '+next,opts:[o(1),o(5),{label:'Bye!',note:'',go:closeMenu}],kind:'alms'}; }
+// donate v15: the old 'Give 1 / Give 5' alms menu was replaced by giveCoin() (one coin per A press)
 function menuGeom(M){ const n=M.opts.length, rh=34, bw=420, bh=92+n*rh, bx=(W-bw)/2, by=(H-bh)/2-10; return {n,rh,bw,bh,bx,by,ry:by+70}; }
 function menuHit(x,y){ const M=G.menu; if(!M) return -1; const q=menuGeom(M); if(x<q.bx||x>q.bx+q.bw) return -1; const i=Math.floor((y-q.ry)/q.rh); return i>=0&&i<q.n?i:-1; }
 function menuPick(i){ const M=G.menu, o=M.opts[i]; if(!o) return; M.sel=i;
@@ -1926,15 +1935,85 @@ function renderMeal(Q){ const t=G.t, k=Q.ph==='bow'?clamp(Q.t/0.4,0,1):1;
   if(praying){ ctx.font='bold 13px Verdana'; ctx.textAlign='center'; outlined(ctx,'Grace before meals',cx,40,'#ffe14d','#000',3); } }
 // ---------- donations at the church alms box ----------
 const ALMS_THANKS=["Thank you, George! Your kindness helps the poor and keeps our little church warm.","God loves a cheerful giver! Thank you, my boy.","Bless you, George! Every coin helps someone in need.","How generous! The poor of Silene will have bread tonight."];
-function donate(n){ const c=G.coins||0; if(n<=0||c<n) return false; const before=G.donated||0;
-  G.coins=Math.max(0,c-n); G.donated=before+n; G.menu=null; G.mode='play';
-  const box=npcById('alms'); if(box) addParticles(box.x,box.y-20,6+n*2,['#ffd23f','#fff3a0'],90); beep(1500,0.06,'square',0.03,1900); setTimeout(()=>beep(1100,0.08,'square',0.03,1400),90);
-  const lines=[{who:'Father Ambrose',text:ALMS_THANKS[(G.gifts=(G.gifts||0)+1)%ALMS_THANKS.length]}];
-  let bless=false;
-  if(before<10 && G.donated>=10){ lines.push({who:'Father Ambrose',text:"Ten coins for the poor! May God bless you and keep you, George. Feel His strength: all your hearts are full!"}); bless=true; G.blessed10=true; }
-  if(before<25 && G.donated>=25){ lines.push({who:'Father Ambrose',text:"Twenty-five coins! Look, George: a golden bell, new candles and a beautiful stained-glass window for our church! God bless you, my son."}); bless=true; G.churchUp=true; }
-  if(bless){ G.hp=G.maxHp; SFX.win(); addParticles(P.x,P.y-20,26,['#ffe14d','#fff','#cfe8ff'],150); addText(P.x,P.y-60,'Blessed! All hearts full!','#ffe14d'); G.blessT=2.5; }
-  startDialog(lines); return true; }
+// donate v15: give at the church alms box or the Old Shrine box at any time in the game, one coin per A press.
+// No menu and no dialog, so mashing A just keeps giving. Rewards come from the running totals:
+//   church (G.donated): 10 coins = sword & shield blessed once (blessgear v15, glow only); 25 = the church upgrade (bell, candles, window)
+//   shrine (G.shrineGiven): every 10 coins = Our Lady's blessing (all hearts full); 50 = the shrine becomes a little stone chapel
+const SHRINE_THANKS=["Holy Mary, Mother of God, pray for us!","Thank you, George! A candle is lit for Our Lady.","God bless your kind heart!"];
+const SHRINE_UP=50;
+// donate v15: the 50-coin upgrade turns the Old Shrine into a bigger stone chapel. Footprint = tiles 54..58 x 56..59, which were
+// open grass around the old 3x2 shrine (no trees, plants, chests or foes there); the path at x 56-57 still ends at its door and
+// the offering box (tile 58,60) stays outside on the path side. Paths around it at x 53 and x 59 keep the north side reachable.
+const CHAPEL={x:54*TS,y:56*TS,w:5*TS,h:4*TS};
+function nudgeOut(e,hw,hh,i){ if(!(e&&e.x+hw>CHAPEL.x&&e.x-hw<CHAPEL.x+CHAPEL.w&&e.y+hh>CHAPEL.y&&e.y-hh<CHAPEL.y+CHAPEL.h)) return false;
+  const spots=[[57*TS,60*TS+14],[56*TS,60*TS+14],[57*TS,61*TS+12],[55*TS+16,60*TS+14],[53*TS+16,58*TS],[59*TS+16,58*TS]];
+  for(let k=0;k<spots.length;k++){ const [x,y]=spots[(k+(i||0))%spots.length]; if(!boxHits(WORLD,x,y,hw,hh)){ e.x=x; e.y=y; return true; } }
+  e.x=57*TS; e.y=61*TS+12; return true; }
+function buildChapel(){ if(G.shrineUp) return; G.shrineUp=true; SFX.chime(); showToast('The shrine is now a little chapel!');
+  if(map===WORLD) nudgeOut(P,10,8,0); const m=npcById('mia'); if(m&&m.follow&&!m.riding) nudgeOut(m,5,4,1);
+  let i=2; for(const f of foes) if(f.map==='world') nudgeOut(f,f.hw||10,6,i++); for(const c of chickens) nudgeOut(c,6,4,i++);
+  for(let k=0;k<5;k++) setTimeout(()=>addParticles(CHAPEL.x+CHAPEL.w/2+(Math.random()-0.5)*CHAPEL.w,CHAPEL.y+Math.random()*CHAPEL.h,8,['#fff','#ffe14d','#cfe8ff'],110),k*140);
+  if(map===WORLD) updateCamera(true); }
+function drawChapel(g,t){ if(!G.shrineUp) return; const x=CHAPEL.x, y=CHAPEL.y, w=CHAPEL.w, cx=x+w/2, base=y+CHAPEL.h;
+  ell(g,cx,base+2,w/2+6,8,'rgba(0,0,0,.22)');
+  // stone walls
+  g.fillStyle='#cfc6b2'; g.fillRect(x+10,y+38,w-20,base-y-38); g.fillStyle='#b8ae98'; g.fillRect(x+10,base-10,w-20,10);
+  g.strokeStyle='rgba(120,110,90,.35)'; g.lineWidth=1; for(let r=y+46;r<base-10;r+=12){ g.beginPath(); g.moveTo(x+10,r); g.lineTo(x+w-10,r); g.stroke(); }
+  // roof
+  g.fillStyle='#8a3a28'; g.beginPath(); g.moveTo(x,y+44); g.lineTo(cx,y-6); g.lineTo(x+w,y+44); g.closePath(); g.fill();
+  g.fillStyle='#a54a34'; g.beginPath(); g.moveTo(x+12,y+40); g.lineTo(cx,y+4); g.lineTo(x+w-12,y+40); g.closePath(); g.fill();
+  // little bell tower with a swinging bell and a golden cross
+  g.fillStyle='#cfc6b2'; g.fillRect(cx-14,y-40,28,38); g.fillStyle='#8a3a28'; g.beginPath(); g.moveTo(cx-18,y-38); g.lineTo(cx,y-56); g.lineTo(cx+18,y-38); g.fill();
+  g.fillStyle='#3a3040'; g.fillRect(cx-8,y-32,16,18); const sw=Math.sin(t*2)*0.2; g.save(); g.translate(cx,y-30); g.rotate(sw); g.fillStyle='#ffd23f'; g.beginPath(); g.moveTo(-6,13); g.quadraticCurveTo(-6,0,0,0); g.quadraticCurveTo(6,0,6,13); g.closePath(); g.fill(); g.restore();
+  g.fillStyle='#ffd23f'; g.fillRect(cx-2,y-76,4,22); g.fillRect(cx-8,y-70,16,4);
+  // stained-glass windows
+  for(const wx of [x+34,x+w-34]){ g.fillStyle='#5a4a3a'; g.beginPath(); g.arc(wx,y+64,10,Math.PI,0); g.lineTo(wx+10,y+88); g.lineTo(wx-10,y+88); g.fill();
+    const cols=['#5b8fd9','#ff6b8a','#ffd23f','#7cfc8a']; for(let k=0;k<4;k++){ g.fillStyle=cols[(k+Math.floor(t*0.5))%4]; g.fillRect(wx-8+(k%2)*8,y+64+Math.floor(k/2)*12,8,12); }
+    g.fillStyle='#5b8fd9'; g.beginPath(); g.arc(wx,y+64,8,Math.PI,0); g.fill(); g.fillStyle='rgba(255,255,255,.25)'; g.fillRect(wx-1,y+56,2,32); }
+  // arched door, facing the path
+  g.fillStyle='#5a3a1e'; g.beginPath(); g.arc(cx,base-30,15,Math.PI,0); g.lineTo(cx+15,base-2); g.lineTo(cx-15,base-2); g.fill();
+  g.fillStyle='#7a5030'; g.fillRect(cx-1,base-42,2,40); circ(g,cx+6,base-16,1.8,'#ffd23f');
+  // Our Lady's little window above the door
+  circ(g,cx,y+48,8,'#3a3550'); circ(g,cx,y+46,3,'#f6c9a0'); g.fillStyle='#5b8fd9'; g.beginPath(); g.moveTo(cx,y+48); g.lineTo(cx+4,y+55); g.lineTo(cx-4,y+55); g.fill();
+  // candles and flowers by the door
+  for(const kx of [cx-26,cx+26]){ g.fillStyle='#fff8e0'; g.fillRect(kx-2,base-14,4,10); circ(g,kx,base-16+Math.sin(t*9+kx)*0.6,2.6,'#ffcf40'); }
+  for(const [fx,fy] of [[x+16,base+2],[x+28,base+6],[x+w-16,base+2],[x+w-30,base+6],[cx-36,base+4],[cx+36,base+4]]){ circ(g,fx,fy,3,'#ff6b8a'); circ(g,fx,fy,1.2,'#ffd23f'); } }
+function blessHearts(msg){ G.hp=G.maxHp; SFX.win(); addParticles(P.x,P.y-20,26,['#ffe14d','#fff','#cfe8ff'],150); addText(P.x,P.y-60,msg||'Blessed! All hearts full!','#ffe14d'); G.blessT=2.5; }
+function donSay(text,who,force){ // throttled voice: never spam while A is mashed
+  if(!force && (G.t-(G.donSaidAt??-99)<5 || VO.speaking)) return false; G.donSaidAt=G.t; return speak(text,who); }
+function blessGear(who){ if(G.gearBlessed) return; G.gearBlessed=true; G.blessed10=true; G.gearBlessT=3.2; SFX.chime();
+  addParticles(P.x,P.y-24,30,['#fff','#ffe14d','#fff8d0'],120); addText(P.x,P.y-74,'Sword and shield blessed!','#ffe14d');
+  showToast('\u271D God has blessed your sword and shield! \u271D');
+  donSay("Ten coins for the poor! Thank you, George. God has blessed your sword and shield! May they always protect the weak.",who||'Father Ambrose',true); }
+function drawGearBlessing(g){ const k=G.gearBlessT; if(!(k>0)) return; const a=Math.min(1,k/0.8)*Math.min(1,(3.2-k)/0.4), x=P.x, y=P.y;   // light from above
+  const gr=g.createLinearGradient(0,y-260,0,y+6); gr.addColorStop(0,'rgba(255,250,220,0)'); gr.addColorStop(0.5,'rgba(255,245,200,'+(0.35*a)+')'); gr.addColorStop(1,'rgba(255,240,170,'+(0.5*a)+')');
+  g.fillStyle=gr; g.beginPath(); g.moveTo(x-14,y-260); g.lineTo(x+14,y-260); g.lineTo(x+30,y+6); g.lineTo(x-30,y+6); g.closePath(); g.fill();
+  ell(g,x,y+2,30,8,'rgba(255,240,170,'+(0.35*a)+')'); }
+function giveCoin(box,n){ n=n||1; const shrine=!!box.shrine, c=G.coins||0, who=shrine?'Narrator':'Father Ambrose';
+  if(c<n){ if(G.t-(G.noCoinAt??-99)>1.5){ G.noCoinAt=G.t; addText(box.x,box.y-92,'No coins yet!','#fff');
+      showToast('You have no coins. God loves a cheerful giver!'); donSay(shrine?"You have no coins right now. That's okay! God loves a cheerful giver.":"You have no coins right now, George. That's okay! God loves a cheerful giver.",who); }
+    beep(300,0.06,'triangle',0.02); return false; }
+  const before=shrine?(G.shrineGiven||0):(G.donated||0), after=before+n;
+  G.coins=c-n; if(shrine) G.shrineGiven=after; else G.donated=after; G.gifts=(G.gifts||0)+1;
+  addParticles(box.x,box.y-26,4+n*2,['#ffd23f','#fff3a0'],70); beep(1500,0.05,'square',0.03,1900); setTimeout(()=>beep(1100,0.07,'square',0.03,1400),70);   // coin clink
+  texts.push({x:box.x+(Math.random()*16-8),y:box.y-88,txt:'+'+n+' \u271D',col:'#ffe14d',life:0.9});
+  if(G.t-(G.thanksAt??-99)>1.2){ G.thanksAt=G.t; addText(box.x,box.y-104,'Thank you!','#fff'); }
+  const crossed=k=>Math.floor(after/k)>Math.floor(before/k);
+  if(!shrine){
+    if(before<25 && after>=25){ G.churchUp=true; blessHearts('The church is shining!'); SFX.chime(); showToast('Twenty-five coins! A golden bell and a new window!');
+      donSay("Twenty-five coins! Look, George: a golden bell, new candles and a beautiful stained-glass window for our church! God bless you, my son.",who,true); }
+    else if(before<10 && after>=10) blessGear(who);   // blessgear v15: one time only, no heal; no repeat every 10 at the church
+    else donSay(ALMS_THANKS[G.gifts%ALMS_THANKS.length],who);
+  } else {
+    if(before<SHRINE_UP && after>=SHRINE_UP){ buildChapel(); blessHearts('A chapel for Our Lady!');
+      donSay("Fifty coins! Thanks be to God! The little shrine is now a beautiful stone chapel for Our Lady.",who,true); }
+    else if(crossed(10)){ blessHearts("Our Lady's blessing!"); showToast(after+' coins at the shrine! All hearts full!');
+      donSay("Holy Mary, pray for us! God bless you, George. All your hearts are full!",who,true); }
+    else donSay(SHRINE_THANKS[G.gifts%SHRINE_THANKS.length],who);
+  }
+  return true; }
+function donate(n){ const b=npcById('alms'); return b?giveCoin(b,n):false; }   // old helper (church box), kept for compatibility
+
 function drawAlmsBox(g,n,t){ const x=n.x,y=n.y; ell(g,x,y+2,13,4,'rgba(0,0,0,.25)');
   g.fillStyle='#5a3a1e'; g.fillRect(x-3,y-14,6,16); rrect(g,x-11,y-32,22,20,3,'#7a5030'); g.fillStyle='#9a6a40'; g.fillRect(x-11,y-32,22,3);
   g.fillStyle='#1a1008'; g.fillRect(x-6,y-29,12,2.5); g.fillStyle='#d9a93a'; g.fillRect(x-1.2,y-26,2.4,10); g.fillRect(x-4.5,y-23,9,2.4);
@@ -2038,7 +2117,8 @@ let titleT=0;
 // ================== HELPERS ==================
 function tileAt(m,px,py){const tx=Math.floor(px/TS),ty=Math.floor(py/TS);if(tx<0||ty<0||tx>=m.w||ty>=m.h)return T.TREE;return m.t[ty][tx];}
 function solidAt(m,px,py){return SOLID.has(tileAt(m,px,py));}
-function decoHit(x,y,hw,hh){ for(const r of DECO_SOLID){ if(x+hw>r[0]&&x-hw<r[0]+r[2]&&y+hh>r[1]&&y-hh<r[1]+r[3]) return true; } return false; }
+function decoHit(x,y,hw,hh){ if(G&&G.shrineUp&&x+hw>CHAPEL.x&&x-hw<CHAPEL.x+CHAPEL.w&&y+hh>CHAPEL.y&&y-hh<CHAPEL.y+CHAPEL.h) return true;   // donate v15: the shrine chapel is solid
+  for(const r of DECO_SOLID){ if(x+hw>r[0]&&x-hw<r[0]+r[2]&&y+hh>r[1]&&y-hh<r[1]+r[3]) return true; } return false; }
 function boxHits(m,x,y,hw,hh){return solidAt(m,x-hw,y-hh)||solidAt(m,x+hw,y-hh)||solidAt(m,x-hw,y+hh)||solidAt(m,x+hw,y+hh)||(m===WORLD&&decoHit(x,y,hw,hh));}
 function npcBlock(x,y){ if(map!==WORLD) return false; for(const n of npcs){ if(n.follow) continue; if(Math.abs(n.x-x)<16&&Math.abs(n.y-y)<12) return true; } return false; }
 function moveEnt(e,dx,dy,hw,hh,isPlayer){
@@ -2252,7 +2332,7 @@ function updatePlay(dt){
   const ox=P.x, oy=P.y; moveEnt(P,dx*sp*dt,dy*sp*dt,8,6,true);
   if(P.horse && Math.hypot(P.x-ox,P.y-oy)>0.5){ P.hoofT=(P.hoofT||0)-dt; if(P.hoofT<=0){ P.hoofT=0.17; P.hoofK=!P.hoofK; SFX.hoof(P.hoofK); if(Math.random()<0.25) addParticles(P.x,P.y,2,['#d8c8a0','#efe3c4'],30); } } }
   if(P.kbT>0){P.kbT-=dt;moveEnt(P,P.kbx*dt,P.kby*dt,8,6,true);}
-  if(P.inv>0)P.inv-=dt; if(P.attackT>0)P.attackT-=dt; if(G.noSwordT>0)G.noSwordT-=dt; if(P.spearCD>0)P.spearCD-=dt; if(G.noSpearT>0)G.noSpearT-=dt;
+  if(P.inv>0)P.inv-=dt; if(G.gearBlessT>0)G.gearBlessT-=dt; if(P.attackT>0)P.attackT-=dt; if(G.noSwordT>0)G.noSwordT-=dt; if(P.spearCD>0)P.spearCD-=dt; if(G.noSpearT>0)G.noSpearT-=dt;
   // spear v10: the Holy Spear is its own button (F / gamepad B / touch SPEAR); A / SPACE always swings the sword
   if(pv.spear){
     if(!G.hasSpear){ if(!(G.noSpearT>0)){ addText(P.x,P.y-50,'You need the Holy Spear first!','#fff'); G.noSpearT=1.4; } }
@@ -2270,7 +2350,7 @@ function updatePlay(dt){
       addText(P.x,P.y-64,'Got a hen! Carry it to the pen!','#ffe14d'); }
     else if(near){
       near.dir = Math.abs(P.x-near.x)>Math.abs(P.y-near.y) ? (P.x<near.x?'left':'right') : (P.y<near.y?'up':'down');
-      if(near.box && G.almsSeen){ openMenu(almsMenu()); return; } if(near.id==='martha' && G.marthaSeen){ SFX.talk(); speak("Hungry, dearie?",'Old Martha'); openMenu(shopMenu()); return; }
+      if(near.box){ giveCoin(near); return; }   // donate v15: every A press at a box gives one coin if(near.id==='martha' && G.marthaSeen){ SFX.talk(); speak("Hungry, dearie?",'Old Martha'); openMenu(shopMenu()); return; }
       startDialog(npcLines(near),()=>onTalkEnd(near)); SFX.talk(); return;
     } else if(map===WORLD && (ch=nearChest()) && !(chestLocked(ch) && foeNear(150))){ openChest(ch); }
     else if((pl=nearPlant()) && ((pl.ready&&G.hp<G.maxHp) || !foeNear(120))){ pickPlant(pl); }
@@ -2386,8 +2466,17 @@ function updateHen(c,dt){
     if(dP<300 && Math.random()<0.3){ beep(1350,0.05,'square',0.02,1750); if(Math.random()<0.5) texts.push({x:c.x,y:c.y-26,txt:'cluck!',col:'#fff',life:0.8}); } }
   moveEnt(c,c.vx*dt,c.vy*dt,6,4,false);
 }
+function miaHopOff(m){ m.riding=false; m.trail=[]; m.stuck=0; m.walk=0;
+  const b={left:[22,0],right:[-22,0],up:[0,22],down:[0,-20]}[P.dir]||[0,20];   // behind George first, then beside him, then in front
+  const tries=[b,[0,22],[22,4],[-22,4],[0,-20],[30,0],[-30,0],[0,30],[0,0]];
+  for(const [ox,oy] of tries){ const x=P.x+ox, y=P.y+oy; if(!boxHits(WORLD,x,y,5,4)){ m.x=x; m.y=y; break; } if(ox===0&&oy===0){ m.x=x; m.y=y; } }
+  m.dir=P.dir; addParticles(m.x,m.y-10,8,['#fff','#ff9fd0'],70); addText(m.x,m.y-42,'Hop!','#ff9fd0'); }
 function updateMia(dt){
   const m=npcById('mia'); if(!m||!m.follow) return;
+  // miahorse v15: while George rides, Mia sits on the horse behind him (drawn in drawGeorge); she hops off when he dismounts
+  if(P.horse){ if(!m.riding){ m.riding=true; addText(P.x,P.y-70,'Mia hops on!','#ff9fd0'); }
+    m.x=P.x; m.y=P.y; m.dir=P.dir; m.walk=0; m.stuck=0; m.trail=[]; return; }
+  if(m.riding){ miaHopOff(m); return; }
   const dx=P.x-m.x, dy=P.y-m.y, d=Math.hypot(dx,dy);
   if(d>260){ placeMiaNear(); addParticles(m.x,m.y-12,10,['#fff','#ff9fd0'],80); addText(m.x,m.y-40,'Wait for me!','#ff9fd0'); return; }
   m.walk=m.walk||0;
@@ -2536,9 +2625,12 @@ function render(){
   for(const it of items) if(it.map===map.name) ents.push({y:it.y,draw:()=>drawItem(it,t)});
   if(map===WORLD){
     for(const p of plants) if(p.map===map.name) ents.push({y:p.y,draw:()=>drawPlant(ctx,p,t)});
-    if(map===WORLD){ ents.push({y:(WINDMILL.y+3)*TS,draw:()=>drawWindmillSails(ctx,t)}); if(G.churchUp) ents.push({y:(CHURCH.y+3)*TS,draw:()=>drawChurchUpgrade(ctx,t)}); }
-    for(const n of npcs) ents.push({y:n.y,draw:()=>{
-      if(n.box){ drawAlmsBox(ctx,n,t); if(Math.hypot(n.x-P.x,n.y-P.y)<46 && G.mode==='play'){ rrect(ctx,n.x-9,n.y-52,18,16,4,'#fff'); ctx.fillStyle='#222';ctx.font='bold 12px Verdana';ctx.textAlign='center';ctx.fillText('!',n.x,n.y-40);} return; }
+    if(map===WORLD){ ents.push({y:(WINDMILL.y+3)*TS,draw:()=>drawWindmillSails(ctx,t)}); if(G.churchUp) ents.push({y:(CHURCH.y+3)*TS,draw:()=>drawChurchUpgrade(ctx,t)}); if(G.shrineUp) ents.push({y:CHAPEL.y+CHAPEL.h,draw:()=>drawChapel(ctx,t)}); }
+    for(const n of npcs) ents.push({y:n.y,draw:()=>{ if(n.riding&&n.follow&&P.horse) return;   // miahorse v15: drawn on the horse instead
+      if(n.box){ drawAlmsBox(ctx,n,t); if(Math.hypot(n.x-P.x,n.y-P.y)<46 && G.mode==='play'){   // donate v15: hint + running total
+        const tot=n.shrine?(G.shrineGiven||0):(G.donated||0), l1=(padSeen?'A':isTouch?'Tap A':'A / Space')+': give 1 coin', l2='Given: '+tot;
+        ctx.font='bold 11px Verdana'; const bw=Math.max(ctx.measureText(l1).width,ctx.measureText(l2).width)+14; rrect(ctx,n.x-bw/2,n.y-80,bw,32,6,'rgba(255,255,255,.92)');
+        ctx.fillStyle='#222'; ctx.textAlign='center'; ctx.fillText(l1,n.x,n.y-67); ctx.fillStyle='#a06a00'; ctx.fillText(l2,n.x,n.y-53);} return; }
       if(n.small){ ctx.save(); ctx.translate(n.x,n.y+(n.walk?0:Math.sin(t*2+n.tx)*0.6)); ctx.scale(0.72,0.72); drawPerson(ctx,0,0,n.o,n.dir,n.walk||0); ctx.restore(); }
       else drawPerson(ctx,n.x,n.y+Math.sin(t*2+n.tx)*0.6,n.o,n.dir,0);
       const mk=sideMark(n), top=n.small?44:62;
@@ -2559,7 +2651,7 @@ function render(){
   if(D && G.mode!=='victory') ents.push({y:D.y+40,draw:()=>drawDragon(ctx,D,t)});
   ents.push({y:P.y,draw:()=>{ drawGeorge(ctx,P.x,P.y,P,t);
     if(P.carry){ const c=P.carry; const bob=Math.abs(Math.sin(P.walk*0.5))*2; c.x=P.x; c.y=P.y-34-bob; drawHen(ctx,c,t); } }});
-  ents.sort((a,b)=>a.y-b.y).forEach(e=>e.draw());
+  ents.sort((a,b)=>a.y-b.y).forEach(e=>e.draw()); drawGearBlessing(ctx);   // blessgear v15: light from above
   for(const f of fireballs){const gr=ctx.createRadialGradient(f.x,f.y,1,f.x,f.y,11);gr.addColorStop(0,'#fff8c0');gr.addColorStop(0.5,'#ffb347');gr.addColorStop(1,'rgba(255,80,40,0)');
     ctx.fillStyle=gr;ctx.beginPath();ctx.arc(f.x,f.y,11+Math.sin(t*20)*1.5,0,Math.PI*2);ctx.fill();}
   for(const p of particles){ctx.globalAlpha=clamp(p.life*2,0,1);ctx.fillStyle=p.col;ctx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size);} ctx.globalAlpha=1;
@@ -2919,7 +3011,7 @@ function renderHUD(){
   // items
   { const cx=W-246; rrect(ctx,cx,6,66,34,8,G.coinFlash>0&&Math.sin(G.t*20)>0?'rgba(255,210,60,.55)':'rgba(0,0,0,.45)'); drawCoin(ctx,cx+16,23,8); ctx.font='bold 15px Verdana'; ctx.textAlign='left'; outlined(ctx,''+(G.coins||0),cx+29,29,'#ffd23f','#000',3); }   // coins v12
   const ix=W-176; rrect(ctx,ix,6,170,34,8,'rgba(0,0,0,.45)');
-  drawSwordIcon(ctx,ix+18,30,0.8,0.6); drawShieldIcon(ctx,ix+44,23,0.95);
+  GEAR_GLOW=true; drawSwordIcon(ctx,ix+18,30,0.8,0.6); drawShieldIcon(ctx,ix+44,23,0.95); GEAR_GLOW=false;
   if(G.hasSpear){ drawSpear(ctx,ix+80,23,0.42,1.0,'full'); }
   else { ctx.globalAlpha=G.pieces.head?1:0.25; drawSpear(ctx,ix+80,30,0.42,1.0,'head'); ctx.globalAlpha=G.pieces.shaft?1:0.25; drawSpear(ctx,ix+76,25,0.42,1.0,'shaft'); ctx.globalAlpha=1; }
   ctx.font='bold 11px Verdana';ctx.textAlign='left';if(!isTouch||padSeen) outlined(ctx,(padSeen?'START':isTouch?'\u2630':'P')+': Pause',ix+104,27,'#fff','#000',3);
@@ -3101,7 +3193,7 @@ function renderVictory(){
   const m=Math.floor(G.playTime/60), s=Math.floor(G.playTime%60);
   ctx.font='bold 15px Verdana';outlined(ctx,'Time: '+m+':'+(s<10?'0':'')+s+'      Creatures chased away: '+G.chased,W/2,404,'#7cfc8a','#000',4);
   ctx.font='bold 14px Verdana';outlined(ctx,'Side quests: '+(G.side?G.side.done:0)+'/4'+(G.side&&G.side.done===4?'   ★ Super helper of Silene! ★':''),W/2,423,'#ff9fd0','#000',4);
-  ctx.font='bold 13px Verdana';outlined(ctx,'Chests: '+(G.chests||0)+'   Coins earned: '+(G.coinsEarned||0)+'   Given to the church: '+(G.donated||0)+'   Dragon Set: '+gearCount()+'/4',W/2,440,'#ffd23f','#000',4);
+  ctx.font='bold 13px Verdana';outlined(ctx,'Chests: '+(G.chests||0)+'   Coins earned: '+(G.coinsEarned||0)+'   Given: '+(G.donated||0)+' church, '+(G.shrineGiven||0)+' shrine'+'   Dragon Set: '+gearCount()+'/4',W/2,440,'#ffd23f','#000',4);
   if(G.vt>1.5 && Math.sin(G.vt*4)>-0.3){ctx.font='bold 20px Verdana';outlined(ctx,padSeen?'Press A or START to play again':isTouch?'Tap to play again':'Press SPACE or R to play again',W/2,458,'#fff','#d62828',6);}
 }
 
