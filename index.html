@@ -178,6 +178,30 @@ const FOUNTAIN = {x:32,y:34};
 const HEAD_POS = {x:5,y:11}, SHAFT_POS = {x:64,y:7};
 const CAVE_POS = {x:63,y:40};
 
+// reach v7: make sure every open glade is reachable from George's start.
+// Flood-fill walkable tiles from the start; for each enclosed pocket, clear the fewest trees
+// (a narrow 1-tile grass trail) to join it to the reachable world. George's box (16x12) fits a 1-tile gap.
+const REACH_LOG=[];
+function openPockets(m,sx,sy){
+  const w=m[0].length,h=m.length, open=(x,y)=>!SOLID.has(m[y][x]);
+  const flood=()=>{ const R=m.map(r=>r.map(()=>0)); const st=[[sx,sy]]; R[sy][sx]=1;
+    while(st.length){ const [x,y]=st.pop(); for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ const a=x+dx,b=y+dy;
+      if(a<0||b<0||a>=w||b>=h||R[b][a]||!open(a,b)) continue; R[b][a]=1; st.push([a,b]); } } return R; };
+  for(let guard=0;guard<300;guard++){
+    const R=flood(); let seed=null;
+    for(let y=0;y<h&&!seed;y++)for(let x=0;x<w;x++) if(open(x,y)&&!R[y][x]){seed=[x,y];break;}
+    if(!seed) return;
+    // 0-1 BFS from the pocket: open tiles cost 0, trees cost 1 (only trees may be cleared, never the border)
+    const D=m.map(r=>r.map(()=>1e9)), prev=m.map(r=>r.map(()=>null)); const dq=[seed]; D[seed[1]][seed[0]]=0; let hit=null;
+    while(dq.length){ const [x,y]=dq.shift(); if(R[y][x]){hit=[x,y];break;}
+      for(const [dx,dy] of [[0,1],[1,0],[0,-1],[-1,0]]){ const a=x+dx,b=y+dy; if(a<1||b<1||a>=w-1||b>=h-1) continue;
+        const c=open(a,b)?0:(m[b][a]===T.TREE?1:-1); if(c<0) continue; const nd=D[y][x]+c;
+        if(nd<D[b][a]){ D[b][a]=nd; prev[b][a]=[x,y]; if(c===0) dq.unshift([a,b]); else dq.push([a,b]); } } }
+    if(!hit){ m[seed[1]][seed[0]]=T.TREE; REACH_LOG.push('filled '+seed); continue; } // no way out at all: plant a tree
+    const cleared=[]; let cur=hit; while(cur){ const [x,y]=cur; if(m[y][x]===T.TREE){ m[y][x]=T.GRASS; cleared.push(x+','+y); } cur=prev[y][x]; }
+    REACH_LOG.push('pocket@'+seed+' opened via '+cleared.join(' '));
+  }
+}
 function genWorld(){
   const m = makeGrid(MW,MH,T.GRASS);
   const r = mulberry32(2024);
@@ -247,6 +271,7 @@ function genWorld(){
   // borders
   for(let x=0;x<MW;x++){ if(m[0][x]!==T.WATER)m[0][x]=T.TREE; if(m[MH-1][x]!==T.WATER&&m[MH-1][x]!==T.MOUNTAIN)m[MH-1][x]=T.TREE; }
   for(let y=0;y<MH;y++){ m[y][0]=T.TREE; if(m[y][MW-1]!==T.MOUNTAIN) m[y][MW-1]=T.TREE; }
+  openPockets(m,30,37); // reach v7
   return {t:m,w:MW,h:MH,name:'world',houses:HOUSES,fountain:FOUNTAIN,castle:CASTLE};
 }
 function genLair(){
