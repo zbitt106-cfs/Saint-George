@@ -28,7 +28,7 @@
   body.touch.spear #btnSp{display:flex}
   #btnM{right:14px;top:calc(12px + env(safe-area-inset-top));width:42px;height:42px;background:rgba(120,60,170,.7);font-size:20px}
   #btnM.off{opacity:.45}
-  #btnH{right:118px;top:calc(12px + env(safe-area-inset-top));width:42px;height:42px;background:rgba(235,235,250,.8);font-size:22px}
+  #btnH{right:118px;bottom:calc(173px + env(safe-area-inset-bottom));width:54px;height:54px;background:rgba(235,235,250,.8);font-size:26px}   /* mobile v13: next to A in the action cluster */
   #btnQ{right:66px;top:calc(12px + env(safe-area-inset-top));width:42px;height:42px;background:rgba(60,120,220,.75);font-size:20px}
   #btnD{right:124px;bottom:calc(24px + env(safe-area-inset-bottom));width:56px;height:56px;background:rgba(60,170,110,.8);font-size:12px}
 </style>
@@ -67,7 +67,7 @@ const tc = t => t*TS+TS/2; // tile center
 const keys = {}; let pv = {}; // pv = virtual buttons pressed this frame
 const touchDir = {x:0,y:0}; let touchBlock=false, padBlock=false;
 function blockHeld(){ return !!(keys['shift']||keys['x']||padBlock||touchBlock); }
-const KEYMAP = {' ':'action','e':'action','enter':'action','z':'action','q':'pause','tab':'pause','p':'pause','escape':'pause','r':'restart','m':'mute','n':'music','v':'voices','f':'spear','c':'dash','control':'dash','h':'horse'};
+const KEYMAP = {' ':'action','e':'action','enter':'action','z':'action','q':'pause','tab':'pause','p':'pause','escape':'pause','r':'restart','m':'mute','n':'music','v':'voices','f':'spear','c':'dash','control':'dash','h':'horse','t':'autotext'};
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (!keys[k] && KEYMAP[k]) pv[KEYMAP[k]] = true;
@@ -94,6 +94,13 @@ function inputDir(){
 // gamepad (Xbox / PlayStation via standard mapping)
 const padDir={x:0,y:0}; let padPrev=[], padSeen=false; const toast={text:'',t:0};
 function showToast(s){toast.text=s;toast.t=2.6;}
+// autotext v13: optional auto-continue for dialogue + prayers (default OFF, saved in localStorage). Choices/menus never auto-pick.
+let autoText=false; try{ autoText=localStorage.getItem('sg_autotext')==='1'; }catch(e){}
+function setAutoText(v){ autoText=!!v; try{ localStorage.setItem('sg_autotext',autoText?'1':'0'); }catch(e){} showToast('Auto-continue: '+(autoText?'ON':'OFF')+' (T)'); }
+const AUTO_BASE=1.2, AUTO_PER=0.055;                                   // reading time for kids: 1.2 s + 55 ms per letter
+function autoReadTime(s){ return AUTO_BASE+AUTO_PER*String(s||'').length; }
+function autoSpeechMax(s,rate){ return 2.5+1.5*String(s||'').length/(14*(rate||0.85)); } // iOS: if onend never comes, give up waiting after this
+function hasChoice(d,line){ return !!(d&&(d.choice||d.noAuto))||!!(line&&(line.choice||line.choices||line.opts)); }
 addEventListener('gamepadconnected',()=>{if(!padSeen){padSeen=true;showToast('\uD83C\uDFAE Controller connected!');}});
 addEventListener('gamepaddisconnected',()=>{padSeen=false;padPrev=[];showToast('Controller disconnected');});
 let padUpAt=0;
@@ -1857,8 +1864,8 @@ function updateMeal(Q,dt){ const go=ph=>{Q.ph=ph;Q.t=0;}, PR=PRAYERS.meal;
     if(Q.saying && !Q.sayDone && (!voiceReady() || (!VO.started && Q.t>3))) Q.saying=false;
     let next=false;
     if(pv.action && Q.t>0.3){ next=true; if(Q.saying&&!Q.sayDone) voiceStop(); }            // A skips quickly (the words were still shown)
-    else if(Q.saying){ if(Q.sayDone){ Q.doneT+=dt; if(Q.doneT>=0.35) next=true; } else if(Q.t>=30) next=true; }
-    else if(Q.t>=3.2) next=true;
+    else if(Q.saying){ if(Q.sayDone){ Q.doneT+=dt; if(Q.doneT>=0.35) next=true; } else if(Q.t>=(autoText?autoSpeechMax(PR.pages[Q.page].join(' '),PRAYER_RATE):30)) next=true; }
+    else if(Q.t>=(autoText?Math.max(2,autoReadTime(PR.pages[Q.page].join(' '))):3.2)) next=true;
     if(next){ if(Q.page<PR.pages.length-1){ Q.page++; Q.t=0; } else { go('eat'); beep(784,0.12,'triangle',0.03); } } } break;
   case 'eat': Q.eat=Q.t; if(Math.floor(Q.t/0.32)!==Math.floor((Q.t-dt)/0.32)) beep(240+Math.random()*60,0.05,'square',0.04,160);
     if(Q.t>=1.3){ Q.msg=mealHeal(Q.food); SFX.pickup(); addParticles(P.x,P.y-20,14,['#ff3b5c','#ffd1dc','#fff'],110); go('yum'); } break;
@@ -1971,7 +1978,7 @@ let touchUI={spear:null,music:null};
 function syncTouchUI(){ const sp=!!(G&&G.hasSpear); if(touchUI.spear!==sp){ touchUI.spear=sp; document.body.classList.toggle('spear',sp); }
   const mo=musicOn&&!muted; if(touchUI.music!==mo){ touchUI.music=mo; const b=document.getElementById('btnM'); if(b) b.classList.toggle('off',!mo); } }
 // ---- pause v10: pause screen with the quest log, side quests, controls help and options
-const PAUSE_ITEMS=['resume','music','voices','test','restart'], PAUSE_BOX={x:438,y:60,w:182,h:30,gap:36};
+const PAUSE_ITEMS=['resume','music','voices','auto','test','restart'], PAUSE_BOX={x:438,y:58,w:182,h:28,gap:32};
 function openPause(){ voiceStop(); G.pause={sel:0,confirm:false,from:'play',navPrev:0,navT:0}; G.mode='pause'; beep(520,0.06,'square',0.03); }
 function closePause(){ const f=(G.pause&&G.pause.from)||'play'; G.pause=null; G.mode=f; beep(420,0.06,'square',0.03); }
 function pauseHit(x,y){ const B=PAUSE_BOX; for(let i=0;i<PAUSE_ITEMS.length;i++){ const yy=B.y+i*B.gap; if(x>=B.x&&x<=B.x+B.w&&y>=yy&&y<=yy+B.h) return i; } return -1; }
@@ -1979,6 +1986,7 @@ function pauseActivate(i){ const Q=G.pause; Q.sel=i; const it=PAUSE_ITEMS[i];
   if(it==='resume') closePause();
   else if(it==='music') toggleMusic();
   else if(it==='voices') toggleVoices();
+  else if(it==='auto') setAutoText(!autoText);
   else if(it==='test') voiceTest();
   else if(it==='restart'){ if(!Q.confirm){ Q.confirm=true; beep(300,0.12,'square',0.04); } else { G.pause=null; newGame(); SFX.pickup(); } } }
 function updatePause(){ const Q=G.pause; if(!Q){ G.mode='play'; return; }
@@ -1990,9 +1998,9 @@ function updatePause(){ const Q=G.pause; if(!Q){ G.mode='play'; return; }
   if(pv.restart){ const RI=PAUSE_ITEMS.indexOf('restart'); if(Q.sel!==RI){ Q.sel=RI; Q.confirm=false; } pauseActivate(RI); return; }   // R (keyboard): restart, asks to confirm
   if(pv.action) pauseActivate(Q.sel); }
 function controlsHelp(){
-  if(padSeen) return ['Move: Stick / D-pad','Sword: A','Holy Spear: B','Dash: Y','Block: hold X / LB / RB','Horse: L3 or tap D-pad Up','Pause: START','Menu: D-pad + A, B closes','Keyboard: N music, V voices, M mute'];
-  if(isTouch) return ['Move: joystick','Sword: A button','Holy Spear: SPEAR button','Dash: DASH button','Block: hold the shield','Horse: \uD83D\uDC34 button','Pause: \u2630    Music: \u266A','Tap a menu item to choose','No sound? iPhone: Ring switch on'];
-  return ['Move: Arrows / WASD','Sword: SPACE / E','Holy Spear: F','Dash: C / Ctrl','Block: hold SHIFT / X','Horse: H','Pause: P / Esc / Q','Music: N    Voices: V','Mute everything: M','Menu: \u2191\u2193 + SPACE, R = restart'];
+  if(padSeen) return ['Move: Stick / D-pad','Sword: A','Holy Spear: B','Dash: Y','Block: hold X / LB / RB','Horse: L3 or tap D-pad Up','Pause: START','Menu: D-pad + A, B closes','Keyboard: N music, V voices, M mute, T auto text'];
+  if(isTouch) return ['Move: joystick','Sword: A button','Holy Spear: SPEAR button','Dash: DASH button','Block: hold the shield','Horse: \uD83D\uDC34 button','Pause: \u2630    Music: \u266A','Tap a menu item to choose','Auto text: pause menu','No sound? iPhone: Ring switch on'];
+  return ['Move: Arrows / WASD','Sword: SPACE / E','Holy Spear: F','Dash: C / Ctrl','Block: hold SHIFT / X','Horse: H','Pause: P / Esc / Q','Music: N    Voices: V','Mute everything: M','Menu: \u2191\u2193 + SPACE, R = restart','Auto-continue text: T'];
 }
 function toTitle(){ G={mode:'title',t:0}; titleT=0; }
 let titleT=0;
@@ -2124,6 +2132,7 @@ function update(dt){
   if(pv.mute){muted=!muted; if(muted) voiceStop(); showToast(muted?'Sound: off (M)':'Sound: on (M)');}
   if(pv.music) toggleMusic();
   if(pv.voices) toggleVoices();
+  if(pv.autotext) setAutoText(!autoText);
   if(G.mode==='pause'){ updatePause(); pv={}; return; }
   if(G.mode==='menu'){ G.t+=dt; updateMenu(dt); pv={}; return; }   // coins v12: shop / alms menus freeze the world   // pause v10: the whole game is frozen
   if(G.mode==='title'){ titleT+=dt; if(pv.action) {newGame();SFX.pickup();} pv={}; return; }
@@ -2155,12 +2164,20 @@ function update(dt){
 function updateDragonAnimOnly(dt){ if(D && G.mode==='dialog' && D.state==='tamed'){D.t+=dt;} }
 function updateDialog(dt){
   const d=G.dialog, line=d.lines[d.i];
-  if(d.said!==d.i){ d.said=d.i; speak(line.text,line.who); }          // voices v10: read each line as it appears
+  if(d.said!==d.i){ const di=d.i; d.said=di; d.lt=0; d.fullT=0; d.vDone=false; d.vEndT=0; d.voiced=speak(line.text,line.who,{onend:()=>{ if(G.dialog===d&&d.i===di) d.vDone=true; }}); }   // voices v10: read each line as it appears
+  d.lt=(d.lt||0)+dt;
   const before=Math.floor(d.chars); d.chars=Math.min(line.text.length,d.chars+dt*((VO.speaking&&VO.started)?clamp(18*(VO.rate||0.85)/0.85,14,22):55));   // slower v12: while the voice is really talking, reveal text at about reading pace (A still skips)
   if(Math.floor(d.chars)!==before && Math.floor(d.chars)%3===0) SFX.talk();
+  const nextLine=()=>{ voiceStop(); d.i++; d.chars=0; if(d.i>=d.lines.length){ G.dialog=null; G.mode='play'; if(d.onEnd) d.onEnd(); } };
   if(pv.action){
     if(d.chars<line.text.length) d.chars=line.text.length;
-    else { voiceStop(); d.i++; d.chars=0; if(d.i>=d.lines.length){ G.dialog=null; G.mode='play'; if(d.onEnd) d.onEnd(); } }
+    else nextLine();
+  } else if(autoText && !hasChoice(d,line) && d.chars>=line.text.length){   // autotext v13: typed out + voice finished (or reading time) -> next page
+    d.fullT=(d.fullT||0)+dt;
+    let ready;
+    if(d.voiced && voiceReady() && (VO.started || d.lt<3)) ready = d.vDone ? ((d.vEndT=(d.vEndT||0)+dt)>=0.5 && d.fullT>=0.6) : (d.lt>=autoSpeechMax(line.text,VO.rate) && d.fullT>=0.6);   // iOS: onend may never fire -> timer fallback
+    else ready = d.fullT>=autoReadTime(line.text);
+    if(ready) nextLine();
   }
 }
 function respawn(){
@@ -2703,8 +2720,8 @@ function prayerPages(Q,dt){ const PR=PRAYERS[Q.kind], pages=PR.pages;
   let next=false;
   if(Q.saying){ if(pv.action&&Q.t>0.8) Q.want=true;
     if(Q.sayDone){ Q.doneT+=dt; if(Q.want||Q.doneT>=0.9) next=true; }
-    else if(Q.t>=40) next=true; }                                    // safety net if a browser never fires onend
-  else next=(pv.action&&Q.t>0.8)||Q.t>=PRAYER_AUTO;
+    else if(Q.t>=(autoText?autoSpeechMax(pages[Q.page].join(' '),PRAYER_RATE):40)) next=true; }   // safety net if a browser never fires onend (autotext v13: sooner)
+  else next=(pv.action&&Q.t>0.8)||Q.t>=(autoText?Math.max(2,autoReadTime(pages[Q.page].join(' '))):PRAYER_AUTO);
   if(!next) return false;
   if(Q.page<pages.length-1){ Q.page++; Q.t=0; return false; }
   return true; }
@@ -2783,6 +2800,7 @@ function renderPrayerBox(Q){ const PR=PRAYERS[Q.kind], pages=PR.pages, lines=pag
   for(let i=0;i<pages.length;i++){ ctx.fillStyle=i<=Q.page?'#c9a03a':'rgba(140,110,60,.35)'; ctx.beginPath(); ctx.arc(W/2-(pages.length-1)*7+i*14,by+bh-10,3,0,7); ctx.fill(); }
   const ready=Q.saying?Q.sayDone:Q.t>0.8;
   if(ready && Math.sin(G.t*4)>0){ ctx.font='bold 12px Verdana'; ctx.textAlign='right'; ctx.fillStyle='#8a6a2a'; ctx.fillText((padSeen?'A':isTouch?'Tap A':'SPACE')+' \u25B6',bx+bw-14,by+bh-8); }
+  if(autoText) drawAutoBadge(bx+bw-52,by+6,true);
   ctx.globalAlpha=1; }
 function renderPrayer(){ const Q=G.prayer; if(!Q) return;
   if(Q.kind==='meal'){ renderMeal(Q); return; }
@@ -2920,7 +2938,13 @@ function renderDialog(){
   const lines=wrapText(ctx,line.text.slice(0,Math.floor(d.chars)),bw-44);
   lines.forEach((l,i)=>ctx.fillText(l,bx+22,by+38+i*24));
   if(d.chars>=line.text.length && Math.sin(G.t*6)>0){ctx.font='bold 13px Verdana';ctx.textAlign='right';ctx.fillStyle='#ffe14d';ctx.fillText((padSeen?'A':isTouch?'Tap A':'SPACE')+' \u25B6',bx+bw-16,by+bh-12);}
+  if(autoText) drawAutoBadge(bx+bw-52,by-12,!hasChoice(d,line));
 }
+// autotext v13: little "auto" badge on the dialog / prayer box while auto-continue is ON
+function drawAutoBadge(x,y,on){ rrect(ctx,x,y,40,20,7,on?'#2f8a3a':'#6a6a7a'); ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.strokeRect(x+1,y+1,38,18);
+  ctx.fillStyle='#fff'; const k=Math.sin(G.t*4)>0?1:0.75; ctx.globalAlpha*=k;
+  for(const o of [0,10]){ ctx.beginPath(); ctx.moveTo(x+10+o,y+5); ctx.lineTo(x+19+o,y+10); ctx.lineTo(x+10+o,y+15); ctx.closePath(); ctx.fill(); }
+  ctx.globalAlpha/=k; }
 function renderPause(){
   ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,0,W,H);
   renderQuestPanel(10,10,416,H-20);
@@ -2928,11 +2952,11 @@ function renderPause(){
   const rx=430, rw=W-rx-8, ry=10, rh=H-20, Q=G.pause;
   rrect(ctx,rx,ry,rw,rh,14,'rgba(24,20,56,.95)'); ctx.strokeStyle='#ffe14d';ctx.lineWidth=3;ctx.strokeRect(rx+6,ry+6,rw-12,rh-12);
   ctx.textAlign='center'; ctx.font='bold 26px Georgia, serif'; outlined(ctx,'PAUSED',rx+rw/2,ry+40,'#ffe14d','#5a1a1a',5);
-  const B=PAUSE_BOX, lab=[ 'Resume', 'Music: '+(musicOn?'On':'Off'), 'Voices: '+(voicesOn?'On':'Off'), 'Test voice \uD83D\uDD0A', Q&&Q.confirm?'Really restart? (A)':'Restart' ], RI=PAUSE_ITEMS.indexOf('restart');
+  const B=PAUSE_BOX, lab=[ 'Resume', 'Music: '+(musicOn?'On':'Off'), 'Voices: '+(voicesOn?'On':'Off'), 'Auto-continue: '+(autoText?'ON':'OFF'), 'Test voice \uD83D\uDD0A', Q&&Q.confirm?'Really restart? (A)':'Restart' ], RI=PAUSE_ITEMS.indexOf('restart');
   lab.forEach((l,i)=>{ const y=B.y+i*B.gap, sel=Q&&Q.sel===i;
     rrect(ctx,B.x,y,B.w,B.h,9,sel?(i===RI&&Q.confirm?'#d62828':'#ffe14d'):'rgba(255,255,255,.12)');
-    ctx.font='bold 15px Verdana'; ctx.textAlign='center'; ctx.fillStyle=sel?(i===RI&&Q.confirm?'#fff':'#2a1a08'):'#fff'; ctx.fillText(l,B.x+B.w/2,y+20);
-    if(sel){ ctx.textAlign='left'; ctx.fillText('\u25B6',B.x+8,y+20); } });
+    ctx.font='bold 15px Verdana'; ctx.textAlign='center'; ctx.fillStyle=sel?(i===RI&&Q.confirm?'#fff':'#2a1a08'):'#fff'; ctx.fillText(l,B.x+B.w/2,y+19);
+    if(sel){ ctx.textAlign='left'; ctx.fillText('\u25B6',B.x+8,y+19); } });
   ctx.textAlign='center'; ctx.fillStyle='#ffe14d'; ctx.font='bold 14px Verdana'; ctx.fillText('Controls',rx+rw/2,ry+252);
   ctx.fillStyle='#e8e4ff'; ctx.font='11px Verdana'; controlsHelp().forEach((l,i)=>ctx.fillText(l,rx+rw/2,ry+270+i*16));
   ctx.fillStyle='#9a96c8'; ctx.font='10px Verdana'; ctx.fillText(padSeen?'START / B: back to the game':isTouch?'\u2630 : back to the game':'P / Esc: back to the game',rx+rw/2,ry+rh-16);

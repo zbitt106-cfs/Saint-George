@@ -4,12 +4,12 @@ A small, kid-friendly adventure game in a single HTML file (`index.html`). Open 
 
 ## Controls
 
-**Move:** Arrows / WASD / left stick / D-pad · **Talk & Sword:** Space / E / Enter / Z (gamepad A, touch A) · **Holy Spear:** F (gamepad B, touch SPEAR, shown once the spear is joined) · **Dash:** C / Ctrl (gamepad Y, touch DASH) · **Block:** hold Shift / X (gamepad X, LB / RB, touch shield) · **Pause, Quest Log & Side Quests:** P / Esc / Q / Tab (gamepad START, touch ☰) · **Restart:** from the pause menu (R while paused, press twice to confirm) · **Music on/off:** N (touch ♪) · **Voices on/off:** V · **Mute everything:** M · **Horse on/off:** H (gamepad L3 = press the left stick, or a quick tap of D-pad Up; touch 🐴)
+**Move:** Arrows / WASD / left stick / D-pad · **Talk & Sword:** Space / E / Enter / Z (gamepad A, touch A) · **Holy Spear:** F (gamepad B, touch SPEAR, shown once the spear is joined) · **Dash:** C / Ctrl (gamepad Y, touch DASH) · **Block:** hold Shift / X (gamepad X, LB / RB, touch shield) · **Pause, Quest Log & Side Quests:** P / Esc / Q / Tab (gamepad START, touch ☰) · **Restart:** from the pause menu (R while paused, press twice to confirm) · **Music on/off:** N (touch ♪) · **Voices on/off:** V · **Mute everything:** M · **Horse on/off:** H (gamepad L3 = press the left stick, or a quick tap of D-pad Up; touch 🐴) · **Auto-continue text on/off:** T (or **Auto-continue** in the pause menu, which also works on touch screens and gamepads)
 
 - The **sword** works on wolves, bears, snakes, bats, spiders, scorpions and rats, but it can't hurt the dragon ("Clink!").
 - The **Holy Spear** has longer reach, a holy glow and a slightly slower cooldown. It is the only weapon that can hurt the dragon.
 - The **dash** moves George about 3 tiles very quickly. He can't be hurt during a dash, but he still can't go through walls or trees. You can't dash while blocking or carrying a hen.
-- The **pause screen** freezes the game and shows the Quest Log, the Side Quests and the controls. It has Resume, Music, Voices, **Test voice 🔊** and Restart. Use D-pad/stick + A to choose; START, B or Esc goes back to the game.
+- The **pause screen** freezes the game and shows the Quest Log, the Side Quests and the controls. It has Resume, Music, Voices, **Auto-continue**, **Test voice 🔊** and Restart. Use D-pad/stick + A to choose; START, B or Esc goes back to the game.
 
 ## Music and voices
 
@@ -19,9 +19,19 @@ A small, kid-friendly adventure game in a single HTML file (`index.html`). Open 
 - Sound, music and voices start after the first key, tap or click. On phones and tablets the **Tap to start** tap also unlocks speech and Web Audio (mobile browsers only allow sound that starts inside a real tap). The touch buttons speak right away inside the tap, and the game gently nudges the speech engine so long lines don't stall. If you can't hear any voices, open the pause menu and choose **Test voice 🔊**. George should say "Hello! I am George…".
 - **iPhone / iPad: no sound?** The **Ring/Silent switch** on the side of the iPhone mutes Web Speech *and* web audio in Safari. Flip it to Ring (no orange showing) and turn the volume up, then tap Test voice. They can be turned off with N, V or M, or from the pause menu.
 
+## Auto-continue text (autotext v13)
+
+- Off by default. Turn it on with **T** or **Auto-continue: ON/OFF** in the pause menu. The game remembers the setting in this browser (localStorage).
+- When it is on, each dialogue page turns by itself once the text has finished typing **and** the voice has finished reading it (with a short half-second pause after). With voices off or unavailable, the page waits a reading time of **1.2 s + 0.055 s per letter**, tuned for children who are learning to read. The last page closes the conversation by itself.
+- It also works for the prayers, the Grace at Old Martha's and the feast.
+- **Choices and menus never auto-pick.** The baker's shop, the donation box and any question always wait for the player.
+- A / Space / tap still turns the page straight away.
+- While it is on, a small green **▶▶** badge shows on the dialogue and prayer boxes.
+- On iPhone/iPad, where the "voice finished" signal sometimes never arrives, the page still turns after the time the line should have taken to read aloud.
+
 ## The horse
 
-- George has a **white horse with a red-and-white saddle cloth** from the very start. Press **H** (gamepad **L3** or a quick tap of **D-pad Up**, touch **🐴**) to hop on or off.
+- George has a **white horse with a red-and-white saddle cloth** from the very start. Press **H** (gamepad **L3** or a quick tap of **D-pad Up**, touch **🐴**, which sits just above-left of the A button in the right-hand action cluster) to hop on or off.
 - Riding is **1.8× faster**, with a gallop animation and hoofbeats. The sword, block and Holy Spear all work while mounted, but you **can't dash** on the horse. The horse bumps into walls, trees and water just like George.
 - Indoors (the castle, the bat cave and the dragon lair) **George ties up his horse** automatically. He also hops off to pray. You can't toggle the horse during a conversation or while carrying a hen.
 - D-pad Up only toggles the horse on a **quick tap** (under about ¼ second). Holding it still walks George upward.
