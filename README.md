@@ -31,6 +31,33 @@ A small, kid-friendly adventure game in a single HTML file (`index.html`). Open 
 - While it is on, a small green **▶▶** badge shows on the dialogue and prayer boxes.
 - On iPhone/iPad, where the "voice finished" signal sometimes never arrives, the page still turns after the time the line should have taken to read aloud.
 
+## What's new in v18: George's Tower (rebuild v18)
+
+- **Clear every path.** Chop all **3 trees** with the axe and break all **3 rocks** with the pickaxe (the six secret paths).
+  - Progress shows in a kid-friendly way: "Trees 1/3 • Rocks 0/3".
+  - It appears over each cleared spot, in the tracker under the hearts, and at the bottom of the pause Quest Log.
+- **The unlock.** When the last path is cleared, a caption is read aloud: "You cleared every path! Go ask the King about the old tower."
+- **The King gives George the tower.** He has short, voiced lines giving George the Old Watchtower to fix up and keep as his own.
+  - Before the unlock he says nothing about the tower.
+  - The minimap marks the King, then the tower.
+- **The building scene.** It plays the next time George walks up to the tower, in five short captions that are read aloud. Each caption waits for A, a tap or SPACE, or moves on by itself with Auto-continue.
+  - George hammers up a wooden scaffold.
+  - He carries stones and stacks them, and the tower grows row by row.
+  - He hammers the top strong.
+  - The scaffold comes down and the flag of Saint George unrolls.
+  - The building takes about 14 seconds and has hammer, stone and flag sounds.
+- **George's Tower.** A taller, clean stone tower now stands in place of the ruin.
+  - A long white banner with a red Saint George's cross hangs from the top and sways gently.
+  - There is a small flag on top and a "GEORGE'S TOWER" sign.
+  - Inside there are two St George banners, a red and white rug and flowers, and the sign reads "George's Tower".
+- **Always open.** The ruin and the finished tower can both be entered at any time, and the chest works the same as before. The rebuild never locks the door or the chest.
+- **Saved.** The cleared paths and the tower are saved in the browser (localStorage `sg_tower18`), so they stay after a reload or a new game.
+- **Debug helpers (browser console).**
+  - `sgClearAll()` clears all six paths and triggers the unlock.
+  - `sgResetTower()` wipes the saved tower progress.
+- **New test.** `t21` covers the whole flow, from entering the ruin and opening the chest before the unlock through to checking the finished tower after a reload.
+- **Screenshots.** `screens/tower_ruin_progress.png`, `screens/tower_rebuild.png` and `screens/tower_finished.png`.
+
 ## What's new in v17
 
 - **You can go inside the Old Watchtower** (towerin v17). The tower now has a real doorway on its south side, with a stone arch, an open wooden door and warm light. Walk up into the door, or press **A / Space** (or tap **A** on a phone) in front of it, and the screen fades to the inside.

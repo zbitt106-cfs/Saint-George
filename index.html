@@ -176,7 +176,7 @@ if (isTouch) document.body.classList.add('touch');
   cv.addEventListener('click',e=>testTap(e.clientX,e.clientY));
   cv.addEventListener('pointerdown',e=>{initAudio(); if(G.mode==='pause'){ const i=cvHit(e.clientX,e.clientY); if(i>=0&&PAUSE_ITEMS[i]==='test'){ G.pause.sel=i; G.pause.confirm=false; } else if(i>=0) pv.pauseTap=i+1; }
     else if(G.mode==='menu'){ const r=cv.getBoundingClientRect(), i=menuHit((e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height); if(i>=0) pv.menuTap=i+1; }
-    else if(G.mode==='title'||G.mode==='victory'||G.mode==='dialog'||G.mode==='prayer'||G.mode==='storm'||G.mode==='night') pv.action=true;
+    else if(G.mode==='title'||G.mode==='victory'||G.mode==='dialog'||G.mode==='prayer'||G.mode==='storm'||G.mode==='night'||G.mode==='rebuild') pv.action=true;
     else if(G.mode==='play'){ const r=cv.getBoundingClientRect(), x=(e.clientX-r.left)*W/r.width, y=(e.clientY-r.top)*H/r.height; if(x>=W-290&&x<=W-250&&y>=6&&y<=40) pv.toolNext=true; } });
 })();
 // nozoom v14: stop iOS Safari double-tap zoom / pinch zoom on the buttons and canvas, and snap back to scale 1 if it ever happens
@@ -1585,6 +1585,11 @@ function placeMiaNear(){ const m=npcById('mia'); if(!m) return; m.x=P.x+(P.dir==
 function npcLines(n){
   const L=(who,text)=>({who,text});
   const pc=(G.pieces.head?1:0)+(G.pieces.shaft?1:0);
+  if(n.id==='king' && G.talkedKing && !npcLines.inner){ if(G.towerReady && !G.towerGiven) return kingTowerLines(n);   // rebuild v18
+    npcLines.inner=true; let base; try{ base=npcLines(n); } finally { npcLines.inner=false; }
+    if(G.towerGiven && !G.towerBuilt) base.push(L(n.name,"The Old Watchtower in the east is yours now, George. Go and fix it up!"));
+    else if(G.towerBuilt) base.push(L(n.name,"Your tower looks wonderful, George! God bless the work of your hands."));
+    return base; }
   switch(n.id){
   case 'elder': if(!G.talkedKing) return [L(n.name,"Good morning, George! The King is waiting for you in the castle."),L(n.name,"Just follow the road north from the fountain. You can't miss it!")];
     if(!G.hasSpear) return [L(n.name,"Long ago the Holy Spear broke into two pieces, and they were hidden far apart."),
@@ -1700,6 +1705,7 @@ function onTalkEnd(n){
   if(n.id==='martha'){ G.marthaSeen=true; openMenu(shopMenu()); return; }
   if(n.id==='smith'){ G.smithSeen=true; openMenu(toolMenu()); return; }   // toolshop v16
   if(n.id==='king' && !G.talkedKing){ G.talkedKing=true; SFX.item(); addText(P.x,P.y-50,'Quest updated!','#ffe14d'); startHail(); return; } // hailmary v10
+  if(n.id==='king' && G.towerReady && !G.towerGiven){ towerGrant(); return; }   // rebuild v18
   const S=G.side;
   if(n.id==='giles'){ if(S.hens.st==='none'){ S.hens.st='active'; sideStart('Chicken Roundup'); } else if(S.hens.st==='ready'){ S.hens.st='done'; sideReward('Chicken Roundup'); } }
   if(n.id==='rose'){ if(S.child.st==='none'){ S.child.st='active'; sideStart('Lost Child'); }
@@ -2156,6 +2162,7 @@ function newGame(){
     seenLairIntro:false,seenTunnelIntro:false,side:newSide(),storm:null,prayer:null,hailed:false,pause:null,noSpearT:0,rewardT:0,crossT:0,dialog:null,fade:null,faintT:0,vt:0,noSwordT:0,shake:0};
   P={x:START.x,y:START.y,dir:'up',walk:0,horse:false,attackT:0,atk:'sword',atkDur:ATTACK_TIME,spearCD:0,dashT:0,dashCD:0,dashX:0,dashY:0,inv:0,kbx:0,kby:0,kbT:0,hitSet:null};
   G.tools={}; G.tool=null; G.cleared={}; G.found={}; G.dayT=0; G.nightDue=false; G.night=null; G.jesusFeast=false; P.fish=null; P.toolT=0; P.bowCD=0; P.catchT=0; P.sleep=false;   // toolshop / night / feast v16
+  G.towerReady=G.towerGiven=G.towerBuilt=G.towerTold=false; G.rb=null; towerLoad();   // rebuild v18: cleared paths + George's Tower are saved
   map=WORLD; npcs=makeNPCs(); foes=makeFoes(); items=makeItems(); plants=makePlants(); chickens=makeChickens(); P.carry=null; OBST=makeObstacles(); arrows=[];
   particles=[];texts=[];fireballs=[];D=null;
   startDialog([{who:'Narrator',text:"Long ago, in the town of Silene, lived a brave young knight named George..."},
@@ -2288,6 +2295,7 @@ function towerAction(){
   if(G.mode!=='play'||G.fade) return false;
   if(map===WORLD && P.dir==='up' && atTowerDoor(30)){ enterTower(); return true; }
   if(map!==TOWERIN) return false;
+  if(towerSignNear()&&G.towerBuilt){ SFX.talk(); startDialog([{who:'Sign',text:"George's Tower! Fixed up by George, with hard work and God's help."},{who:'Sign',text:"Go up to the window. Look out!"}]); return true; }   // rebuild v18
   if(towerSignNear()){ SFX.talk(); startDialog([{who:'Sign',text:"The Old Watchtower. Long ago, guards watched over the kingdom from here."},
       {who:'Sign',text:"Go up to the window. Look out!"}]); return true; }
   if(towerWindowNear()){ lookOut(); return true; }
@@ -2306,7 +2314,7 @@ function drawTowerLive(g,t){   // torch flames and the sign (live, so they flick
     g.fillStyle='#ffe14d'; g.beginPath(); g.moveTo(px-3,py); g.quadraticCurveTo(px-3,py-6,px+f*0.6,py-11); g.quadraticCurveTo(px+3,py-6,px+3,py); g.fill(); }
   const sx=tc(TIN.sign[0]), sy=tc(TIN.sign[1]);
   g.fillStyle='#5a3a1a'; g.fillRect(sx-2,sy-6,4,18); rrect(g,sx-24,sy-26,48,22,4,'#c8955a'); g.strokeStyle='#6a4020'; g.lineWidth=2; g.strokeRect(sx-23,sy-25,46,20);
-  g.fillStyle='#3a2410'; g.font='bold 9px Verdana'; g.textAlign='center'; g.fillText('WATCH',sx,sy-16); g.fillText('TOWER',sx,sy-7);
+  g.fillStyle='#3a2410'; g.font='bold 9px Verdana'; g.textAlign='center'; g.fillText(G.towerBuilt?"GEORGE'S":'WATCH',sx,sy-16); g.fillText('TOWER',sx,sy-7);
   if(G.mode==='play'){ const hint=towerSignNear()?'Read':(towerWindowNear()&&!G.look)?'Look out':''; if(hint){ const l=(padSeen?'A':isTouch?'Tap A':'A / Space')+': '+hint;
       g.font='bold 11px Verdana'; const bw=g.measureText(l).width+14; rrect(g,P.x-bw/2,P.y-82,bw,18,6,'rgba(255,255,255,.92)'); g.fillStyle='#222'; g.textAlign='center'; g.fillText(l,P.x,P.y-69); } }
 }
@@ -2401,6 +2409,7 @@ function update(dt){
   case 'dialog': updateDialog(dt); break;
   case 'play': updatePlay(dt); break;
   case 'storm': updateStorm(dt); break;
+  case 'rebuild': updateRebuild(dt); break;   // rebuild v18
   case 'night': updateNight(dt); break;   // night v16
   case 'prayer': updatePrayer(dt); break;
   case 'join': G.joinT+=dt;   // miracle v14: the Holy Spear is made whole by God (light from above, soft chimes), not by magic
@@ -2513,10 +2522,127 @@ function useTool(){ const id=contextTool();
   return shootArrow(); }
 function faceTo(x,y){ const dx=x-P.x, dy=y-P.y; P.dir=Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up'); }
 function clearObst(o){ if(!o) return false; if(P.horse) P.horse=false; faceTo(o.x,o.y); P.toolT=0.34; P.toolKind=o.tool;
-  o.gone=true; o.fx=0.8; G.cleared[o.id]=true; G.clearedN=(G.clearedN||0)+1;
+  o.gone=true; o.fx=0.8; G.cleared[o.id]=true; G.clearedN=(G.clearedN||0)+1; towerOnClear(o);   // rebuild v18: progress + save
   if(o.kind==='tree'){ beep(300,0.1,'square',0.04,150); setTimeout(()=>beep(220,0.18,'sawtooth',0.03,90),120); addParticles(o.x,o.y-22,24,['#6cc04a','#3e8a3a','#8a5a2b','#d8b070'],150); addText(o.x,o.y-54,'Timber! A new path!','#ffe14d'); }
   else { G.shake=0.25; SFX.clang(); beep(120,0.22,'sawtooth',0.04,60); addParticles(o.x,o.y-12,26,['#9a9a9a','#6a6a6a','#c8c8c8','#fff'],170); addText(o.x,o.y-50,'Crack! The rock breaks!','#ffe14d'); }
   return true; }
+// ================== rebuild v18: George's Tower ==================
+// Chop every axe tree and break every pickaxe rock (the 6 SECRETS paths). Then the King gives George the Old Watchtower.
+// The next visit plays a short building scene (scaffold, stones, hammering, the flag of Saint George) and the tower is
+// finished for good. Saved in localStorage ('sg_tower18'), so it stays after a reload. The ruin (and its chest) can be
+// entered at ANY time, before and after the rebuild: nothing here ever locks the door.
+const TOWER_SAVE='sg_tower18';
+function towerSave(){ try{ localStorage.setItem(TOWER_SAVE,JSON.stringify({cleared:G.cleared||{},ready:!!G.towerReady,given:!!G.towerGiven,built:!!G.towerBuilt,told:!!G.towerTold})); }catch(e){} }
+function towerLoad(){ let d=null; try{ d=JSON.parse(localStorage.getItem(TOWER_SAVE)||'null'); }catch(e){ d=null; } if(!d||typeof d!=='object') return;
+  G.cleared=Object.assign({},d.cleared||{}); G.clearedN=Object.keys(G.cleared).length;
+  G.towerReady=!!d.ready; G.towerGiven=!!d.given; G.towerBuilt=!!d.built; G.towerTold=!!d.told; }
+function clearCounts(){ let t=0,tn=0,r=0,rn=0; for(const S of SECRETS){ const c=!!(G.cleared&&G.cleared[S.id]); if(S.tool==='axe'){ tn++; if(c) t++; } else { rn++; if(c) r++; } } return {t,tn,r,rn,all:t===tn&&r===rn}; }
+function clearText(){ const c=clearCounts(); return 'Trees '+c.t+'/'+c.tn+' \u2022 Rocks '+c.r+'/'+c.rn; }
+function towerOnClear(o){ addText(o.x,o.y-74,clearText(),'#fff'); towerCheck(); towerSave(); }
+function towerCheck(){ if(!clearCounts().all || G.towerReady) return false; G.towerReady=true; G.towerTold=true; towerSave(); SFX.chime();
+  startDialog([{who:'Narrator',text:"You cleared every path! Go ask the King about the old tower."}]); return true; }
+function kingTowerLines(n){ const L=(who,text)=>({who,text});
+  return [L(n.name,"George! You cleared every path in Silene. Well done!"),
+    L(n.name,"Do you know the Old Watchtower in the east? It is all broken down."),
+    L(n.name,"I give it to you, George. Fix it up, and it will be YOUR tower!"),
+    L('George',"Thank you, Your Majesty! With God's help, I will make it strong again!"),
+    L('Tip',"Go to the Old Watchtower in the east to fix it up.")]; }
+function towerGrant(){ G.towerGiven=true; towerSave(); SFX.item(); addText(P.x,P.y-50,'The tower is yours!','#ffe14d'); }
+// ---- the building scene (mode 'rebuild'): captions hold until read, like the storm
+const RB_CAPS=["Time to fix up the old tower!","Carry the stones and stack them up!","Tap, tap, tap! Hammer it nice and strong!","Up goes the flag of Saint George!","George's Tower is finished! Thank You, God, for strong hands!"];
+const RB_SEG=[3.2,7.6,11,13.4,14.4];   // end of each caption on the timeline (s): ~14 s of building
+function rbMinTime(cap){ return Math.max(2.5,1+0.3*String(cap).trim().split(/\s+/).length); }
+function rbK(t){ return t<3.2?0:t<7.6?0.6*(t-3.2)/4.4:t<11?0.6+0.4*(t-7.6)/3.4:1; }   // how much of the new tower is built
+function rbScaf(t){ return t<3.2?clamp(t/3,0,1):t<11?1:clamp(1-(t-11)/0.7,0,1); }
+function rbBanner(t){ return clamp((t-11.4)/1.8,0,1); }
+function startRebuild(){ if(G.rb||G.mode!=='play') return; G.rbHorse=!!P.horse; P.horse=false; P.fish=null; P.toolT=0; P.carry=null; G.look=null;
+  P.inv=0; G.rb={t:0,at:0,seg:0,ct:0,said:-1,vDone:false,voiced:false,ready:false,fired:{},home:{x:P.x,y:P.y}}; G.mode='rebuild'; voiceStop&&voiceStop(); }
+function rbGeorge(S,dt){ const px=TOWER.x*TS, py=TOWER.y*TS, base=py+118; let x,y,dir='up',move=false,carry=false,hammer=false;
+  if(S.seg===0){ x=px-14; y=base; dir='right'; hammer=true; }   // builds the wooden scaffold
+  else if(S.seg===1){ const lt=S.at-(S.seg1At!=null?S.seg1At:(S.seg1At=S.at)), c=(lt%1.46)/1.46, pile=px-34, wall=px+20+(Math.floor(lt/1.46)%3)*28;   // carries stones, again and again
+    if(c<0.45){ x=pile+(wall-pile)*c/0.45; dir='right'; carry=true; move=true; } else if(c<0.55){ x=wall; dir='up'; carry=c<0.5; S.dropNow=Math.floor(lt/1.46); } else { x=wall+(pile-wall)*(c-0.55)/0.45; dir='left'; move=true; } y=base; }
+  else if(S.seg===2){ x=px+76; y=base-4; dir='up'; hammer=true; }   // hammers the top strong
+  else { x=px+48; y=base+26; dir='up'; }   // watches the flag go up
+  P.x=x; P.y=y; P.dir=dir; if(move) P.walk=(P.walk||0)+dt*10; else P.walk=0; S.carry=carry; S.hammer=hammer; }
+function updateRebuild(dt){ const S=G.rb; if(!S){ G.mode='play'; return; }
+  S.at+=dt; const segEnd=RB_SEG[S.seg], t0=S.t; S.t=Math.min(S.t+dt,segEnd); const t=S.t, cap=RB_CAPS[S.seg];
+  if(S.said!==S.seg){ const sg=S.seg; S.said=sg; S.ct=0; S.vDone=false; S.voiced=speak(cap,'Narrator',{onend:()=>{ if(G.rb===S&&S.seg===sg) S.vDone=true; }}); }
+  S.ct+=dt;
+  const voiceBusy=!!S.voiced && voiceReady() && !S.vDone && (VO.started||S.ct<3) && S.ct<autoSpeechMax(cap,VO.rate)+1;
+  const held=S.t>=segEnd, readable=held && !voiceBusy && S.ct>=rbMinTime(cap); S.ready=readable;
+  if(readable && (autoText || (pv.action && S.ct>1))){ pv.action=false; if(S.seg>=RB_CAPS.length-1){ finishRebuild(); return; } S.seg++; }
+  rbGeorge(S,dt);
+  const px=TOWER.x*TS, py=TOWER.y*TS;
+  // sounds: knock-knock of the hammer, thunk of a stone, a sweep for the flag
+  if(S.hammer){ const ph=Math.floor(S.at/0.36); if(ph!==S.hph){ S.hph=ph; beep(t<3.2?520:700,0.05,'square',0.035,380); if(Math.random()<0.6) particles.push({x:P.x+(P.dir==='right'?14:0),y:P.y-30,vx:(Math.random()-0.5)*60,vy:-60,life:0.4,col:'#fff3c0',size:2}); } }
+  if(S.seg===1&&S.dropNow!=null){ const n=S.dropNow; if(n!==S.drop){ S.drop=n; beep(150,0.14,'sawtooth',0.04,70); G.shake=0.08; addParticles(P.x,P.y-20,8,['#c8c0b0','#9a948a'],70); } }
+  if(t>=11.4&&!S.fired.flag){ S.fired.flag=true; beep(400,0.5,'triangle',0.04,900); }
+  if(t>=13.4&&!S.fired.win){ S.fired.win=true; SFX.win(); addParticles(px+48,py-60,30,['#fff','#ffe14d','#d62828'],140); }
+  if(t>RB_SEG[1]-0.01&&t0<RB_SEG[1]-0.01) SFX.clang();
+  cam.x=clamp(px+48-W/2,0,WORLD.w*TS-W); cam.y=clamp(py-6-H/2,0,WORLD.h*TS-H); }
+function finishRebuild(){ G.towerBuilt=true; towerSave(); G.rb=null; G.mode='play';
+  P.x=TOWER_DOOR.x; P.y=TOWER_DOOR.y+26; P.dir='down'; P.inv=Math.max(P.inv||0,1.5); if(G.rbHorse){ P.horse=true; G.rbHorse=false; }
+  if(G.side&&G.side.child.st==='follow') placeMiaNear(); updateCamera(true); SFX.chime();
+  startDialog([{who:'George',text:"My very own tower! Thank you, God, and thank you, King!"},{who:'Tip',text:"Walk up to the door to go inside your tower."}]); }
+function renderRebuild(){ const S=G.rb; if(!S) return; const cap=RB_CAPS[S.seg];
+  ctx.font='bold 20px Verdana'; ctx.textAlign='center'; let fs=20; while(ctx.measureText(cap).width>W-70&&fs>13){ fs--; ctx.font='bold '+fs+'px Verdana'; }
+  const cw=Math.min(W-24,ctx.measureText(cap).width+48); rrect(ctx,(W-cw)/2,H-82,cw,54,12,'rgba(10,12,30,.78)'); outlined(ctx,cap,W/2,H-49,'#fff','#000',4);
+  if(S.ready && !autoText && Math.sin(G.t*5)>0){ ctx.font='bold 12px Verdana'; ctx.textAlign='right'; ctx.fillStyle='#ffe14d'; ctx.fillText((padSeen?'A':isTouch?'Tap':'SPACE')+' \u25B6',(W+cw)/2-10,H-33); }
+  if(autoText) drawAutoBadge((W+cw)/2-44,H-92,true);
+  for(let i=0;i<RB_CAPS.length;i++){ ctx.fillStyle=i<=S.seg?'#ffe14d':'rgba(255,255,255,.3)'; ctx.beginPath(); ctx.arc(W/2-28+i*14,H-36,3,0,7); ctx.fill(); }
+  ctx.font='bold 15px Georgia, serif'; ctx.textAlign='center'; const tt='Fixing the Old Watchtower'; const tw=ctx.measureText(tt).width+30; rrect(ctx,(W-tw)/2,48,tw,26,8,'rgba(60,30,10,.7)'); outlined(ctx,tt,W/2,66,'#ffe14d','#000',3); }
+// the Saint George's cross banner: white with a red cross, hanging from a rod, swaying gently
+function drawGeorgeBanner(g,cx,top,len,bw,t,unroll){ const L=len*unroll; g.fillStyle='#6a4020'; g.fillRect(cx-bw/2-6,top-3,bw+12,5); circ(g,cx-bw/2-7,top-1,3.5,'#e0b030'); circ(g,cx+bw/2+7,top-1,3.5,'#e0b030');
+  const hb=Math.round(len*0.3);
+  for(let y=0;y<L;y+=3){ const dx=Math.sin(t*2.3+y*0.06)*3.2*(y/len), tip=len-y<14?(len-y)/14:1, w=bw*tip, x=cx-w/2+dx;
+    g.fillStyle=y%6<3?'#f7f5ef':'#ebe7de'; g.fillRect(x,top+y,w,3.4);
+    g.fillStyle='#cf1f2a'; if(y>=hb&&y<hb+bw*0.28) g.fillRect(x,top+y,w,3.4); else g.fillRect(cx-bw*0.14+dx,top+y,Math.min(bw*0.28,w),3.4); }
+  if(unroll<1){ const dx=Math.sin(t*2.3+L*0.06)*3.2*(L/len); g.fillStyle='#e8e4da'; rrect(g,cx-bw/2-2+dx,top+L-4,bw+4,9,4,'#e8e4da'); g.fillStyle='#cf1f2a'; g.fillRect(cx-3+dx,top+L-4,6,9); } }
+function drawTowerNew(g,t){ const px=TOWER.x*TS, py=TOWER.y*TS, S=G.rb, st=S?S.t:99, k=G.towerBuilt?1:rbK(st), sc=G.towerBuilt?0:rbScaf(st), bn=G.towerBuilt?1:rbBanner(st);
+  const B=py+96, T=py-112, x0=px+4, x1=px+92, rows=18, rh=(B-T)/rows, built=Math.floor(k*rows+0.001);
+  // stone pile (gets smaller as George carries it)
+  if(!G.towerBuilt){ const left=Math.max(0,7-Math.floor(k*7)); for(let i=0;i<left;i++){ const sx=px-44+(i%4)*9+(i>3?4:0), sy=B+22-(i>3?7:0); rrect(g,sx,sy,9,7,2,i%2?'#a8a296':'#bdb7ab'); } }
+  if(built>0){ const top=B-built*rh;
+    g.fillStyle='rgba(0,0,0,.18)'; g.fillRect(x1,top+6,6,B-top-6);
+    for(let r=0;r<built;r++){ const y=B-(r+1)*rh, off=r%2?11:0; g.fillStyle=r%3===0?'#c4beb2':r%3===1?'#bab4a8':'#cfc9bd'; g.fillRect(x0,y,x1-x0,rh);
+      g.fillStyle='#8e887c'; g.fillRect(x0,y,x1-x0,1.2); for(let x=x0+off;x<x1;x+=22) g.fillRect(x,y,1.2,rh); }
+    g.strokeStyle='#6e695f'; g.lineWidth=2; g.strokeRect(x0,top,x1-x0,B-top);
+    // door (same place as the old one, so George can always walk in)
+    if(built>=4){ g.fillStyle='#8e887c'; g.beginPath(); g.moveTo(px+28,B); g.lineTo(px+28,py+66); g.arc(px+48,py+66,20,Math.PI,0); g.lineTo(px+68,B); g.fill();
+      g.fillStyle='#3a2410'; g.beginPath(); g.moveTo(px+31,B); g.lineTo(px+31,py+66); g.arc(px+48,py+66,17,Math.PI,0); g.lineTo(px+65,B); g.fill();
+      const gr=g.createLinearGradient(0,py+50,0,B); gr.addColorStop(0,'rgba(255,190,90,.25)'); gr.addColorStop(1,'rgba(255,170,60,.55)'); g.fillStyle=gr; g.fillRect(px+36,py+58,24,B-py-58);
+      g.fillStyle='#7a4a22'; g.fillRect(px+31,py+60,5,B-py-60); g.fillStyle='#a8a296'; g.fillRect(px+30,B-3,36,4); }
+    // windows (little arched slits)
+    const win=(wx,wy)=>{ if(wy+16>top){ g.fillStyle='#2a2a3a'; g.beginPath(); g.moveTo(wx-4,wy+16); g.lineTo(wx-4,wy+4); g.arc(wx,wy+4,4,Math.PI,0); g.lineTo(wx+4,wy+16); g.fill(); g.fillStyle='#9a948a'; g.fillRect(wx-6,wy+16,12,3); } };
+    win(px+20,py+8); win(px+76,py+8); win(px+20,py-52); win(px+76,py-52);
+    if(k>=1){ for(let i=0;i<5;i++){ const mx=x0+i*((x1-x0-14)/4); rrect(g,mx,T-14,14,15,2,'#cfc9bd'); g.strokeStyle='#6e695f'; g.lineWidth=1.5; g.strokeRect(mx,T-14,14,15); }
+      g.fillStyle='#a8a296'; g.fillRect(x0-3,T-1,x1-x0+6,5); }
+  }
+  // wooden scaffold
+  if(sc>0){ g.save(); g.globalAlpha=Math.min(1,sc*3); const hgt=(B-T+26)*sc, ptop=B-hgt; g.fillStyle='#8a5a2b';
+    for(const x of [x0-9,x1+5]) g.fillRect(x,ptop,4,hgt);
+    for(let y=B-40;y>ptop;y-=44){ g.fillStyle='#b07a3a'; g.fillRect(x0-12,y,x1-x0+24,5); g.fillStyle='#6a4020'; g.fillRect(x0-12,y+5,x1-x0+24,1.5);
+      g.strokeStyle='#8a5a2b'; g.lineWidth=2; g.beginPath(); g.moveTo(x0-8,y+5); g.lineTo(x0-1,y+40); g.moveTo(x1+7,y+5); g.lineTo(x1,y+40); g.stroke(); }
+    g.restore(); }
+  // the long banner of Saint George, draped down from the top, and a little flag on a pole
+  if(k>=1&&bn>0){ g.fillStyle='#5a3a1a'; g.fillRect(px+47,T-46,3,34); const w=Math.sin(t*4)*3;
+    g.fillStyle='#f7f5ef'; g.beginPath(); g.moveTo(px+50,T-46); g.quadraticCurveTo(px+62,T-44+w,px+74,T-42+w); g.lineTo(px+74,T-28+w); g.quadraticCurveTo(px+62,T-30+w,px+50,T-32); g.fill();
+    g.fillStyle='#cf1f2a'; g.fillRect(px+59,T-45+w*0.5,4,15); g.fillRect(px+50,T-40+w*0.6,24,4); circ(g,px+48.5,T-47,2.5,'#e0b030');
+    drawGeorgeBanner(g,px+48,T+6,138,30,t,bn); }
+  // sign
+  if(G.towerBuilt){ const sx=tc(TOWER.x+3)+10, sy=tc(TOWER.y+3)-2; g.fillStyle='#5a3a1a'; g.fillRect(sx-2,sy-4,4,18); rrect(g,sx-30,sy-26,60,24,4,'#c8955a'); g.strokeStyle='#6a4020'; g.lineWidth=2; g.strokeRect(sx-29,sy-25,58,22);
+    g.fillStyle='#3a2410'; g.font='bold 9px Verdana'; g.textAlign='center'; g.fillText("GEORGE'S",sx,sy-16); g.fillText('TOWER',sx,sy-6); }
+}
+function drawRebuildActor(g,t){ const S=G.rb; if(!S) return;   // the stone George carries and his hammer
+  if(S.carry){ rrect(g,P.x-9,P.y-62,18,12,3,'#bdb7ab'); g.strokeStyle='#7e786c'; g.lineWidth=1.5; g.strokeRect(P.x-9,P.y-62,18,12); }
+  if(S.hammer){ const a=Math.sin(S.at*17.5)*0.9, hx=P.x+(P.dir==='right'?12:10), hy=P.y-28; g.save(); g.translate(hx,hy); g.rotate(-0.6+a); g.fillStyle='#8a5a2b'; g.fillRect(-1.5,-16,3,16); g.fillStyle='#6a6a72'; g.fillRect(-6,-20,12,6); g.restore(); } }
+function drawTowerInExtras(g,t){ if(!G.towerBuilt) return;   // inside: George's banners and a tidy room
+  drawGeorgeBanner(g,tc(12),TS*0.5,64,22,t,1); drawGeorgeBanner(g,tc(8),TS*0.5,64,22,t+1,1);
+  const rx=tc(10)-34, ry=tc(9)-16; g.fillStyle='rgba(180,30,40,.55)'; g.fillRect(rx,ry,68,40); g.strokeStyle='#e0b030'; g.lineWidth=2; g.strokeRect(rx+3,ry+3,62,34);
+  g.fillStyle='rgba(255,255,255,.85)'; g.fillRect(rx+30,ry+6,8,28); g.fillRect(rx+8,ry+16,52,8);
+  const fx=tc(13), fy=tc(10); rrect(g,fx-8,fy-2,16,12,3,'#a0522d'); for(let i=0;i<3;i++) circ(g,fx-5+i*5,fy-6,3.5,['#ff7eb3','#ffe14d','#8fd3ff'][i]); g.fillStyle='#3e8a3a'; g.fillRect(fx-1,fy-6,2,5); }
+window.sgClearAll=function(){ if(!G) return false; for(const S of SECRETS) G.cleared[S.id]=true; G.clearedN=SECRETS.length; if(OBST) for(const o of OBST) o.gone=true; towerSave(); towerCheck(); return clearText(); };
+window.sgResetTower=function(){ try{ localStorage.removeItem(TOWER_SAVE); }catch(e){} if(G){ G.towerReady=G.towerGiven=G.towerBuilt=G.towerTold=false; G.rb=null; } return true; };
 // ---- fishing: cast, wait for the bobber to dip ('!'), then press again to reel in
 const FISH_BITE=1.0, FISH_COIN_MAX=12;
 function startFish(w){ if(!w) return false; if(P.horse) P.horse=false; P.dir=w.dir; P.walk=0; P.fish={st:'cast',t:0,x:w.x,y:w.y,wait:1.4+Math.random()*2.2}; G.casts=(G.casts||0)+1;
@@ -2779,6 +2905,7 @@ function updatePlay(dt){
   if(here===T.EXIT && map===LAIR && D && D.state!=='tamed') exitLair();
   if(here===T.EXIT && map===TUNNEL) exitTunnel();
   if(here===T.EXIT && map===TOWERIN && !G.fade) exitTower();   // towerin v17
+  if(map===WORLD && G.towerGiven && !G.towerBuilt && !G.fade && G.mode==='play' && Math.hypot(P.x-TOWER_DOOR.x,P.y-TOWER_DOOR.y)<4.5*TS){ startRebuild(); return; }   // rebuild v18: building scene (once)
   if(map===WORLD && !G.fade && inputDir().y<0 && atTowerDoor(12)) enterTower();
   if(map===TOWERIN) updateLookout(dt);
   if(here===T.LAIRDOOR && map===TUNNEL) enterLair();
@@ -2984,7 +3111,8 @@ function render(){
   for(const s of foes) if(s.map===map.name) ents.push({y:s.y,draw:()=>drawFoe(ctx,s,t)});
   if(map===WORLD){ for(const o of OBST) ents.push({y:o.ty*TS+TS-2,draw:()=>drawObst(ctx,o,t)}); for(const S of SECRETS) if(S.crystal) ents.push({y:S.box[1]*TS+TS,draw:()=>drawSecretDeco(ctx,S,t)}); }   // toolshop v16
   if(map===WORLD) ents.push({y:SHRINE_SIGN[1]*TS+30,draw:()=>drawShrineSign(ctx)});   // stpeter v16
-  if(map===TOWERIN){ ents.push({y:tc(TIN.sign[1])+8,draw:()=>drawTowerLive(ctx,t)}); const mm=npcById('mia'); if(mm&&mm.follow) ents.push({y:mm.y,draw:()=>{ ctx.save(); ctx.translate(mm.x,mm.y); ctx.scale(0.72,0.72); drawPerson(ctx,0,0,mm.o,mm.dir,mm.walk||0); ctx.restore(); }}); }   // towerin v17
+  if(map===WORLD && (G.towerBuilt||G.rb)){ ents.push({y:TOWER.y*TS+90,draw:()=>drawTowerNew(ctx,t)}); if(G.rb) ents.push({y:P.y+1,draw:()=>drawRebuildActor(ctx,t)}); }   // rebuild v18
+  if(map===TOWERIN){ ents.push({y:-1e6,draw:()=>drawTowerInExtras(ctx,t)}); ents.push({y:tc(TIN.sign[1])+8,draw:()=>drawTowerLive(ctx,t)}); const mm=npcById('mia'); if(mm&&mm.follow) ents.push({y:mm.y,draw:()=>{ ctx.save(); ctx.translate(mm.x,mm.y); ctx.scale(0.72,0.72); drawPerson(ctx,0,0,mm.o,mm.dir,mm.walk||0); ctx.restore(); }}); }   // towerin v17
   for(const a of arrows) if(a.map===map.name) ents.push({y:a.y+14,draw:()=>drawArrow(ctx,a)});
   if(D && G.mode!=='victory') ents.push({y:D.y+40,draw:()=>drawDragon(ctx,D,t)});
   ents.push({y:P.y,draw:()=>{ if(P.sleep){ drawSleeper(ctx,P.x,P.y,()=>drawGeorgeBody(ctx,0,0,{dir:'down',inv:0,walk:0,block:false,attackT:0,dashT:0},t),t,1); return; } drawGeorge(ctx,P.x,P.y,P,t); drawToolUse(ctx,t);
@@ -3000,6 +3128,7 @@ function render(){
   renderHUD();
   if(G.prayer) renderPrayer();
   if(G.mode==='storm') renderStorm();
+  if(G.mode==='rebuild') renderRebuild();   // rebuild v18
   if(G.mode==='dialog') renderDialog();
   if(G.mode==='pause') renderPause();
   if(G.mode==='menu') renderMenu();
@@ -3504,7 +3633,7 @@ function renderHUD(){
     if(cb.state==='recover'){ctx.font='bold 16px Verdana';outlined(ctx,cb.kind==='wcobra'?'It is dizzy! Poke it now!':'He is dizzy! Poke him now!',W/2,H-86,'#ffe14d','#000',4);}
   }
   // objective
-  if(map===WORLD && G.mode!=='victory' && G.mode!=='storm' && G.mode!=='join'){   // slowstorm v14: no goal bar under the storm caption or the miracle
+  if(map===WORLD && G.mode!=='victory' && G.mode!=='storm' && G.mode!=='join' && G.mode!=='rebuild'){   // rebuild v18 too   // slowstorm v14: no goal bar under the storm caption or the miracle
     const ob=objective(); ctx.font='bold 13px Verdana'; const w=ctx.measureText(ob.text).width+40;
     if(G.mode!=='prayer'){
     rrect(ctx,(W-w)/2,H-30,w,24,8,'rgba(0,0,0,.5)'); drawStar(ctx,(W-w)/2+16,H-18,7,'#ffe14d');
@@ -3519,7 +3648,7 @@ function renderHUD(){
     for(const [qx,qy] of sideMarkers()){ ctx.fillStyle=blink?'#ff4fa8':'#ff9fd0'; ctx.beginPath(); const px=mx+qx*s, py=my+qy*s; ctx.moveTo(px,py-4);ctx.lineTo(px+4,py);ctx.lineTo(px,py+4);ctx.lineTo(px-4,py);ctx.fill(); }
     circ(ctx,mx+P.x/TS*s,my+P.y/TS*s,3,'#fff');circ(ctx,mx+P.x/TS*s,my+P.y/TS*s,2,'#d62828');
   }
-  if(map===TOWERIN && G.mode!=='victory'){ drawLookout(ctx); if(!G.look){ const txt='Old Watchtower: walk out the door to go back'; ctx.font='bold 13px Verdana'; const w=ctx.measureText(txt).width+40;   // towerin v17
+  if(map===TOWERIN && G.mode!=='victory'){ drawLookout(ctx); if(!G.look){ const txt=(G.towerBuilt?"George's Tower":'Old Watchtower')+': walk out the door to go back'; ctx.font='bold 13px Verdana'; const w=ctx.measureText(txt).width+40;   // towerin v17
     rrect(ctx,(W-w)/2,H-30,w,24,8,'rgba(0,0,0,.5)'); drawStar(ctx,(W-w)/2+16,H-18,7,'#ffe14d'); ctx.textAlign='left'; outlined(ctx,txt,(W-w)/2+28,H-13,'#fff','#000',3); } }
   if(map===TUNNEL && G.mode!=='victory'){ const txt='Bat Cave: find the glowing door to the dragon!'; ctx.font='bold 13px Verdana'; const w=ctx.measureText(txt).width+40;
     rrect(ctx,(W-w)/2,H-30,w,24,8,'rgba(0,0,0,.5)'); drawStar(ctx,(W-w)/2+16,H-18,7,'#ffe14d'); ctx.textAlign='left'; outlined(ctx,txt,(W-w)/2+28,H-13,'#fff','#000',3); }
@@ -3541,10 +3670,16 @@ function sideTracker(){ const S=G.side, out=[]; if(!S) return out;
   if(S.cobra.st==='ready'||(S.cobra.st==='active'&&!cb)) out.push(S.cobra.st==='ready'?'Bring the crown to Shepherd Ben':'Pick up the Snake King\'s crown!');
   if(S.cross.st==='active') out.push('Find the golden cross (north-east woods)');
   if(S.cross.st==='ready') out.push('Bring the cross to Father Ambrose');
+  { const c=clearCounts();   // rebuild v18
+    if(!G.towerReady && (G.clearedN>0 || (G.tools&&(G.tools.axe||G.tools.pick)))) out.push('Paths: '+clearText());
+    else if(G.towerReady && !G.towerGiven) out.push('Ask the King about the old tower!');
+    else if(G.towerGiven && !G.towerBuilt) out.push('Fix up the Old Watchtower (east)'); }
   return out; }
 function sideMarkers(){ const S=G.side, out=[]; if(!S) return out;
   if(S.hens.st==='active'){ if(P.carry) out.push([(PEN.x0+PEN.x1)/2/TS,(PEN.y0+PEN.y1)/2/TS]); else for(const c of chickens) if(c.hen&&!c.penned) out.push([c.x/TS,c.y/TS]); }
   if(S.child.st==='active'){ const m=npcById('mia'); out.push([m.x/TS,m.y/TS]); }
+  if(G.towerReady && !G.towerGiven){ const k=npcById('king'); if(k) out.push([k.x/TS,k.y/TS]); }   // rebuild v18
+  if(G.towerGiven && !G.towerBuilt) out.push([TOWER.x+1.5,TOWER.y+1.5]);
   if(S.child.st==='follow'){ const r=npcById('rose'); out.push([r.x/TS,r.y/TS]); }
   if(S.cobra.st==='active'){ const cb=foes.find(f=>f.kind==='cobra'&&!f.gone); if(cb) out.push([cb.x/TS,cb.y/TS]); else { const it=items.find(i=>i.type==='snakeCrown'); if(it) out.push([it.x/TS,it.y/TS]); } }
   if(S.cobra.st==='ready'){ const b=npcById('ben'); out.push([b.x/TS,b.y/TS]); }
@@ -3604,6 +3739,9 @@ function renderQuestPanel(bx,by,bw,bh){
   { const n=gearCount(), gy=by+238; ctx.textAlign='left'; ctx.fillStyle='#2e6b3a'; ctx.font='bold 13px Verdana'; ctx.fillText('Dragon Set '+n+'/4:',bx+24,gy);
     let gx=bx+140; for(const k of GEAR){ box(gx,gy+2,G.gear[k],'#46b35a'); ctx.fillStyle=G.gear[k]?'#2e6b3a':'#8a7a6a'; ctx.font='bold 11px Verdana'; ctx.fillText(GEAR_NAME[k],gx+24,gy); gx+=68; }
     ctx.fillStyle='#8a6a4a'; ctx.font='10px Verdana'; ctx.fillText(n===4?"Dragon fire can't hurt you now!":'Dragon fire burns '+fireText(n)+'.   Coins: '+(G.coins||0),bx+24,gy+15); }
+  { ctx.textAlign='center'; ctx.font='bold 12px Verdana'; ctx.fillStyle='#5a3a1a';   // rebuild v18: the tower paths, kid-readable
+    const tl=G.towerBuilt?"George's Tower is finished!":G.towerGiven?'Old Tower: go fix it up! (east)':G.towerReady?'Old Tower: ask the King!':'Old Tower paths:  '+clearText();
+    ctx.fillText(tl,bx+bw/2,by+bh-16); }
   const S=G.side, sy=by+276;
   ctx.strokeStyle='#c9a46a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(bx+30,by+218);ctx.lineTo(bx+bw-30,by+218);ctx.moveTo(bx+30,sy-20);ctx.lineTo(bx+bw-30,sy-20);ctx.stroke();
   ctx.textAlign='center';ctx.fillStyle='#8a2a6a';ctx.font='bold 18px Georgia, serif';ctx.fillText('Side Quests  ('+S.done+'/4)',bx+bw/2,sy);
