@@ -31,6 +31,17 @@ A small, kid-friendly adventure game in a single HTML file (`index.html`). Open 
 - While it is on, a small green **▶▶** badge shows on the dialogue and prayer boxes.
 - On iPhone/iPad, where the "voice finished" signal sometimes never arrives, the page still turns after the time the line should have taken to read aloud.
 
+## What's new in v20: no chest at the shrine box (nochest v20)
+
+- **The chest is gone.** The 8-coin treasure chest that sat right in front of the Saint Peter's Shrine/Chapel donation box (tile 58,61) has been removed for good.
+  - It is not drawn, it does not block George and pressing A there does nothing chest-related.
+  - It no longer counts toward the chests total.
+  - It was only a bonus of 8 coins and not needed for any quest, so its coins were not moved anywhere.
+- **Donations still work.** Giving at the box works in both its forms: Saint Peter's Shrine, and Saint Peter's Chapel after the 50-coin upgrade. The church alms box never had a chest nearby and is unchanged.
+- **Chests left.** There are 16: five coin chests out in the world, six hidden on the secret paths, one in the tower and four Green Dragon chests.
+- **New test.** `t22` checks that the chest is gone and that both donation forms and the church alms box still work.
+- **Screenshot.** `screens/chapel_nochest.png`.
+
 ## What's new in v19: the tower resets with the game (towerreset v19)
 
 - **Restart means a fresh tower.** A pause-menu Restart, a new game from the title screen and a page reload now reset the tower.
