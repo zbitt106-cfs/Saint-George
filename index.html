@@ -2162,7 +2162,7 @@ function newGame(){
     seenLairIntro:false,seenTunnelIntro:false,side:newSide(),storm:null,prayer:null,hailed:false,pause:null,noSpearT:0,rewardT:0,crossT:0,dialog:null,fade:null,faintT:0,vt:0,noSwordT:0,shake:0};
   P={x:START.x,y:START.y,dir:'up',walk:0,horse:false,attackT:0,atk:'sword',atkDur:ATTACK_TIME,spearCD:0,dashT:0,dashCD:0,dashX:0,dashY:0,inv:0,kbx:0,kby:0,kbT:0,hitSet:null};
   G.tools={}; G.tool=null; G.cleared={}; G.found={}; G.dayT=0; G.nightDue=false; G.night=null; G.jesusFeast=false; P.fish=null; P.toolT=0; P.bowCD=0; P.catchT=0; P.sleep=false;   // toolshop / night / feast v16
-  G.towerReady=G.towerGiven=G.towerBuilt=G.towerTold=false; G.rb=null; towerLoad();   // rebuild v18: cleared paths + George's Tower are saved
+  G.towerReady=G.towerGiven=G.towerBuilt=G.towerTold=false; G.rb=null; towerWipe();   // towerreset v19: a fresh game = fresh tower (trees/rocks back, ruin again)
   map=WORLD; npcs=makeNPCs(); foes=makeFoes(); items=makeItems(); plants=makePlants(); chickens=makeChickens(); P.carry=null; OBST=makeObstacles(); arrows=[];
   particles=[];texts=[];fireballs=[];D=null;
   startDialog([{who:'Narrator',text:"Long ago, in the town of Silene, lived a brave young knight named George..."},
@@ -2529,13 +2529,12 @@ function clearObst(o){ if(!o) return false; if(P.horse) P.horse=false; faceTo(o.
 // ================== rebuild v18: George's Tower ==================
 // Chop every axe tree and break every pickaxe rock (the 6 SECRETS paths). Then the King gives George the Old Watchtower.
 // The next visit plays a short building scene (scaffold, stones, hammering, the flag of Saint George) and the tower is
-// finished for good. Saved in localStorage ('sg_tower18'), so it stays after a reload. The ruin (and its chest) can be
+// finished for this game. towerreset v19: like every other bit of progress (and the chest) it lasts only for the current game:
+// Restart / a new game / a page reload all bring the trees + rocks back and the tower is a ruin again (nothing is saved). The ruin (and its chest) can be
 // entered at ANY time, before and after the rebuild: nothing here ever locks the door.
 const TOWER_SAVE='sg_tower18';
-function towerSave(){ try{ localStorage.setItem(TOWER_SAVE,JSON.stringify({cleared:G.cleared||{},ready:!!G.towerReady,given:!!G.towerGiven,built:!!G.towerBuilt,told:!!G.towerTold})); }catch(e){} }
-function towerLoad(){ let d=null; try{ d=JSON.parse(localStorage.getItem(TOWER_SAVE)||'null'); }catch(e){ d=null; } if(!d||typeof d!=='object') return;
-  G.cleared=Object.assign({},d.cleared||{}); G.clearedN=Object.keys(G.cleared).length;
-  G.towerReady=!!d.ready; G.towerGiven=!!d.given; G.towerBuilt=!!d.built; G.towerTold=!!d.told; }
+function towerWipe(){ try{ localStorage.removeItem(TOWER_SAVE); }catch(e){} }   // towerreset v19: also clears an old v18 save
+function towerSave(){ towerWipe(); }   // towerreset v19: progress lives in G only (resets with the game, like the chest)
 function clearCounts(){ let t=0,tn=0,r=0,rn=0; for(const S of SECRETS){ const c=!!(G.cleared&&G.cleared[S.id]); if(S.tool==='axe'){ tn++; if(c) t++; } else { rn++; if(c) r++; } } return {t,tn,r,rn,all:t===tn&&r===rn}; }
 function clearText(){ const c=clearCounts(); return 'Trees '+c.t+'/'+c.tn+' \u2022 Rocks '+c.r+'/'+c.rn; }
 function towerOnClear(o){ addText(o.x,o.y-74,clearText(),'#fff'); towerCheck(); towerSave(); }

@@ -31,6 +31,17 @@ A small, kid-friendly adventure game in a single HTML file (`index.html`). Open 
 - While it is on, a small green **▶▶** badge shows on the dialogue and prayer boxes.
 - On iPhone/iPad, where the "voice finished" signal sometimes never arrives, the page still turns after the time the line should have taken to read aloud.
 
+## What's new in v19: the tower resets with the game (towerreset v19)
+
+- **Restart means a fresh tower.** A pause-menu Restart, a new game from the title screen and a page reload now reset the tower.
+  - All 3 trees and 3 rocks come back, and the counts go back to "Trees 0/3 • Rocks 0/3".
+  - The King's grant is cleared and the building scene can be watched again.
+  - The Old Watchtower is a ruin again.
+- **Same as the rest of the game.** Tower progress now lasts only for the current game, just like quests, coins and the chest. The game saves no progress across a reload; only the Auto-continue setting is kept.
+- **Old saves are cleared.** Any old v18 save (`sg_tower18`) is removed when a new game starts.
+- **Always open.** The ruin and its chest can still be entered and opened at any time.
+- **Tests.** `t21` now checks the pause Restart and the page reload, and `t19` checks that a new game brings every tree and rock back.
+
 ## What's new in v18: George's Tower (rebuild v18)
 
 - **Clear every path.** Chop all **3 trees** with the axe and break all **3 rocks** with the pickaxe (the six secret paths).
@@ -51,7 +62,7 @@ A small, kid-friendly adventure game in a single HTML file (`index.html`). Open 
   - There is a small flag on top and a "GEORGE'S TOWER" sign.
   - Inside there are two St George banners, a red and white rug and flowers, and the sign reads "George's Tower".
 - **Always open.** The ruin and the finished tower can both be entered at any time, and the chest works the same as before. The rebuild never locks the door or the chest.
-- **Saved.** The cleared paths and the tower are saved in the browser (localStorage `sg_tower18`), so they stay after a reload or a new game.
+- **Saved.** *(Changed in v19: the tower is no longer saved, see above.)*
 - **Debug helpers (browser console).**
   - `sgClearAll()` clears all six paths and triggers the unlock.
   - `sgResetTower()` wipes the saved tower progress.
